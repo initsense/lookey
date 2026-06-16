@@ -3,7 +3,7 @@ class_name Mirror3D
 extends Node3D
 
 enum Pigment {WHITE, RED, BLUE, GREEN, YELLOW, VIOLET, ORANGE}
-enum Mirror {SHOW, HIDE}
+enum Mirror {REVEAL, DISSOLVE}
 
 @onready var ray_cast: RayCast3D = $RayCast
 @onready var visible_detector: VisibleOnScreenNotifier3D = $VisibleDetector
@@ -26,7 +26,7 @@ var layers_to_affect: Array[int]
 @export var mirror_name: String
 ## Always reflects, even when player is not viewing the mirror.
 @export var always_active: bool = true
-@export var mirror_type: Mirror = Mirror.HIDE
+@export var mirror_type: Mirror = Mirror.DISSOLVE
 @export var pigment: Pigment
 
 @export_category("Cull")
@@ -139,7 +139,7 @@ func _physics_process(_delta):
 		var distance = global_position.distance_to(player.global_position)
 		if distance < cull_far and player.walk_or_run == "WalkState":
 			match mirror_type:
-				Mirror.HIDE:
+				Mirror.DISSOLVE:
 					if check_occlusion() == null:
 						is_player_visible = true
 						if facing_mirror and are_layers_enabled:
@@ -160,7 +160,7 @@ func _physics_process(_delta):
 							are_layers_enabled = true
 							print("layers enabled 👌 occlusion: ", check_occlusion())
 			
-				Mirror.SHOW:
+				Mirror.REVEAL:
 					if check_occlusion() == null:
 						is_player_visible = true
 						if facing_mirror and not are_layers_enabled:
@@ -318,10 +318,10 @@ func set_layers() -> void:
 	cull_mask = 0xFFFFF
 	
 	match mirror_type:
-		Mirror.SHOW:
+		Mirror.REVEAL:
 			for i in range(layers_to_affect.size()):
 				layers_to_affect[i] += 10
-		Mirror.HIDE:
+		Mirror.DISSOLVE:
 			for layer in layers_to_affect:
 				cull_mask &= ~(1 << (layer - 1))
 
@@ -360,13 +360,13 @@ func check_occlusion() -> Object:
 
 #region SIGNALS
 func _on_camera_entered() -> void:
-	if mirror_type in [Mirror.SHOW, Mirror.HIDE]:
+	if mirror_type in [Mirror.REVEAL, Mirror.DISSOLVE]:
 		facing_mirror = true
 		print("facing mirror: ✅")
 
 
 func _on_camera_exited() -> void:
-	if mirror_type in [Mirror.SHOW, Mirror.HIDE]:
+	if mirror_type in [Mirror.REVEAL, Mirror.DISSOLVE]:
 		facing_mirror = false
 		print("facing mirror: ❌")
 #endregion
