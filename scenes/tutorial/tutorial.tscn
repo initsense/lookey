@@ -9,7 +9,7 @@
 [node name="Tutorial" type="Node3D" unique_id=1193302633]
 
 [node name="Player" parent="." unique_id=713571688 instance=ExtResource("2_bmltb")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 7.4738283, 0, -8.9712715)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
 [node name="Environment" type="Node" parent="." unique_id=821477724]
 
@@ -33,6 +33,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 3.702)
 player = NodePath("../../Player")
 mirror_name = "tutorial_01"
 pigment = 4
+mirror_type = 2
+always_active = false
 cull_mask = 1048543
 size = Vector2(4, 3)
 
@@ -41,6 +43,8 @@ transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.2
 player = NodePath("../../Player")
 mirror_name = "tutorial_02"
 pigment = 4
+mirror_type = 2
+always_active = false
 cull_mask = 1048543
 size = Vector2(1.89, 3)
 
@@ -48,8 +52,9 @@ size = Vector2(1.89, 3)
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 9.887583, 1.5, -6.920853)
 player = NodePath("../../Player")
 mirror_name = "tutorial_03"
-mirror_type = 0
 pigment = 4
+mirror_type = 1
+always_active = false
 cull_mask = 1048575
 size = Vector2(5, 3)
 
@@ -154,11 +159,11 @@ pigment = 4
 transform = Transform3D(-0.10000002, 0, 1.6085791e-07, 0, 3, 0, -8.742278e-09, 0, -1.84, 5.424019, 1.513587, -8.892051)
 pigment = 4
 
-[node name="Door3" parent="Level_01" unique_id=441250804 instance=ExtResource("5_r23bs")]
-transform = Transform3D(-0.044768896, 6.7511296, 2.7783227e-07, 0.08941894, 3.3800516, -1.4383738e-07, -1.3750017e-08, 7.551652e-07, -1.84, 23.135395, 1.4487948, -8.990152)
-pigment = 4
-
-[node name="Door4" parent="Level_01" unique_id=368536315 instance=ExtResource("5_r23bs")]
+[node name="Slope" parent="Level_01" unique_id=368536315 instance=ExtResource("5_r23bs")]
 transform = Transform3D(-1.1793111e-08, 4.6006403e-07, -1.8400003, 0.08941895, 3.3800523, -1.438374e-07, 0.044768903, -6.7511306, -1.9740334e-07, 9.901582, 1.4487948, -14.336652)
 is_invisible = true
+pigment = 4
+
+[node name="Slope2" parent="Level_01" unique_id=441250804 instance=ExtResource("5_r23bs")]
+transform = Transform3D(-0.044768896, 6.7511296, 2.7783227e-07, 0.08941894, 3.3800516, -1.4383738e-07, -1.3750017e-08, 7.551652e-07, -1.84, 23.135395, 1.4487948, -8.990152)
 pigment = 4

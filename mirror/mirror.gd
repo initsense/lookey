@@ -3,7 +3,7 @@ class_name Mirror3D
 extends Node3D
 
 enum Pigment {WHITE, RED, BLUE, GREEN, YELLOW, VIOLET, ORANGE}
-enum Mirror {REVEAL, DISSOLVE}
+enum Mirror {VANILLA, REVEAL, DISSOLVE}
 
 @onready var ray_cast: RayCast3D = $RayCast
 @onready var visible_detector: VisibleOnScreenNotifier3D = $VisibleDetector
@@ -24,10 +24,11 @@ var layers_to_affect: Array[int]
 #region BORING VARIABLES
 @export_category("Mirror type")
 @export var mirror_name: String
+@export var pigment: Pigment
+@export var mirror_type: Mirror = Mirror.VANILLA
 ## Always reflects, even when player is not viewing the mirror.
 @export var always_active: bool = true
-@export var mirror_type: Mirror = Mirror.DISSOLVE
-@export var pigment: Pigment
+
 
 @export_category("Cull")
 ## The visibility layers rendered by the mirror.
@@ -135,7 +136,7 @@ func _physics_process(_delta):
 	if Engine.is_editor_hint():
 		return
 		
-	if player:
+	if player and not Mirror.VANILLA:
 		var distance = global_position.distance_to(player.global_position)
 		if distance < cull_far and player.walk_or_run == "WalkState":
 			match mirror_type:
@@ -318,6 +319,8 @@ func set_layers() -> void:
 	cull_mask = 0xFFFFF
 	
 	match mirror_type:
+		Mirror.VANILLA:
+			pass
 		Mirror.REVEAL:
 			for i in range(layers_to_affect.size()):
 				layers_to_affect[i] += 10
