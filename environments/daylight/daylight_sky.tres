@@ -1,0 +1,6 @@
+[gd_resource type="Sky" format=3 uid="uid://b3thto2xbx7vl"]
+
+[ext_resource type="Material" uid="uid://crc2authst76d" path="res://environments/daylight/daylight_material.tres" id="1_rf2b7"]
+
+[resource]
+sky_material = ExtResource("1_rf2b7")

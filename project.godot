@@ -39,7 +39,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Lookey"
-run/main_scene="uid://bkd2d3l40ado0"
+run/main_scene="uid://58kg5u3rdfjd"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]

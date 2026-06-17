@@ -7,7 +7,7 @@
 [ext_resource type="Script" uid="uid://2juaclm8gc1n" path="res://addons/simplegrasstextured/grass.gd" id="5_guto7"]
 [ext_resource type="Material" uid="uid://bhdnu153a8do8" path="res://mirror/materials/white.tres" id="6_3fo77"]
 [ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://mirror/mirror.tscn" id="7_hxcu0"]
-[ext_resource type="PackedScene" uid="uid://byvywowoqfw7e" path="res://prefabs/cube.tscn" id="8_vyweq"]
+[ext_resource type="PackedScene" uid="uid://byvywowoqfw7e" path="res://prefabs/object.tscn" id="8_vyweq"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_x0xbu"]
 sky_top_color = Color(0, 0.42041, 0.901918, 1)
@@ -29,7 +29,7 @@ fog_sky_affect = 0.0
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hlwta"]
 albedo_color = Color(3.36915e-07, 0.416624, 0.311283, 1)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_jy6p3"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_djf7m"]
 render_priority = 0
 shader = ExtResource("2_w50bg")
 shader_parameter/albedo = Color(1, 1, 1, 1)
@@ -89,7 +89,7 @@ material = SubResource("StandardMaterial3D_hlwta")
 metadata/_edit_lock_ = true
 
 [node name="SimpleGrassTextured" type="MultiMeshInstance3D" parent="Environment/Floor" unique_id=1987843797]
-material_override = SubResource("ShaderMaterial_jy6p3")
+material_override = SubResource("ShaderMaterial_djf7m")
 multimesh = SubResource("MultiMesh_o8y6o")
 script = ExtResource("5_guto7")
 optimization_by_distance = true

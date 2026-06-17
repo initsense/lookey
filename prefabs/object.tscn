@@ -4,17 +4,16 @@
 
 [sub_resource type="BoxMesh" id="BoxMesh_07h2l"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5n47e"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_niaei"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_jcxak"]
 
-[node name="Node3D" type="Node3D" unique_id=900244337]
+[node name="Object" type="Node3D" unique_id=900244337]
 script = ExtResource("1_lp5j1")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=241916071]
 mesh = SubResource("BoxMesh_07h2l")
-skeleton = NodePath("../../Node3D")
-surface_material_override/0 = SubResource("StandardMaterial3D_5n47e")
+surface_material_override/0 = SubResource("StandardMaterial3D_niaei")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="MeshInstance3D" unique_id=99576839]
 collision_mask = 2
