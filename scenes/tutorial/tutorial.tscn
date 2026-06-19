@@ -24,7 +24,7 @@ directional_shadow_split_1 = 0.15
 directional_shadow_max_distance = 200.0
 
 [node name="Terrain" parent="Environment" unique_id=293814791 instance=ExtResource("2_g40di")]
-transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.640482, 0, 0.069859624)
+transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637406, 2.3841858e-07, 0.06990254)
 
 [node name="Level_01" type="Node3D" parent="." unique_id=385093112]
 
@@ -37,6 +37,8 @@ mirror_type = 2
 always_active = false
 cull_mask = 1048543
 size = Vector2(4, 3)
+use_distortion = true
+distortion = 56.47
 
 [node name="Mirror2" parent="Level_01" unique_id=198732667 node_paths=PackedStringArray("player") instance=ExtResource("4_g40di")]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.2023983, 1.5, -8.853809)
@@ -47,6 +49,8 @@ mirror_type = 2
 always_active = false
 cull_mask = 1048543
 size = Vector2(1.89, 3)
+use_distortion = null
+distortion = null
 
 [node name="Mirror4" parent="Level_01" unique_id=523977140 node_paths=PackedStringArray("player") instance=ExtResource("4_g40di")]
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 9.887583, 1.5, -6.920853)
@@ -57,6 +61,8 @@ mirror_type = 1
 always_active = false
 cull_mask = 1048575
 size = Vector2(5, 3)
+use_distortion = null
+distortion = null
 
 [node name="Wall" type="CSGBox3D" parent="Level_01" unique_id=1977801719]
 transform = Transform3D(-8.742278e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, -2.1124945, 1.6578734, -3.4467535)

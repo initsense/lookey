@@ -72,6 +72,9 @@ var layers_to_affect: Array[int]
 		config_dirty = true
 		color = value
 
+## Enable or disable distortion
+@export var use_distortion: bool = false
+
 ## The amount to use the distortion texture.
 @export_range(0, 100, 0.01) var distortion: float = 0.0:
 	set(value):
@@ -244,8 +247,9 @@ func handle_mirror(delta: float) -> void:
 		mirror_quad.mesh.size = size
 		mirror_viewport.size = size * pixels_per_unit
 		quad_material.set_shader_parameter(&"color", color)
-		quad_material.set_shader_parameter(&"distortion_texture", distortion_texture)
-		quad_material.set_shader_parameter(&"distortion_strength", distortion)
+		if use_distortion:
+			quad_material.set_shader_parameter(&"distortion_texture", distortion_texture)
+			quad_material.set_shader_parameter(&"distortion_strength", distortion)
 		quad_material.set_shader_parameter(&"mirror_texture_linear", viewport_texture if use_linear_filter else null)
 		quad_material.set_shader_parameter(&"mirror_texture_nearest", viewport_texture if !use_linear_filter else null)
 		quad_material.set_shader_parameter(&"use_mirror_texture_linear", use_linear_filter)

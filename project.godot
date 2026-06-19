@@ -129,6 +129,14 @@ fov_decrease={
 3d_physics/layer_17="violet_invisible"
 3d_physics/layer_18="orange_invisible"
 
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+
 [shader_globals]
 
 sgt_legacy_renderer={

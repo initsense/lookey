@@ -12,7 +12,7 @@
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hlwta"]
 albedo_color = Color(3.36915e-07, 0.416624, 0.311283, 1)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_i0rfm"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ajfpm"]
 render_priority = 0
 shader = ExtResource("2_ajfpm")
 shader_parameter/albedo = Color(1, 1, 1, 1)
@@ -73,7 +73,7 @@ material = SubResource("StandardMaterial3D_hlwta")
 metadata/_edit_lock_ = true
 
 [node name="SimpleGrassTextured" type="MultiMeshInstance3D" parent="Environment/Floor" unique_id=889450696]
-material_override = SubResource("ShaderMaterial_i0rfm")
+material_override = SubResource("ShaderMaterial_ajfpm")
 multimesh = SubResource("MultiMesh_ajfpm")
 script = ExtResource("5_b6yu0")
 grass_strength = 0.7
@@ -102,7 +102,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.228405, 0.733999, 2.79012)
 player = NodePath("../../Player")
 mirror_name = "yellow"
 pigment = 4
-cull_mask = 1048543
+cull_mask = 1048575
 size = Vector2(4.43, 3.24)
 
 [node name="CSGBox3D" type="CSGBox3D" parent="Tutorial1" unique_id=338257672]
