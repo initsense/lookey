@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://8du2atgbgggs"]
+[gd_scene format=3 uid="uid://8du2atgbgggs"]
 
 [ext_resource type="Script" uid="uid://bestsbykfpyk0" path="res://player/player.gd" id="1_hg6s5"]
 [ext_resource type="Script" uid="uid://sca7ypsol83f" path="res://player/state_machine/state_machine.gd" id="9_pxnim"]
@@ -23,7 +23,7 @@ radius = 0.3
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_gqe48"]
 radius = 0.3
 
-[node name="Player" type="CharacterBody3D"]
+[node name="Player" type="CharacterBody3D" unique_id=2146663169]
 collision_layer = 2
 collision_mask = 255
 axis_lock_angular_x = true
@@ -37,49 +37,49 @@ moveBackwardAction = "move_backward"
 moveLeftAction = "move_left"
 moveRightAction = "move_right"
 
-[node name="CollisionCapsule" type="CollisionShape3D" parent="."]
+[node name="CollisionCapsule" type="CollisionShape3D" parent="." unique_id=270515054]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("CapsuleShape3D_xhngq")
 
-[node name="Head" type="SpringArm3D" parent="."]
+[node name="Head" type="SpringArm3D" parent="." unique_id=798201645]
 unique_name_in_owner = true
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1.7, 0)
 collision_mask = 2
 script = ExtResource("9_qmq2g")
 
-[node name="Camera3D" type="Camera3D" parent="Head" groups=["camera_player"]]
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=846289224 groups=["camera_player"]]
 unique_name_in_owner = true
 cull_mask = 524543
 fov = 65.0
 
-[node name="VisualRoot" type="Node3D" parent="."]
+[node name="VisualRoot" type="Node3D" parent="." unique_id=71265810]
 unique_name_in_owner = true
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="VisualRoot"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="VisualRoot" unique_id=1073221735]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 layers = 2
 cast_shadow = 0
 mesh = SubResource("CapsuleMesh_gqe48")
 
-[node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
+[node name="StateMachine" type="Node" parent="." unique_id=1433867409 node_paths=PackedStringArray("initial_state")]
 script = ExtResource("9_pxnim")
 initial_state = NodePath("IdleState")
 
-[node name="IdleState" type="Node" parent="StateMachine"]
+[node name="IdleState" type="Node" parent="StateMachine" unique_id=2110036868]
 script = ExtResource("10_wmnke")
 metadata/_custom_type_script = "uid://stil4xkf3tk0"
 
-[node name="WalkState" type="Node" parent="StateMachine"]
+[node name="WalkState" type="Node" parent="StateMachine" unique_id=1282286906]
 script = ExtResource("11_v44tt")
 metadata/_custom_type_script = "uid://blt7dest23fk0"
 
-[node name="InairState" type="Node" parent="StateMachine"]
+[node name="InairState" type="Node" parent="StateMachine" unique_id=1292587360]
 script = ExtResource("14_8rpwc")
 metadata/_custom_type_script = "uid://bh3rdvokmrar1"
 
-[node name="Raycasts" type="Node3D" parent="."]
+[node name="Raycasts" type="Node3D" parent="." unique_id=2137582817]
 
-[node name="FloorRaycast" type="RayCast3D" parent="Raycasts"]
+[node name="FloorRaycast" type="RayCast3D" parent="Raycasts" unique_id=1511484640]
 unique_name_in_owner = true
 target_position = Vector3(0, -2, 0)
