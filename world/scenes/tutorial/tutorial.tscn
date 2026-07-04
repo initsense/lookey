@@ -9,7 +9,7 @@
 [node name="Tutorial" type="Node3D" unique_id=1193302633]
 
 [node name="Player" parent="." unique_id=713571688 instance=ExtResource("1_j872f")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 8.280119, 0.26913548, -8.334666)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.41185856, 0.26913548, -0.5041652)
 
 [node name="Environment" type="Node" parent="." unique_id=821477724]
 
@@ -51,6 +51,8 @@ max_fps = 60.0
 [node name="Mirror4" parent="Level_01" unique_id=523977140 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 9.891178, 1.5657158, -6.8617997)
 player = NodePath("../../Player")
+pigment = 4
+mirror_type = 1
 always_active = false
 cull_mask = 1048575
 size = Vector2(5, 3)
