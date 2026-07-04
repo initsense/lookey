@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://byvywowoqfw7e"]
 
-[ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://mirror/pigment.gd" id="1_lp5j1"]
+[ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://entities/mirror/scripts/pigment_applier.gd" id="1_lp5j1"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_07h2l"]
 
