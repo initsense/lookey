@@ -67,10 +67,11 @@ func _set_layers_enabled(enabled: bool, affect_raycast: bool) -> void:
 	if _ray_cast and affect_raycast:
 		Pigments.set_layer_bit(_ray_cast, &"collision_mask", _mirror.layer_to_affect, enabled)
 
-	if _mirror.mirror_type == Mirror3D.MirrorType.REVEAL:
-		var camera: Camera3D = get_viewport().get_camera_3d()
-		if is_instance_valid(camera):
-			Pigments.set_layer_bit(camera, &"cull_mask", _mirror.layer_to_affect, enabled)
+	# makes the invisible object appear in reality
+	#if _mirror.mirror_type == Mirror3D.MirrorType.REVEAL:
+		#var camera: Camera3D = get_viewport().get_camera_3d()
+		#if is_instance_valid(camera):
+			#Pigments.set_layer_bit(camera, &"cull_mask", _mirror.layer_to_affect, enabled)
 
 	_are_layers_enabled = enabled
 
