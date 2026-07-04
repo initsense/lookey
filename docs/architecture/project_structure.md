@@ -10,7 +10,7 @@ Only these folders exist at the root level (besides the Godot project files):
 
 | Folder     | Contents                                                           |
 |------------|--------------------------------------------------------------------|
-| `docs/`    | Project documentation (including this document)                     |
+| `docs/`    | Project documentation, grouped by area: `architecture/`, `development/` (experiments + ADRs, see `docs/development/README.md`), `security/` |
 | `entities/`| Game elements with depth and specific gameplay importance           |
 | `prefabs/` | Generic scene objects without depth                                 |
 | `scripts/` | Global scripts, shared by more than one entity/prefab/folder        |

@@ -8,7 +8,7 @@ First-person puzzle game about mirrors, built with **Godot 4.7** (Forward Plus).
 
 Global folders (top level): `docs`, `entities`, `prefabs`, `scripts`, `sounds`, `tests`, `ui`, `world`.
 
-- `docs/` — project documentation; `docs/project_structure.md` explains the structure rules in full
+- `docs/` — project documentation, grouped by area: `docs/architecture/` (e.g. `project_structure.md`), `docs/development/` (experiments + ADRs, see below), `docs/security/` (e.g. `be-careful.md`)
 - `entities/` — game elements with depth and gameplay importance (mirror, player). One folder per entity
 - `prefabs/` — generic scene objects without depth (terrain, object)
 - `scripts/` — global scripts shared by more than one entity/prefab/folder
@@ -29,6 +29,16 @@ Core mechanic: each mirror (`entities/mirror/`) has a `Pigment` (color) and a `M
 ## Branching
 
 `main` ← `develop` ← feature branches named `<type>/<issue-number>-short-name` (e.g. `add/10-dynamic-mirror-resolution`, `feature/5-vanilla-mirror`). PRs target `develop`; `develop` merges to `main`.
+
+## Experiments and ADRs
+
+Any branch that experiments with a new feature follows this flow (full details in `docs/development/README.md`):
+
+1. **Before writing code** — author an experiment document in `docs/development/experiments/`, named `exp000X_experiment_name.md`. It states what you want to do and the approaches you have in mind.
+2. **Experiment** — build and try things on the branch.
+3. **After the related PR passes** — write an ADR (Architectural Decision Record) in `docs/development/adr/`, named `adr000X_adr_name.md`. Starting from the experiment document, it records the actual implementation and how you got there from the initial idea — the branch's milestone.
+
+No experimental feature branch without its experiment document first; no merged experiment without its ADR after.
 
 ## Naming conventions (Godot official style)
 
@@ -103,4 +113,4 @@ Testing is mandatory when logic can be tested. Real tests only — no fake mocks
 
 ## Commits and review
 
-Before **every commit**, run the `/pre-commit-review` skill (see `.claude/skills/pre-commit-review/`). It always asks for confirmation before launching the review chain — never run the chain without asking first. After each chain, its findings are appended to `docs/be-careful.md`, marked HIGH / MEDIUM / LOW.
+Before **every commit**, run the `/pre-commit-review` skill (see `.claude/skills/pre-commit-review/`). It always asks for confirmation before launching the review chain — never run the chain without asking first. After each chain, its findings are appended to `docs/security/be-careful.md`, marked HIGH / MEDIUM / LOW.

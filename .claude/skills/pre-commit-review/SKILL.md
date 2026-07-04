@@ -16,7 +16,7 @@ Run this before **every commit** in this repo. The chain is: **Software Reviewer
    - **APPROVED** → report both verdicts to the user; the commit may proceed.
    - **REJECTED** → show the user what must be fixed in the code. Do not commit. Re-run the chain (from step 1) after fixes.
    - **REDO REVIEW** → re-run stage 1 addressing the audit's complaints, then stage 2 again. Max one redo; if it still fails, surface everything to the user and ask.
-5. **Log the findings.** After the verdict, append a new dated section to `docs/be-careful.md` with every confirmed finding, each marked **HIGH** / **MEDIUM** / **LOW** (see that file's legend). For any LOW that hides an unenforced precondition, add the one-sentence "what change makes this reachable?" note. Append only — never rewrite past entries.
+5. **Log the findings.** After the verdict, append a new dated section to `docs/security/be-careful.md` with every confirmed finding, each marked **HIGH** / **MEDIUM** / **LOW** (see that file's legend). For any LOW that hides an unenforced precondition, add the one-sentence "what change makes this reachable?" note. Append only — never rewrite past entries.
 6. **Always show the user** the final verdict and any confirmed findings — never silently swallow a report.
 
 ## Rules
