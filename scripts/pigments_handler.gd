@@ -28,7 +28,7 @@ const COLORS: Dictionary[Pigment, Color] = {
 	Pigment.BLUE: Color(0, 0, 1),
 	Pigment.GREEN: Color(0, 1, 0),
 	Pigment.YELLOW: Color(1, 1, 0),
-	Pigment.VIOLET: Color(0.5, 0, 0.5),
+	Pigment.VIOLET: Color(1, 0, 1),
 	Pigment.ORANGE: Color(1, 0.5, 0),
 }
 

@@ -32,9 +32,19 @@ transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.585005, 3.702)
 player = NodePath("../../Player")
 pigment = 4
-mirror_type = 2
+mirror_type = 1
 always_active = false
-cull_mask = 1048543
+cull_mask = 1048575
+size = Vector2(4, 3)
+max_fps = 120.0
+
+[node name="Mirror3" parent="Level_01" unique_id=521782427 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.9587765, 1.585005, 1.6288898)
+player = NodePath("../../Player")
+pigment = 2
+mirror_type = 1
+always_active = false
+cull_mask = 1048575
 size = Vector2(4, 3)
 max_fps = 120.0
 
@@ -151,9 +161,23 @@ use_collision = true
 transform = Transform3D(0.91718876, 0, 0, 0, 0.91718876, 0, 0, 0, 0.91718876, 1.3763291, 0.39626962, 2.5661683)
 use_collision = true
 
+[node name="Cube3" type="CSGBox3D" parent="Level_01" unique_id=1258733001]
+transform = Transform3D(0.91718876, 0, 0, 0, 4.398633, 0, 0, 0, 0.91718876, -0.2145747, 1.9093378, 6.4269505)
+use_collision = true
+
 [node name="Door1" parent="Level_01" unique_id=900244337 instance=ExtResource("5_lm8li")]
 transform = Transform3D(-4.371139e-09, 0, -1.84, 0, 3, 0, 0.10000002, 0, -8.042896e-08, -0.066, 1.5, -3.44)
 pigment = 4
+
+[node name="Door3" parent="Level_01" unique_id=1816540012 instance=ExtResource("5_lm8li")]
+transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -0.33931518, 0.49357176, 2.3336284)
+is_invisible = true
+pigment = 4
+
+[node name="Door4" parent="Level_01" unique_id=1819968735 instance=ExtResource("5_lm8li")]
+transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -1.7179649, 0.49357176, 1.6624556)
+is_invisible = true
+pigment = 2
 
 [node name="Door2" parent="Level_01" unique_id=979869992 instance=ExtResource("5_lm8li")]
 transform = Transform3D(-0.10000002, 0, 1.6085791e-07, 0, 3, 0, -8.742278e-09, 0, -1.84, 5.424019, 1.513587, -8.892051)

@@ -7,18 +7,6 @@ extends Node3D
 
 enum MirrorType { VANILLA, REVEAL, DISSOLVE }
 
-## Border tint per pigment; intentionally brighter than the pigment
-## material colors in Pigments.COLORS.
-const BORDER_COLORS: Dictionary[Pigments.Pigment, Color] = {
-	Pigments.Pigment.WHITE: Color(1, 1, 1),
-	Pigments.Pigment.RED: Color(1, 0, 0),
-	Pigments.Pigment.BLUE: Color(0, 0, 1),
-	Pigments.Pigment.GREEN: Color(0, 1, 0),
-	Pigments.Pigment.YELLOW: Color(1, 1, 0),
-	Pigments.Pigment.VIOLET: Color(1, 0, 1),
-	Pigments.Pigment.ORANGE: Color(1, 0.6, 0),
-}
-
 @export var player: CharacterBody3D
 
 @export_category("Mirror type")
@@ -240,7 +228,7 @@ func _apply_pigment() -> void:
 			cull_mask &= ~(1 << (layer_to_affect - 1))
 
 	if _shader_material:
-		_shader_material.set_shader_parameter(&"border_color", BORDER_COLORS[pigment])
+		_shader_material.set_shader_parameter(&"border_color", Pigments.COLORS[pigment])
 
 
 func _update_resolution_scale(distance_from_camera: float) -> void:
