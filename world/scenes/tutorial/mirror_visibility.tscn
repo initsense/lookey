@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://dkx5oaxbbidf3"]
+
+[ext_resource type="PackedScene" uid="uid://8du2atgbgggs" path="res://entities/player/player.tscn" id="1_d8at3"]
+[ext_resource type="Environment" uid="uid://sv7cho776efp" path="res://world/scenes/tutorial/environments/daylight/daylight_environment.tres" id="2_op6jt"]
+[ext_resource type="PackedScene" uid="uid://doa5a3ihrc7to" path="res://prefabs/terrain.tscn" id="3_2gg3i"]
+[ext_resource type="PackedScene" uid="uid://deq7xwcgvpsas" path="res://prefabs/occlusion_object.tscn" id="4_emh5t"]
+[ext_resource type="PackedScene" uid="uid://byvywowoqfw7e" path="res://prefabs/object.tscn" id="5_d8at3"]
+[ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="6_op6jt"]
+
+[node name="Tutorial" type="Node3D" unique_id=1193302633]
+
+[node name="Player" parent="." unique_id=713571688 instance=ExtResource("1_d8at3")]
+transform = Transform3D(0.96610487, 0, 0.2581501, 0, 1, 0, -0.2581501, 0, 0.96610487, -6.4044657, 0.26913452, 2.311274)
+
+[node name="Environment" type="Node" parent="." unique_id=821477724]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Environment" unique_id=1219011229]
+environment = ExtResource("2_op6jt")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Environment" unique_id=306359258]
+transform = Transform3D(-0.993093, 0.102165, 0.0576972, -0.0384632, -0.748043, 0.662535, 0.110848, 0.655739, 0.746806, 0, 0, 0)
+shadow_enabled = true
+directional_shadow_mode = 1
+directional_shadow_split_1 = 0.15
+directional_shadow_max_distance = 200.0
+
+[node name="Terrain" parent="Environment" unique_id=293814791 instance=ExtResource("3_2gg3i")]
+transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
+
+[node name="Mirror" parent="Environment" unique_id=1528812690 node_paths=PackedStringArray("player", "object_to_reflect") instance=ExtResource("6_op6jt")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.84507656, 1.2170843, 6.4596033)
+player = NodePath("../../Player")
+object_to_reflect = NodePath("../../TestObject")
+cull_mask = 1048575
+size = Vector2(9.84, 2.77)
+pixels_per_unit = 600
+
+[node name="Level_01" type="Node3D" parent="." unique_id=385093112]
+
+[node name="Wall3" parent="." unique_id=1742298070 instance=ExtResource("4_emh5t")]
+transform = Transform3D(-0.08434473, 0, -4.1997085, 0, 3.3133411, 0, 0.3669216, 0, -0.96539235, -2.3903952, 1.5240948, 2.9194243)
+
+[node name="Wall4" parent="." unique_id=1655203638 instance=ExtResource("4_emh5t")]
+transform = Transform3D(-0.37154594, 0, 0.69614077, 0, 3.3133416, 0, -0.060820673, 0, -4.2526374, 1.4783435, 1.5240948, 1.897825)
+
+[node name="TestObject" parent="." unique_id=900244337 instance=ExtResource("5_d8at3")]
+transform = Transform3D(0.86602527, 0, 0.5, 0, 1, 0, -0.5, 0, 0.86602527, -1.6820877, 0.7912833, 0.7596475)

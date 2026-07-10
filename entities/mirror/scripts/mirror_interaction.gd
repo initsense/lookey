@@ -1,98 +1,84 @@
-class_name MirrorInteraction
-extends Node
-## Gameplay logic for REVEAL and DISSOLVE mirrors: tracks whether the player
-## is facing the mirror, checks line-of-sight occlusion with a raycast and
-## toggles the pigment layers on the player, the raycast and the camera.
-## Sits as a child of Mirror3D and reacts to the VisibleDetector signals.
+extends Node3D
 
-var _facing_mirror: bool = false
-var _are_layers_enabled: bool = true
+var is_object_visible_to_player: bool = false
+var is_magic_happening: bool = false
+var reflection_notifier: VisibleOnScreenNotifier3D
 
 @onready var _mirror: Mirror3D = get_parent()
-@onready var _ray_cast: RayCast3D = _mirror.get_node("RayCast")
+@onready var original_notifier: VisibleOnScreenNotifier3D = \
+	_mirror.object_to_reflect.get_node("VisibleOnScreenNotifier3D")
+
+
+func _ready() -> void:
+	_create_reflection_notifier()
 
 
 func _physics_process(_delta: float) -> void:
-	if not _mirror.player or _mirror.mirror_type == Mirror3D.MirrorType.VANILLA:
+	if not _mirror.player:
 		return
 
-	if _mirror.global_position.distance_to(_mirror.player.global_position) >= _mirror.cull_far:
-		return
+	#if _mirror.mirror_type == Mirror3D.MirrorType.VANILLA:
+		#return
+	
+	_update_reflection_notifier_transform()
 
-	# ponytail: stringly-typed state check, replace with a player API if states grow
-	if _mirror.player.walk_or_run != "WalkState":
-		return
+	if _mirror.object_to_reflect.is_visible_to_mirror \
+	and is_object_visible_to_player:
 
-	match _mirror.mirror_type:
-		Mirror3D.MirrorType.DISSOLVE:
-			_update_dissolve_logic()
-		Mirror3D.MirrorType.REVEAL:
-			_update_reveal_logic()
+		if not is_magic_happening:
+			is_magic_happening = true
+			print("✅ Visible reflection!!!")
 
-
-func _update_dissolve_logic() -> void:
-	if _check_occlusion() == null:
-		_mirror.is_player_visible = true
-
-		if _facing_mirror and _are_layers_enabled:
-			_set_layers_enabled(false, true)
-		elif not _facing_mirror and not _are_layers_enabled:
-			_set_layers_enabled(true, true)
-	else:
-		_mirror.is_player_visible = false
-
-		if not _are_layers_enabled:
-			_set_layers_enabled(true, true)
+	elif is_magic_happening:
+		is_magic_happening = false
+		print("❌ Reflection not visible")
 
 
-func _update_reveal_logic() -> void:
-	if _check_occlusion() == null:
-		_mirror.is_player_visible = true
+func _create_reflection_notifier() -> void:
+	reflection_notifier = VisibleOnScreenNotifier3D.new()
+	add_child(reflection_notifier)
 
-		if _facing_mirror and not _are_layers_enabled:
-			_set_layers_enabled(true, false)
-		elif not _facing_mirror and _are_layers_enabled:
-			_set_layers_enabled(false, false)
-	else:
-		_mirror.is_player_visible = false
+	# Copy only the data you need
+	reflection_notifier.aabb = original_notifier.aabb
 
-		if _are_layers_enabled:
-			_set_layers_enabled(false, false)
+	# make it visible only to player (set to layer 10)
+	reflection_notifier.layers = 1 << 9
 
+	_update_reflection_notifier_transform()
 
-func _set_layers_enabled(enabled: bool, affect_raycast: bool) -> void:
-	if _mirror.player:
-		Pigments.set_layer_bit(_mirror.player, &"collision_mask", _mirror.layer_to_affect, enabled)
+	reflection_notifier.screen_entered.connect(
+		_on_mirror_notifier_entered)
 
-	if _ray_cast and affect_raycast:
-		Pigments.set_layer_bit(_ray_cast, &"collision_mask", _mirror.layer_to_affect, enabled)
-
-	# makes the invisible object appear in reality
-	#if _mirror.mirror_type == Mirror3D.MirrorType.REVEAL:
-		#var camera: Camera3D = get_viewport().get_camera_3d()
-		#if is_instance_valid(camera):
-			#Pigments.set_layer_bit(camera, &"cull_mask", _mirror.layer_to_affect, enabled)
-
-	_are_layers_enabled = enabled
+	reflection_notifier.screen_exited.connect(
+		_on_mirror_notifier_exited)
 
 
-## Returns the collider between the mirror and the player camera, or null if
-## the line of sight is clear.
-func _check_occlusion() -> Object:
-	var camera: Camera3D = get_viewport().get_camera_3d()
-	if not is_instance_valid(camera):
-		return null
-
-	_ray_cast.target_position = _ray_cast.to_local(camera.global_position)
-	_ray_cast.force_raycast_update()
-	return _ray_cast.get_collider()
+func _update_reflection_notifier_transform() -> void:
+	reflection_notifier.global_transform = _reflect_across_mirror(
+		original_notifier.global_transform
+	)
 
 
-func _on_camera_entered() -> void:
-	if _mirror.mirror_type != Mirror3D.MirrorType.VANILLA:
-		_facing_mirror = true
+func _reflect_across_mirror(reflect: Transform3D) -> Transform3D:
+	
+	var mirror_normal: Vector3 = _mirror.global_basis.z.normalized()
+	var mirror_origin: Vector3= _mirror.global_position
+	var distance: float = (reflect.origin - mirror_origin).dot(mirror_normal)
+	var reflected_position: Vector3 = (reflect.origin - 2.0 * distance * mirror_normal)
+	var reflected_basis: Basis = reflect.basis
+
+	reflected_basis.x -= (2.0 * reflected_basis.x.dot(mirror_normal) * mirror_normal)
+	reflected_basis.y -= (2.0 * reflected_basis.y.dot(mirror_normal) * mirror_normal)
+	reflected_basis.z -= (2.0 * reflected_basis.z.dot(mirror_normal) * mirror_normal)
+
+	return Transform3D(reflected_basis, reflected_position)
 
 
-func _on_camera_exited() -> void:
-	if _mirror.mirror_type != Mirror3D.MirrorType.VANILLA:
-		_facing_mirror = false
+func _on_mirror_notifier_entered() -> void:
+	#print("✅ REFLECTION PROXY ENTERED")
+	is_object_visible_to_player = true
+
+
+func _on_mirror_notifier_exited() -> void:
+	#print("❌ REFLECTION PROXY EXITED")
+	is_object_visible_to_player = false

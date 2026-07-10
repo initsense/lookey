@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://delu2qjrw6teu"]
 
 [ext_resource type="Script" uid="uid://ctd4r0bvuy052" path="res://entities/mirror/scripts/mirror.gd" id="1_mtvun"]
-[ext_resource type="Shader" uid="uid://bjf6fmae00yno" path="res://entities/mirror/mirror.gdshader" id="2_qi7e4"]
+[ext_resource type="Shader" uid="uid://bjf6fmae00yno" path="res://entities/mirror/shaders/mirror.gdshader" id="2_qi7e4"]
 [ext_resource type="Script" uid="uid://gsfxoarxvdrm" path="res://entities/mirror/scripts/mirror_interaction.gd" id="3_inter"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_4kaam"]
@@ -9,7 +9,7 @@
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_707dm"]
 noise = SubResource("FastNoiseLite_4kaam")
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_3ngio"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_1yx7y"]
 viewport_path = NodePath("Viewport")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_iv7pg"]
@@ -17,9 +17,8 @@ resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("2_qi7e4")
 shader_parameter/color = Color(0.9, 0.97, 0.94, 1)
-shader_parameter/mirror_texture_linear = SubResource("ViewportTexture_3ngio")
+shader_parameter/mirror_texture_linear = SubResource("ViewportTexture_1yx7y")
 shader_parameter/use_mirror_texture_linear = true
-shader_parameter/distortion_texture = SubResource("NoiseTexture2D_707dm")
 shader_parameter/distortion_strength = 0.0
 shader_parameter/border_color = Color(1, 1, 1, 1)
 shader_parameter/border_thickness = 0.2
@@ -29,35 +28,38 @@ shader_parameter/smoothness = 1.5
 resource_local_to_scene = true
 material = SubResource("ShaderMaterial_iv7pg")
 
-[node name="Mirror" type="Node3D" unique_id=715169890]
+[node name="Mirror" type="Node3D" unique_id=1528812690]
 script = ExtResource("1_mtvun")
-cull_mask = 1048574
+cull_mask = 0
 distortion_texture = SubResource("NoiseTexture2D_707dm")
 
 [node name="Viewport" type="SubViewport" parent="." unique_id=1642709109]
-size = Vector2i(100, 100)
+use_occlusion_culling = true
+canvas_cull_mask = 4294966783
+size = Vector2i(400, 400)
 
 [node name="Camera" type="Camera3D" parent="Viewport" unique_id=2134310569]
 process_priority = 1
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.73857594, 0.35928953, -1.3762734)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.392988, 0.69233525, -1.1808743)
 keep_aspect = 0
-cull_mask = 1048574
+cull_mask = 1024
 projection = 2
-frustum_offset = Vector2(0.73857594, -0.35928953)
-near = 1.4262733
-far = 51.60272
+current = true
+frustum_offset = Vector2(-1.392988, -0.69233525)
+near = 1.2308743
+far = 51.953
 
 [node name="Quad" type="MeshInstance3D" parent="." unique_id=801796927]
 mesh = SubResource("QuadMesh_5i7m6")
+
+[node name="RayCast" type="RayCast3D" parent="." unique_id=1534865881]
+collision_mask = 253
 
 [node name="VisibleDetector" type="VisibleOnScreenNotifier3D" parent="." unique_id=1137825952]
 layers = 524288
 aabb = AABB(-0.522976, -0.525133, -0.022962, 1.04595, 1.05027, 0.045924)
 
-[node name="RayCast" type="RayCast3D" parent="." unique_id=1534865881]
-collision_mask = 253
-
-[node name="Interaction" type="Node" parent="."]
+[node name="Interaction" type="Node3D" parent="." unique_id=632032196]
 script = ExtResource("3_inter")
 
 [connection signal="screen_entered" from="VisibleDetector" to="Interaction" method="_on_camera_entered"]
