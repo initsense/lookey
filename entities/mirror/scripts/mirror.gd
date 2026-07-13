@@ -7,8 +7,10 @@ extends Node3D
 
 enum MirrorType { VANILLA, REVEAL, DISSOLVE }
 
-@export var player: CharacterBody3D
+
 @export var object_to_reflect: Node3D
+@export var player: CharacterBody3D
+@onready var player_cam: Camera3D = player.get_node("Head/Camera3D")
 
 @export_category("Mirror type")
 @export var pigment: Pigments.Pigment = Pigments.Pigment.WHITE:

@@ -30,12 +30,11 @@ material = SubResource("ShaderMaterial_iv7pg")
 
 [node name="Mirror" type="Node3D" unique_id=1528812690]
 script = ExtResource("1_mtvun")
-cull_mask = 0
 distortion_texture = SubResource("NoiseTexture2D_707dm")
 
 [node name="Viewport" type="SubViewport" parent="." unique_id=1642709109]
 use_occlusion_culling = true
-canvas_cull_mask = 4294966783
+canvas_cull_mask = 4294442495
 size = Vector2i(400, 400)
 
 [node name="Camera" type="Camera3D" parent="Viewport" unique_id=2134310569]
@@ -55,12 +54,12 @@ mesh = SubResource("QuadMesh_5i7m6")
 [node name="RayCast" type="RayCast3D" parent="." unique_id=1534865881]
 collision_mask = 253
 
-[node name="VisibleDetector" type="VisibleOnScreenNotifier3D" parent="." unique_id=1137825952]
+[node name="MirrorNotifier" type="VisibleOnScreenNotifier3D" parent="." unique_id=1137825952]
 layers = 524288
 aabb = AABB(-0.522976, -0.525133, -0.022962, 1.04595, 1.05027, 0.045924)
 
 [node name="Interaction" type="Node3D" parent="." unique_id=632032196]
 script = ExtResource("3_inter")
 
-[connection signal="screen_entered" from="VisibleDetector" to="Interaction" method="_on_camera_entered"]
-[connection signal="screen_exited" from="VisibleDetector" to="Interaction" method="_on_camera_exited"]
+[connection signal="screen_entered" from="MirrorNotifier" to="Interaction" method="_on_mirror_notifier_screen_entered"]
+[connection signal="screen_exited" from="MirrorNotifier" to="Interaction" method="_on_mirror_notifier_screen_exited"]

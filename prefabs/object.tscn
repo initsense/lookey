@@ -22,9 +22,8 @@ collision_mask = 2
 shape = SubResource("BoxShape3D_jcxak")
 
 [node name="VisibleOnScreenNotifier3D" type="VisibleOnScreenNotifier3D" parent="." unique_id=356340680]
-transform = Transform3D(0.43998003, 0, 0, 0, 0.43998003, 0, 0, 0, 0.43998003, 0, 0, 0)
 layers = 1024
-aabb = AABB(-0.36830556, -0.36641937, -0.38455263, 0.7366111, 0.73283875, 0.76910526)
+aabb = AABB(-0.5, -0.5, -0.5, 1, 1, 1)
 
 [connection signal="screen_entered" from="VisibleOnScreenNotifier3D" to="." method="_on_visible_on_screen_notifier_3d_screen_entered"]
 [connection signal="screen_exited" from="VisibleOnScreenNotifier3D" to="." method="_on_visible_on_screen_notifier_3d_screen_exited"]

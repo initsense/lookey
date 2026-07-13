@@ -6,8 +6,6 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6h1fb"]
 
-[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_6sdc1"]
-
 [node name="OcclusionObject" type="Node3D" unique_id=1655203638]
 
 [node name="OcclusionObject" type="StaticBody3D" parent="." unique_id=99576839]
@@ -20,6 +18,3 @@ shape = SubResource("BoxShape3D_jcxak")
 mesh = SubResource("BoxMesh_07h2l")
 skeleton = NodePath("")
 surface_material_override/0 = SubResource("StandardMaterial3D_6h1fb")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="." unique_id=1769733808]
-occluder = SubResource("BoxOccluder3D_6sdc1")
