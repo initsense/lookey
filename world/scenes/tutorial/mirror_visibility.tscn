@@ -30,7 +30,7 @@ transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
 [node name="Level_01" type="Node3D" parent="." unique_id=385093112]
 
 [node name="Wall3" parent="." unique_id=1742298070 instance=ExtResource("4_emh5t")]
-transform = Transform3D(-0.08434473, 0, -4.1997085, 0, 3.3133411, 0, 0.3669216, 0, -0.96539235, -2.3903952, 1.5240948, 2.9194243)
+transform = Transform3D(-0.08434473, 0, -4.1997085, 0, 3.3133411, 0, 0.3669216, 0, -0.96539235, -13.2957, 1.5240948, 2.9194243)
 
 [node name="Wall4" parent="." unique_id=1655203638 instance=ExtResource("4_emh5t")]
 transform = Transform3D(-0.37154594, 0, 0.69614077, 0, 3.3133416, 0, -0.060820673, 0, -4.2526374, 1.4783435, 1.5240948, 1.897825)
