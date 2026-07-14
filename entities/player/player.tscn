@@ -50,7 +50,7 @@ script = ExtResource("9_qmq2g")
 
 [node name="Camera3D" type="Camera3D" parent="Head" unique_id=846289224 groups=["camera_player"]]
 unique_name_in_owner = true
-cull_mask = 524543
+cull_mask = 525055
 fov = 65.0
 
 [node name="VisualRoot" type="Node3D" parent="." unique_id=71265810]

@@ -34,7 +34,6 @@ player = NodePath("../../Player")
 pigment = 4
 mirror_type = 1
 always_active = false
-cull_mask = 1048575
 size = Vector2(4, 3)
 max_fps = 120.0
 
@@ -44,7 +43,6 @@ player = NodePath("../../Player")
 pigment = 2
 mirror_type = 1
 always_active = false
-cull_mask = 1048575
 size = Vector2(4, 3)
 max_fps = 120.0
 
@@ -64,7 +62,6 @@ player = NodePath("../../Player")
 pigment = 4
 mirror_type = 1
 always_active = false
-cull_mask = 1048575
 size = Vector2(5, 3)
 max_fps = 60.0
 

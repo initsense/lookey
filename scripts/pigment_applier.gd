@@ -12,10 +12,10 @@ extends Node3D
 static var pigment_materials: Dictionary[Pigments.Pigment, StandardMaterial3D] = {}
 
 var config_dirty: bool = true
+var is_visible_to_mirror: bool = false
 
 var mesh: MeshInstance3D
 var static_body: StaticBody3D
-
 var _current_material: StandardMaterial3D
 
 
@@ -32,12 +32,12 @@ func _ready() -> void:
 		_current_material = get_pigment_material(pigment)
 		mesh.set_surface_override_material(0, _current_material)
 		mesh.layers = 0
-		Pigments.set_layer_bit(mesh, &"layers", layer, true)
+		LayerUtils.set_layer_bit(mesh, &"layers", layer, true)
 
 	static_body = find_node_of_type_anywhere(self, "StaticBody3D") as StaticBody3D
 	if static_body:
 		static_body.collision_layer = 0
-		Pigments.set_layer_bit(static_body, &"collision_layer", layer, true)
+		LayerUtils.set_layer_bit(static_body, &"collision_layer", layer, true)
 
 
 func _process(_delta: float) -> void:
@@ -66,3 +66,15 @@ func find_node_of_type_anywhere(root: Node, type_name: String) -> Node:
 		if found != null:
 			return found
 	return null
+	
+
+func _on_visible_on_screen_notifier_3d_screen_entered() -> void:
+	#print("✅ Visible")
+	is_visible_to_mirror = true
+	pass # Replace with function body.
+
+
+func _on_visible_on_screen_notifier_3d_screen_exited() -> void:
+	#print("❌ No more visible")
+	is_visible_to_mirror = false
+	pass # Replace with function body.

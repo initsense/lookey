@@ -7,7 +7,10 @@ extends Node3D
 
 enum MirrorType { VANILLA, REVEAL, DISSOLVE }
 
+
+@export var object_to_reflect: Node3D
 @export var player: CharacterBody3D
+@onready var player_cam: Camera3D = player.get_node("Head/Camera3D")
 
 @export_category("Mirror type")
 @export var pigment: Pigments.Pigment = Pigments.Pigment.WHITE:
@@ -20,8 +23,10 @@ enum MirrorType { VANILLA, REVEAL, DISSOLVE }
 		mirror_type = value
 		_pigment_dirty = true
 
+
 ## Always reflects, even when player is not viewing the mirror.
 @export var always_active: bool = true
+
 
 @export_category("Cull")
 ## The visibility layers rendered by the mirror.
@@ -93,9 +98,7 @@ enum MirrorType { VANILLA, REVEAL, DISSOLVE }
 ## The single render/collision layer this mirror's pigment affects.
 ## Read by MirrorInteraction to toggle collision/cull bits.
 var layer_to_affect: int = 1
-## Written by MirrorInteraction: false while the player's view of the mirror
-## is occluded.
-var is_player_visible: bool = true
+
 
 ## If true, the layer setup and border color are reapplied on the next frame.
 var _pigment_dirty: bool = true
@@ -114,8 +117,13 @@ var _time_update_dirty: bool = true
 
 
 func _ready() -> void:
-	if not Engine.is_editor_hint():
+	if !Engine.is_editor_hint():
 		_make_runtime_resources_unique()
+	
+	print("_mirror_viewport =", _mirror_viewport)
+	print("valid =", is_instance_valid(_mirror_viewport))
+
+	_mirror_viewport.use_occlusion_culling = true
 	_apply_pigment()
 
 
@@ -123,8 +131,7 @@ func _process(delta: float) -> void:
 	if _pigment_dirty:
 		_apply_pigment()
 
-	if Engine.is_editor_hint() or always_active or is_player_visible:
-		_handle_mirror(delta)
+	_handle_mirror(delta)
 
 
 ## Returns the transform that reflects across the plane with the given normal
@@ -138,6 +145,16 @@ static func get_mirror_transform(normal: Vector3, offset: Vector3) -> Transform3
 
 
 func _handle_mirror(delta: float) -> void:
+	
+	if not is_inside_tree():
+		return
+
+	if _mirror_viewport == null:
+		return
+
+	if not is_instance_valid(_mirror_viewport):
+		return
+	
 	if not is_visible_in_tree():
 		return
 
@@ -200,18 +217,13 @@ func _get_active_camera() -> Camera3D:
 ## Duplicates the quad material and the viewport so mirror instances don't
 ## share render targets.
 func _make_runtime_resources_unique() -> void:
-	var material: Material = _mirror_quad.get_active_material(0)
+	var material := _mirror_quad.get_active_material(0)
+
 	if material is ShaderMaterial:
-		_shader_material = material.duplicate()
+		_shader_material = material.duplicate(true)
 		_mirror_quad.set_surface_override_material(0, _shader_material)
 	else:
 		push_warning("Mirror material is missing or not a ShaderMaterial.")
-
-	var new_viewport: SubViewport = _mirror_viewport.duplicate()
-	_mirror_viewport.queue_free()
-	add_child(new_viewport)
-	_mirror_viewport = new_viewport
-	_mirror_camera = _mirror_viewport.get_node("Camera") as Camera3D
 
 
 ## Recomputes the affected layer, the mirror cull mask and the border color
@@ -226,6 +238,8 @@ func _apply_pigment() -> void:
 			layer_to_affect += Pigments.INVISIBLE_SHIFT
 		MirrorType.DISSOLVE:
 			cull_mask &= ~(1 << (layer_to_affect - 1))
+	
+	
 
 	if _shader_material:
 		_shader_material.set_shader_parameter(&"border_color", Pigments.COLORS[pigment])
@@ -256,6 +270,8 @@ func _apply_mirror_config() -> void:
 		return
 
 	_mirror_camera.cull_mask = cull_mask
+	_mirror_camera.set_cull_mask_value(11, true)
+	_mirror_camera.set_cull_mask_value(10, false)
 	_mirror_quad.mesh.size = size
 	_apply_viewport_size()
 
