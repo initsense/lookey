@@ -14,16 +14,18 @@ Objects and mirrors carry a pigment. The pigments are white, red, blue, green, y
 
 An object may be invisible. An invisible object leaves its pigment's ordinary layer and moves to that pigment's hidden layer, ten layers higher. It is still there. A normal view does not show it.
 
-White has no hidden form. A white object always stays on the white layer, even when marked invisible. A reveal mirror cannot treat white as a hidden color.
+White has no hidden form. A white object always stays on the white layer, even when marked invisible.
 
 ## Mirrors
 
 A mirror is a flat surface. It shows the world reflected across its plane, through a camera that copies the player's view. The frame is colored with the mirror's pigment. Farther mirrors draw at a lower resolution. Past a freeze distance, the reflection stops updating.
 
+The player's own view never shows hidden layers. Every mirror does: invisible objects of any color appear in any mirror's glass.
+
 Each mirror is one of three types.
 
-- **Vanilla.** A reflection of the world as it is. The pigment only colors the frame.
-- **Reveal.** The mirror is aimed at the hidden layer of its pigment. That is how an invisible object of the matching color can appear in the glass.
+- **Vanilla.** A reflection that includes hidden objects. The pigment only colors the frame.
+- **Reveal.** Currently behaves like Vanilla.
 - **Dissolve.** The reflection omits the mirror's pigment. Objects of that color are cut out of the reflected view.
 
 Whether a reflected object actually reaches the player's eye is a question of the glass itself: the mirror must be on screen, the object must sit within the mirror's range, and some part of the object must have a clear path to the camera that bounces off the physical mirror, not the infinite plane.
@@ -31,3 +33,5 @@ Whether a reflected object actually reaches the player's eye is a question of th
 ## Open
 
 The tutorial is the only space. Puzzle goals, beyond looking and moving, are not designed yet.
+
+Intended but not implemented: only a reveal mirror should show hidden objects, and only those of its own pigment. Vanilla mirrors would then show the world as the player sees it. A white reveal mirror would reveal nothing, since white has no hidden form.
