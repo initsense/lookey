@@ -12,9 +12,7 @@ The game itself is described in `docs/design.md`. When gameplay changes, update 
 - `entities/` — gameplay scenes with their own scripts and assets (`mirror`, `player`).
 - `prefabs/` — generic scenes without their own scripts.
 - `scripts/` — scripts used by more than one scene.
-- `sounds/` — audio.
 - `tests/` — gdUnit4 suites.
-- `ui/` — interface scenes and scripts.
 - `world/` — levels and environments.
 - `addons/` — third-party code, including gdUnit4.
 
@@ -30,13 +28,19 @@ Follow the [Godot GDScript style guide](https://docs.godotengine.org/en/4.7/tuto
 
 ## Tests
 
-Suites live in `tests/` and extend `GdUnitTestSuite`. Run them before a commit:
+Suites live in `tests/` and extend `GdUnitTestSuite`. They need a Godot 4.7 executable; gdUnit4 6.2 does not load on Godot older than 4.5.
+
+On a fresh clone, import the project once so gdUnit4's classes are registered:
+
+```
+godot --headless --path . --import
+```
+
+Run the suites before a commit:
 
 ```
 godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a res://tests -c
 ```
-
-On this machine the executable is `/Applications/Godot.app/Contents/MacOS/Godot`.
 
 ## Commits
 
