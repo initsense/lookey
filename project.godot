@@ -105,6 +105,17 @@ fov_decrease={
 
 3d/physics_engine="Jolt Physics"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[gdunit4]
+
+settings/common/update_notification_enabled=false
+settings/test/test_discovery=true
+settings/test/test_lookup_folder="tests"
+settings/test/test_suite_naming_convention=1
+
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true
