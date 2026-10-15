@@ -24,6 +24,17 @@ window/size/viewport_width=1500
 window/size/viewport_height=1200
 window/size/resizable=false
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[gdunit4]
+
+settings/common/update_notification_enabled=false
+settings/test/test_discovery=true
+settings/test/test_lookup_folder="tests"
+settings/test/test_suite_naming_convention=1
+
 [global_group]
 
 camera_player=""
