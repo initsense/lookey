@@ -1,0 +1,26 @@
+---
+description: Pigment types (Hue, White) and mirror-entity compatibility rules
+alwaysApply: true
+---
+
+# Pigments
+
+Canonical source: `docs/design.md`. Pigments are color properties on entities and mirrors.
+
+## Types
+
+- **Hue pigment**: `Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Violet`.
+- **White pigment**: agnostic; valid on entities (manifest or latent) and on mirrors.
+
+## Compatibility
+
+- A **hue mirror** affects only entities with the **same** hue pigment or with **white** pigment.
+- A **white mirror** affects every hue entity and every white entity.
+- A **white entity** is compatible with every mirror pigment.
+
+## Hard rules
+
+- Do not invent extra hues or treat white as a hue.
+- Do not hardcode white entities as incapable of being latent or affected (legacy assumptions like "white has no invisible variant" are wrong relative to design).
+- Pigment mismatch means linked but not affected (e.g. blue-latent through yellow-reveal-mirror).
+- Use design terms (`hue pigment`, `white pigment`) in code and tests.

@@ -1,0 +1,35 @@
+---
+description: Affected entity eligibility and Reveal-mirror vs Dissolve-mirror mechanics
+alwaysApply: true
+---
+
+# Mirror Types and Effects
+
+Canonical source: `docs/design.md`. Gameplay mirrors are only **reveal-mirror** and **dissolve-mirror**.
+
+## Affected entity
+
+- All **affected-entity** instances are **linked**; not all linked entities are affected.
+- A linked entity is affected only when:
+  1. Its state matches the mirror type (latent ↔ reveal, manifest ↔ dissolve).
+  2. Its pigment is compatible with the mirror pigment.
+
+## Reveal-mirror
+
+- Affects only linked, pigment-compatible **latent-entity** instances (never manifest).
+- Latent entities are visible only as reflections in reveal-mirrors' reflected-world.
+- While linked through a reveal-mirror: invisible in the real-world, but interactable and collidable there.
+- Player sees it only in the mirror; interacts with it in the real-world.
+
+## Dissolve-mirror
+
+- Affects only linked, pigment-compatible **manifest-entity** instances (never latent).
+- Can make the entity disappear in its reflected-world while remaining visible in the real-world.
+- While linked: no real-world interaction (collider disabled; cannot lift, push, carry, or activate).
+- Any hue-manifest-entity can be affected by a white-dissolve-mirror.
+
+## Hard rules
+
+- Never apply reveal effects to manifest entities or dissolve effects to latent entities.
+- Never make a revealed latent visible in the real-world, or a dissolved manifest invisible in the real-world.
+- Keep "linked" and "affected" as separate states in code and tests.

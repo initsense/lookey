@@ -1,0 +1,36 @@
+---
+description: Entity collision rules and dissolve-to-normal interaction transitions
+alwaysApply: true
+---
+
+# Interactions and Transitions
+
+Canonical source: `docs/design.md`.
+
+## Collision
+
+- A **collision** is a physical interaction between entities.
+- An entity with an enabled **collider** blocks other entities and is blocked by them.
+
+## Dissolve interaction lock
+
+While an entity is affected by a **dissolve-mirror**:
+
+- Its collider is disabled.
+- It cannot be lifted, pushed, carried, or activated.
+- Interactions between it and other entities are disabled.
+
+## Transition on leaving dissolve
+
+When an entity stops being affected by a dissolve-mirror:
+
+1. Re-enable its collider and restore interaction.
+2. **Player overlap**: if the re-enabled collider overlaps the **player**, push the player away.
+3. **Non-player overlap**: if it overlaps another non-player entity, do not restore collidable/interactable state until that overlap clears.
+
+## Hard rules
+
+- Do not leave dissolve-affected entities collidable or interactable.
+- Do not re-enable interaction while overlapping another non-player entity.
+- Do not resolve player overlap by teleporting the dissolved entity away; push the player.
+- Reveal-linked latents must be collidable/interactable in the real-world while linked, even though invisible there.

@@ -6,6 +6,18 @@ Everything in the repository is written in English: docs, rules, scripts, commen
 
 The game itself is described in `docs/design.md`. When gameplay changes, update that file in the same change.
 
+## Gameplay Rules
+
+Mechanic invariants live in `.cursor/rules/` and always apply. They encode the glossary and hard rules from `docs/design.md` so agents stay aligned during implementation:
+
+- `entities-and-worlds.mdc` — Player/Object, manifest/latent, real-world/reflected-world
+- `pigments.mdc` — hue and white pigments, compatibility
+- `mirror-linking.mdc` — linked entities, nested reflections, occlusion
+- `mirror-types-and-effects.mdc` — affected entities, reveal-mirror, dissolve-mirror
+- `interactions-and-transitions.mdc` — collision and dissolve transition edge cases
+
+Use design glossary terms in code, comments, tests, and docs. If gameplay behavior changes, update `docs/design.md` and the matching rule in the same change.
+
 ## Layout
 
 - `docs/` — the design document. Godot ignores this folder.

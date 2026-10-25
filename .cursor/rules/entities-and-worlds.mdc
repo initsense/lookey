@@ -1,0 +1,32 @@
+---
+description: Core rules for entities (Player, Object), states (manifest, latent), and worlds (real, reflected)
+alwaysApply: true
+---
+
+# Entities and Worlds
+
+Canonical source: `docs/design.md`. Use its glossary terms in code, comments, tests, and docs.
+
+## Entities
+
+- An **entity** is a game element that can interact with other entities.
+- Kinds: **Player** or **Object**.
+- Every entity is strictly either a **manifest-entity** or a **latent-entity**. Never both; never neither.
+
+## States
+
+- **Manifest-entity**: visible in the **real-world** and normally interacts/collides with other manifest entities.
+- **Latent-entity**: invisible in the **real-world** and does not normally interact with other entities.
+- The **player** starts as a manifest-entity and can become a latent-entity during gameplay.
+- First person: the player is never directly visible in the real-world; only as a reflection in a mirror.
+
+## Worlds
+
+- **Real-world**: the normal game world as it is.
+- **Reflected-world**: the reflection of the real-world inside any mirror.
+
+## Hard rules
+
+- Never conflate real-world visibility with real-world interactability (latent can be interactable while invisible; dissolved can be visible while non-interactive).
+- Distinguish real-world state from reflected-world rendering in all code and tests.
+- Prefer design terms (`manifest-entity`, `latent-entity`, `real-world`, `reflected-world`) over vague synonyms like "hidden" or "ghost" unless mapping them explicitly.

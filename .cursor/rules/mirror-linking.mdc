@@ -1,0 +1,21 @@
+---
+description: Mirror linking geometry, nested reflections, and render-dependent occlusion rules
+alwaysApply: true
+---
+
+# Mirror Linking
+
+Canonical source: `docs/design.md`. An entity must be **linked** before any mirror can influence it.
+
+## Linked entity
+
+An entity is **linked** to the player when some portion of its reflected geometry reaches the player through one or more visible mirrors.
+
+## Hard rules
+
+- **Render-independent target**: evaluate linking independently of whether the mirror renders that entity (a dissolved entity can stay linked).
+- **Nested reflections**: linking works across any chain of visible mirrors (`Mirror A` reflects `Mirror B` reflects entity). Depth does not invalidate the link.
+- **Render-dependent occlusion**: along the reflection path, a link is blocked only by entities currently visible (rendered) in the reflected-world of the mirror being evaluated.
+- An entity not rendered in a mirror must not occlude others in that mirror's reflected-world (e.g. dissolved manifest in front of a latent object does not block the latent link).
+- One or many entities can be linked through the same mirror at once.
+- Do not treat "on screen notifier alone" or "rendered in mirror" as the definition of linked; the design requires reflected geometry reaching the player without rendered occlusion.
