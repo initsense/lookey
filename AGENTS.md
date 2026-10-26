@@ -10,7 +10,7 @@ The game itself is described in `docs/design.md`. When gameplay changes, update 
 
 Mechanic invariants live in `.cursor/rules/` and always apply. They encode the glossary and hard rules from `docs/design.md` so agents stay aligned during implementation:
 
-- `entities-and-worlds.mdc` — Player/Object, manifest/latent, real-world/reflected-world
+- `entities-and-worlds.mdc` — Player/Object, manifest/hidden, real-world/reflected-world
 - `pigments.mdc` — hue and white pigments, compatibility
 - `mirror-linking.mdc` — linked entities, nested reflections, occlusion
 - `mirror-types-and-effects.mdc` — affected entities, reveal-mirror, dissolve-mirror

@@ -9,19 +9,19 @@ There are different kinds of entities:
 - Player
 - Object
 
-Every entity is either a manifest-entity or a latent-entity.
+Every entity is either a manifest-entity or a hidden-entity.
 
 ## Manifest-entity
 
 A manifest-entity is visible to the player in the real-world and can normally interact with other manifest entities.
 
-The `player` is initially a manifest-entity, but during the gameplay it can become a latent-entity.
+The `player` is initially a manifest-entity, but during the gameplay it can become a hidden-entity.
 
 > **Note.** Since the game is in first person, the player cannot directly see himself in the real-world. The player can only see a reflection of himself in a mirror.
 
-## Latent-entity
+## Hidden-entity
 
-A latent-entity is invisible in the real-world and does not normally interact with other entities.
+A hidden-entity is invisible in the real-world and does not normally interact with other entities.
 
 # Pigments
 
@@ -94,7 +94,7 @@ An entity is linked only if its reflected geometry is not occluded, at any point
 
 An entity that is not rendered in a mirror cannot occlude other entities in that mirror’s reflected-world.
 
-> **Example.** There is a manifest object in front of a latent object, and a dissolve-mirror. From a certain angle, the player sees only the latent object. Then, that latent object is linked to the player, even if the manifest object would have occluded it if it were visible in the mirror.
+> **Example.** There is a manifest object in front of a hidden object, and a dissolve-mirror. From a certain angle, the player sees only the hidden object. Then, that hidden object is linked to the player, even if the manifest object would have occluded it if it were visible in the mirror.
 
 There can be one or multiple entities linked to the player through the same mirror.
 
@@ -116,9 +116,9 @@ A hue mirror affects only entities with the same hue pigment or with white pigme
 
 A white mirror affects every hue entity and every white entity.
 
-> **Example.** A blue-latent-object linked through a yellow-reveal-mirror is not affected by that mirror, because their pigments do not match.
+> **Example.** A blue-hidden-object linked through a yellow-reveal-mirror is not affected by that mirror, because their pigments do not match.
 
-> **Example.** A manifest-object linked through a reveal-mirror is not affected by that mirror, because reveal-mirrors affect latent entities.
+> **Example.** A manifest-object linked through a reveal-mirror is not affected by that mirror, because reveal-mirrors affect hidden entities.
 
 ## Mirror types
 
@@ -129,15 +129,15 @@ There are two types of mirrors:
 
 ## Reveal-mirror
 
-A reveal-mirror affects linked latent entities.
+A reveal-mirror affects linked hidden entities.
 
-Latent entities can only be visible as reflections in the reflected-world of reveal-mirrors.
+Hidden entities can only be visible as reflections in the reflected-world of reveal-mirrors.
 
-As long as a latent entity stays linked through a reveal-mirror, that entity becomes interactable in the real-world.
+As long as a hidden entity stays linked through a reveal-mirror, that entity becomes interactable in the real-world.
 
 The player can see the entity only in the mirror, but can interact with it in the real-world.
 
-> **Example.** In an empty room, there is only a yellow-reveal-mirror. The player sees a yellow latent-object reflected in the yellow-reveal-mirror. The player now understands that there is a latent yellow object in the room. As long as the player continues seeing that reflection, the latent yellow object stays invisible in the real-world, but acts like it was physically there: the player can interact and collide with it.
+> **Example.** In an empty room, there is only a yellow-reveal-mirror. The player sees a yellow hidden-object reflected in the yellow-reveal-mirror. The player now understands that there is a hidden yellow object in the room. As long as the player continues seeing that reflection, the hidden yellow object stays invisible in the real-world, but acts like it was physically there: the player can interact and collide with it.
 
 ## Dissolve-mirror
 
@@ -165,9 +165,9 @@ If the re-enabled collider overlaps the player, the player is pushed away.
 
 - **Entity**: A game element that can interact with other entities.
 - **Player**: The entity controlled by the player.
-- **Object**: An entity that can interact with other entities. An object can be either a manifest-entity or a latent-entity.
+- **Object**: An entity that can interact with other entities. An object can be either a manifest-entity or a hidden-entity.
 - **Manifest-entity**: An entity that is visible and can normally interact in the real-world.
-- **Latent-entity**: An entity that is invisible and does not normally interact in the real-world.
+- **Hidden-entity**: An entity that is invisible and does not normally interact in the real-world.
 - **Pigment**: A color property of an entity or mirror. Pigments can be hue pigments or white.
 - **Hue pigment**: A specific color pigment, such as red, orange, yellow, green, blue, or violet.
 - **White pigment**: An agnostic pigment that is compatible with every mirror pigment.
@@ -176,6 +176,6 @@ If the re-enabled collider overlaps the player, the player is pushed away.
 - **Link**: The relationship between an entity and the player through one or more mirrors.
 - **Linked entity**: An entity whose reflected geometry reaches the player through one or more mirrors.
 - **Affected entity**: A linked entity that is eligible to receive the effect of at least one mirror through which it is linked.
-- **Reveal-mirror**: A mirror that affects linked latent entities by making them interactable in the real-world while keeping them invisible there.
+- **Reveal-mirror**: A mirror that affects linked hidden entities by making them interactable in the real-world while keeping them invisible there.
 - **Dissolve-mirror**: A mirror that affects linked manifest entities by making them non-interactive in the real-world while keeping them visible there.
 - **Collider**: A physical boundary that allows an entity to block or be blocked by other entities.

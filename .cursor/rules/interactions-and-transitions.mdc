@@ -33,4 +33,4 @@ When an entity stops being affected by a dissolve-mirror:
 - Do not leave dissolve-affected entities collidable or interactable.
 - Do not re-enable interaction while overlapping another non-player entity.
 - Do not resolve player overlap by teleporting the dissolved entity away; push the player.
-- Reveal-linked latents must be collidable/interactable in the real-world while linked, even though invisible there.
+- Reveal-linked hidden entities must be collidable/interactable in the real-world while linked, even though invisible there.

@@ -10,7 +10,7 @@ Canonical source: `docs/design.md`. Pigments are color properties on entities an
 ## Types
 
 - **Hue pigment**: `Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Violet`.
-- **White pigment**: agnostic; valid on entities (manifest or latent) and on mirrors.
+- **White pigment**: agnostic; valid on entities (manifest or hidden) and on mirrors.
 
 ## Compatibility
 
@@ -21,6 +21,6 @@ Canonical source: `docs/design.md`. Pigments are color properties on entities an
 ## Hard rules
 
 - Do not invent extra hues or treat white as a hue.
-- Do not hardcode white entities as incapable of being latent or affected (legacy assumptions like "white has no invisible variant" are wrong relative to design).
-- Pigment mismatch means linked but not affected (e.g. blue-latent through yellow-reveal-mirror).
+- Do not hardcode white entities as incapable of being hidden or affected (legacy assumptions like "white has no invisible variant" are wrong relative to design).
+- Pigment mismatch means linked but not affected (e.g. blue-hidden-object through yellow-reveal-mirror).
 - Use design terms (`hue pigment`, `white pigment`) in code and tests.
