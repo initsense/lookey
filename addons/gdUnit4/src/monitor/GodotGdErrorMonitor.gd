@@ -1,21 +1,71 @@
 class_name GodotGdErrorMonitor
 extends GdUnitMonitor
 
-
 var _logger: GdUnitLogger
+
+
+func _init() -> void:
+	super("GdUnitLoggerMonitor")
+	_logger = GdUnitLogger.new(GdUnitSettings.is_report_push_errors(), GdUnitSettings.is_report_script_errors())
+
+
+func start() -> void:
+	clear_logs()
+
+
+func stop() -> void:
+	pass
+
+
+func dispose() -> void:
+	_logger.dispose()
+
+
+func log_entries() -> Array[ErrorLogEntry]:
+	return _logger.entries()
+
+
+func erase_log_entry(log_entry: ErrorLogEntry) -> void:
+	_logger.erase_log_entry(log_entry)
+
+
+func to_reports() -> Array[GdUnitReport]:
+	var error_reports: Array[GdUnitReport] = []
+
+	error_reports.assign(log_entries().map(_to_report))
+
+	return error_reports
+
+
+static func _to_report(error_log: ErrorLogEntry) -> GdUnitReport:
+
+	var failure := "%s\n  %s" % [
+		GdAssertMessages._error("Godot Runtime Error !"),
+		GdAssertMessages._colored_value(error_log._message)]
+	var error := GdUnitError.new(failure, error_log._line, error_log._stack_trace)
+	return GdUnitReport.new().from_error(GdUnitReport.ABORT, error)
+
+
+func clear_logs() -> void:
+	log_entries().clear()
 
 
 class GdUnitLogger extends Logger:
 	var _entries: Array[ErrorLogEntry] = []
 	var _is_report_push_errors: bool
 	var _is_report_script_errors: bool
-
+	var _is_registered := false
 
 	func _init(is_report_push_errors: bool, is_report_script_errors: bool) -> void:
 		_is_report_push_errors = is_report_push_errors
 		_is_report_script_errors = is_report_script_errors
 		OS.add_logger(self)
+		_is_registered = true
 
+	func dispose() -> void:
+		if _is_registered:
+			OS.remove_logger(self)
+			_is_registered = false
 
 	func entries() -> Array[ErrorLogEntry]:
 		return _entries
@@ -25,7 +75,6 @@ class GdUnitLogger extends Logger:
 			if entry._type == log_entry._type and entry._message == log_entry._message:
 				_entries.erase(entry)
 				return
-
 
 	func _log_error(
 		_function: String,
@@ -37,11 +86,10 @@ class GdUnitLogger extends Logger:
 		error_type: int,
 		script_backtraces: Array[ScriptBacktrace]
 		) -> void:
-
 		var stack_trace := GdUnitStackTrace.from_script_backtraces(script_backtraces)
 		if stack_trace.get_frames().size() == 0:
 			stack_trace = GdUnitStackTrace.new([
-				GdUnitStackTraceElement.new(_file, _line, _function)
+				GdUnitStackTraceElement.new(_file, _line, _function),
 			])
 
 		match error_type:
@@ -64,50 +112,3 @@ class GdUnitLogger extends Logger:
 
 	func _log_message(_message: String, _error: bool) -> void:
 		pass
-
-
-
-
-
-func _init() -> void:
-	super("GdUnitLoggerMonitor")
-	_logger = GdUnitLogger.new(GdUnitSettings.is_report_push_errors(), GdUnitSettings.is_report_script_errors())
-
-
-func start() -> void:
-	clear_logs()
-
-
-func stop() -> void:
-	pass
-
-
-func log_entries() -> Array[ErrorLogEntry]:
-	return _logger.entries()
-
-
-func erase_log_entry(log_entry: ErrorLogEntry) -> void:
-	_logger.erase_log_entry(log_entry)
-
-
-func to_reports() -> Array[GdUnitReport]:
-	var reports_: Array[GdUnitReport] = []
-
-	reports_.assign(log_entries().map(_to_report))
-
-	return reports_
-
-
-static func _to_report(errorLog: ErrorLogEntry) -> GdUnitReport:
-
-	var failure := """
-		%s
-		  %s""".dedent().trim_prefix("\n") % [
-		GdAssertMessages._error("Godot Runtime Error !"),
-		GdAssertMessages._colored_value(errorLog._message)]
-	var error := GdUnitError.new(failure, errorLog._line, errorLog._stack_trace)
-	return GdUnitReport.new().from_error(GdUnitReport.ABORT, error)
-
-
-func clear_logs() -> void:
-	log_entries().clear()

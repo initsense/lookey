@@ -22,12 +22,10 @@ extends "res://addons/gdUnit4/src/core/runners/GdUnitTestSessionRunner.gd"
 
 var _console := GdUnitCSIMessageWriter.new()
 var _console_reporter: GdUnitConsoleTestReporter
-var _headless_mode_ignore := false
 var _runner_config_file := ""
 var _debug_cmd_args := PackedStringArray()
 var _included_tests := PackedStringArray()
 var _excluded_tests := PackedStringArray()
-
 ## Command line options configuration
 var _cmd_options := CmdOptions.new([
 		CmdOption.new(
@@ -61,7 +59,7 @@ var _cmd_options := CmdOptions.new([
 		),
 		CmdOption.new("--help-advanced", "",
 			"Shows advanced options."
-		)
+		),
 	],
 	[
 		# advanced options
@@ -92,7 +90,7 @@ var _cmd_options := CmdOptions.new([
 		CmdOption.new(
 			"--ignoreHeadlessMode",
 			"--ignoreHeadlessMode",
-			"By default, running GdUnit4 in headless mode is not allowed. You can switch off the headless mode check by set this property."
+			"Deprecated, has no effect anymore. Headless mode is supported by default."
 		),
 	])
 
@@ -158,7 +156,7 @@ func console_warning(message: String) -> void:
 ## [br]
 ## [param path] The path where reports should be written.
 func set_report_dir(path: String) -> void:
-	report_base_path  = ProjectSettings.globalize_path(GdUnitFileAccess.make_qualified_path(path))
+	report_base_path = ProjectSettings.globalize_path(path)
 	console_info(
 		"Set write reports to %s" % report_base_path,
 		Color.DEEP_SKY_BLUE
@@ -203,7 +201,6 @@ func run_self_test() -> void:
 	disable_fail_fast()
 
 
-
 ## Shows GdUnit and Godot version information.
 func show_version() -> void:
 	console_info(
@@ -219,10 +216,9 @@ func show_version() -> void:
 	quit(RETURN_SUCCESS)
 
 
-## Ignores headless mode restrictions.[br]
-## Allows tests to run in headless mode despite limitations.
+## Deprecated option '--ignoreHeadlessMode', headless mode is supported by default.
 func check_headless_mode() -> void:
-	_headless_mode_ignore = true
+	console_warning("The option '--ignoreHeadlessMode' is deprecated and has no effect anymore, headless mode is supported by default.")
 
 
 ## Shows available command line options.[br]
@@ -326,7 +322,7 @@ func init_gd_unit() -> void:
 		show_help()
 		return
 	# build runner config by given commands
-	var commands :Array[CmdCommand] = []
+	var commands: Array[CmdCommand] = []
 	@warning_ignore("unsafe_cast")
 	commands.append_array(result.value() as Array)
 	result = (
@@ -352,31 +348,11 @@ func init_gd_unit() -> void:
 		return
 
 	if DisplayServer.get_name() == "headless":
-		if _headless_mode_ignore:
-			console_warning("""
-				Headless mode is ignored by option '--ignoreHeadlessMode'"
-
-				Please note that tests that use UI interaction do not work correctly in headless mode.
-				Godot 'InputEvents' are not transported by the Godot engine in headless mode and therefore
-				have no effect in the test!
-				""".dedent()
-			)
-		else:
-			console_error("""
-				Headless mode is not supported!
-
-				Please note that tests that use UI interaction do not work correctly in headless mode.
-				Godot 'InputEvents' are not transported by the Godot engine in headless mode and therefore
-				have no effect in the test!
-
-				You can run with '--ignoreHeadlessMode' to swtich off this check.
-				""".dedent()
-			)
-			console_error(
-				"Abnormal exit with %d" % RETURN_ERROR_HEADLESS_NOT_SUPPORTED
-			)
-			quit(RETURN_ERROR_HEADLESS_NOT_SUPPORTED)
-			return
+		console_warning("""
+			Running in headless mode, Godot does not render anything.
+			Tests that depend on rendered output, e.g. screenshots or viewport textures, will not work.
+			""".dedent()
+		)
 
 	var script_error_collector := GdUnitScriptErrorCollector.new()
 	_test_cases = discover_tests()
@@ -406,11 +382,13 @@ func discover_tests() -> Array[GdUnitTestCase]:
 	for path in _included_tests:
 		var scripts := scanner.scan(path)
 		for script in scripts:
-			GdUnitTestDiscoverer.discover_tests(script, func(test: GdUnitTestCase) -> void:
-				if not is_skipped(test):
-					#_console.println_message("discoverd %s" % test.display_name)
-					_test_cases.append(test)
-					gdunit_test_discover_added.emit(test)
+			GdUnitTestDiscoverer.discover_tests(
+				script,
+				func(test: GdUnitTestCase) -> void:
+					if not is_skipped(test):
+						#_console.println_message("discoverd %s" % test.display_name)
+						_test_cases.append(test)
+						gdunit_test_discover_added.emit(test)
 			)
 
 	return _test_cases
@@ -434,7 +412,6 @@ func skip_test_suites(paths: PackedStringArray) -> void:
 
 func is_skipped(test: GdUnitTestCase) -> bool:
 	for skipped_info in _excluded_tests:
-
 		# is suite skipped by full path or suite name
 		if skipped_info == test.suite_name or test.source_file.contains(skipped_info):
 			return true
@@ -444,7 +421,7 @@ func is_skipped(test: GdUnitTestCase) -> bool:
 		if not skip_file.contains(":"):
 			continue
 		var parts: PackedStringArray = skip_file.rsplit(":")
-		var skipped_suite :=  parts[0]
+		var skipped_suite := parts[0]
 		var skipped_test := parts[1]
 		# is suite skipped by full path or suite name
 		if (skipped_suite == test.suite_name or test.source_file.contains(skipped_suite)) and skipped_test == test.test_name:

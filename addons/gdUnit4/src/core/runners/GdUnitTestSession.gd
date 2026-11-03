@@ -1,3 +1,5 @@
+class_name GdUnitTestSession
+extends RefCounted
 ##
 ## @since GdUnit4 5.1.0
 ##
@@ -18,7 +20,7 @@
 ## [codeblock]
 ## func startup(session: GdUnitTestSession) -> GdUnitResult:
 ##     # Access test cases
-##     print("Running %d test cases" % session.test_cases.size())
+##     print("Running %d test cases" % session.test_count())
 ##
 ##     # Send status messages
 ##     session.send_message("Custom hook initialized")
@@ -38,9 +40,6 @@
 ## 3. During test execution, events are automatically forwarded to session listeners[br]
 ## 4. Hooks and other components can subscribe to session events[br]
 ## 5. Messages can be sent through the session for logging and communication[br]
-class_name GdUnitTestSession
-extends RefCounted
-
 
 ## Emitted when a test execution event occurs.[br]
 ## [br]
@@ -57,22 +56,6 @@ extends RefCounted
 ## [param event] The test event containing details about test execution, timing, and results
 @warning_ignore("unused_signal")
 signal test_event(event: GdUnitEvent)
-
-
-## [b][color=red]@readonly: Should not be modified directly during test execution![/color][/b][br]
-## Collection of test cases to be executed in this session.[br]
-## [br]
-## This array contains all the test cases that will be run during the session.
-## Test hooks can access this collection to:
-## - Get the total number of tests to be executed
-## - Access individual test case metadata
-## - Perform setup/teardown based on test case requirements
-## - Generate reports or statistics about the test suite
-##
-## The collection is typically populated before session startup and remains
-## constant during test execution.
-var _test_cases : Array[GdUnitTestCase] = []
-
 
 ## [b][color=red]@readonly: The report path should not be modified after session creation![/color][/b][br]
 ## The file system path where test reports for this session will be generated.[br]
@@ -107,6 +90,20 @@ var report_path: String:
 	get:
 		return report_path
 
+## [b][color=red]@readonly: Should not be modified directly during test execution![/color][/b][br]
+## Collection of test cases to be executed in this session, by their GUID.[br]
+## [br]
+## This dictionary contains all the test cases that will be run during the session.
+## Test hooks can access this collection to:
+## - Get the total number of tests to be executed
+## - Access individual test case metadata
+## - Perform setup/teardown based on test case requirements
+## - Generate reports or statistics about the test suite
+##
+## The collection is typically populated before session startup and remains
+## constant during test execution.
+var _test_cases_by_id: Dictionary[String, GdUnitTestCase] = {}
+
 
 ## Initializes the test session and sets up event forwarding.[br]
 ## [br]
@@ -115,26 +112,25 @@ var report_path: String:
 ## session-specific components to listen for test events without managing
 ## global signal connections.[/i]
 func _init(test_cases: Array[GdUnitTestCase], session_report_path: String) -> void:
-	# We build a copy to prevent a user is modifing the tests
-	_test_cases = test_cases.duplicate(true)
+	for test in test_cases:
+		_test_cases_by_id[test.guid._guid] = test
 	report_path = session_report_path
 	GdUnitSignals.instance().gdunit_event.connect(func(event: GdUnitEvent) -> void:
 		test_event.emit(event)
 	)
 
 
+## Returns the number of test cases to be executed in this session.
+func test_count() -> int:
+	return _test_cases_by_id.size()
+
+
 ## Finds a test case by its unique identifier.[br]
-## [br]
-## [i]Searches through all test cases to find a test with the matching GUID.[/i][br]
 ## [br]
 ## [param id] The GUID of the test to find[br]
 ## Returns the matching test case or null if not found.
 func find_test_by_id(id: GdUnitGUID) -> GdUnitTestCase:
-	for test in _test_cases:
-		if test.guid.equals(id):
-			return test
-
-	return null
+	return _test_cases_by_id.get(id._guid)
 
 
 ## Sends a message through the GdUnit messaging system.[br]

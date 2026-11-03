@@ -1,5 +1,5 @@
 @tool
-extends MarginContainer
+extends MarginContainer  # gdstyle:ignore-file=order/class-member-order
 
 #signal request_completed(response)
 
@@ -7,16 +7,16 @@ const GdMarkDownReader = preload("res://addons/gdUnit4/src/update/GdMarkDownRead
 const GdUnitUpdateClient = preload("res://addons/gdUnit4/src/update/GdUnitUpdateClient.gd")
 const GdUnitUpdateProgress = preload("res://addons/gdUnit4/src/update/GdUnitUpdate.gd")
 
+var _debug_mode := false
+var _patcher := GdUnitPatcher.new()
+var _current_version := GdUnit4Version.current()
+
 @onready var _md_reader: GdMarkDownReader = GdMarkDownReader.new()
 @onready var _update_client: GdUnitUpdateClient = $GdUnitUpdateClient
 @onready var _header: Label = $Panel/GridContainer/PanelContainer/header
 @onready var _update_button: Button = $Panel/GridContainer/Panel/HBoxContainer/update
 @onready var _content: RichTextLabel = $Panel/GridContainer/PanelContainer2/ScrollContainer/MarginContainer/content
-@onready var _update_progress :GdUnitUpdateProgress = %update_banner
-
-var _debug_mode := false
-var _patcher := GdUnitPatcher.new()
-var _current_version := GdUnit4Version.current()
+@onready var _update_progress: GdUnitUpdateProgress = %update_banner
 
 
 func _ready() -> void:
@@ -37,7 +37,7 @@ func request_releases() -> bool:
 		_update_button.set_disabled(false)
 		return true
 
-	var response :GdUnitUpdateClient.HttpResponse = await _update_client.request_latest_version()
+	var response: GdUnitUpdateClient.HttpResponse = await _update_client.request_latest_version()
 	if response.status() != 200:
 		_header.text = "Update information cannot be retrieved from GitHub!"
 		message_h4("\n\nError: %s" % response.response(), Color.INDIAN_RED)
@@ -51,25 +51,24 @@ func request_releases() -> bool:
 		_update_progress.setup(_update_client, download_zip_url)
 		_update_button.set_disabled(false)
 		return true
-	else:
-		_header.text = "No update is available."
-		_update_button.set_disabled(true)
-		return false
+	_header.text = "No update is available."
+	_update_button.set_disabled(true)
+	return false
 
 
-func _colored(message_: String, color: Color) -> String:
-	return "[color=#%s]%s[/color]" % [color.to_html(), message_]
+func _colored(p_message: String, color: Color) -> String:
+	return "[color=#%s]%s[/color]" % [color.to_html(), p_message]
 
 
-func message_h4(message_: String, color: Color, clear := true) -> void:
+func message_h4(p_message: String, color: Color, clear := true) -> void:
 	if clear:
 		_content.clear()
-	_content.append_text("[font_size=16]%s[/font_size]" % _colored(message_, color))
+	_content.append_text("[font_size=16]%s[/font_size]" % _colored(p_message, color))
 
 
-func message(message_: String, color: Color) -> void:
+func message(p_message: String, color: Color) -> void:
 	_content.clear()
-	_content.append_text(_colored(message_, color))
+	_content.append_text(_colored(p_message, color))
 
 
 func _process(_delta: float) -> void:
@@ -98,7 +97,7 @@ func show_update() -> void:
 		var template := FileAccess.open("res://addons/gdUnit4/test/update/resources/http_response_releases.txt", FileAccess.READ).get_as_text()
 		content = await _md_reader.to_bbcode(template)
 	else:
-		var response :GdUnitUpdateClient.HttpResponse = await _update_client.request_releases()
+		var response: GdUnitUpdateClient.HttpResponse = await _update_client.request_releases()
 		if response.status() == 200:
 			content = await extract_releases(response, _current_version)
 		else:
@@ -112,16 +111,15 @@ func show_update() -> void:
 	_update_button.set_disabled(false)
 
 
-
 func extract_zip_url(response: GdUnitUpdateClient.HttpResponse) -> String:
-	var body :Array = response.response()
+	var body: Array = response.response()
 	return body[0]["zipball_url"]
 
 
 func extract_releases(response: GdUnitUpdateClient.HttpResponse, current_version: GdUnit4Version) -> String:
 	await get_tree().process_frame
 	var result := ""
-	for release :Dictionary in response.response():
+	for release: Dictionary in response.response():
 		var release_version := str(release["tag_name"])
 		if GdUnit4Version.parse(release_version).equals(current_version):
 			break
@@ -141,18 +139,18 @@ func rescan() -> void:
 		fs.scan()
 		while fs.is_scanning():
 			if OS.is_stdout_verbose():
-				progressBar(fs.get_scanning_progress() * 100 as int)
+				progress_bar(fs.get_scanning_progress() * 100 as int)
 			await get_tree().process_frame
 		await get_tree().process_frame
 	await get_tree().create_timer(1).timeout
 
 
-func progressBar(p_progress: int) -> void:
+func progress_bar(p_progress: int) -> void:
 	if p_progress < 0:
 		p_progress = 0
 	if p_progress > 100:
 		p_progress = 100
-	printraw("scan [%-50s] %-3d%%\r" % ["".lpad(int(p_progress/2.0), "#").rpad(50, "-"), p_progress])
+	printraw("scan [%-50s] %-3d%%\r" % ["".lpad(int(p_progress / 2.0), "#").rpad(50, "-"), p_progress])
 
 
 @warning_ignore("return_value_discarded")
@@ -194,7 +192,7 @@ func _on_content_meta_hover_started(meta: String) -> void:
 
 
 @warning_ignore("unused_parameter")
-func _on_content_meta_hover_ended(meta: String) -> void:
+func _on_content_meta_hover_ended(_meta: String) -> void:
 	_content.set_tooltip_text("")
 
 

@@ -1,7 +1,6 @@
-## The test case execution stage.[br]
 class_name GdUnitTestCaseExecutionStage
 extends IGdUnitExecutionStage
-
+## The test case execution stage.[br]
 
 var _stage_single_test: IGdUnitExecutionStage = GdUnitTestCaseSingleExecutionStage.new()
 var _stage_fuzzer_test: IGdUnitExecutionStage = GdUnitTestCaseFuzzedExecutionStage.new()
@@ -13,11 +12,9 @@ var _stage_fuzzer_test: IGdUnitExecutionStage = GdUnitTestCaseFuzzedExecutionSta
 ##  -> test_case() [br]
 ##  -> test_after() [br]
 @warning_ignore("redundant_await")
-func _execute(context :GdUnitExecutionContext) -> void:
+func _execute(context: GdUnitExecutionContext) -> void:
 	var test_case := context.test_case
 
-	if GdUnitSettings.is_project_settings_auto_save():
-		context.save_project_settings()
 	context.error_monitor_start()
 
 	if test_case.is_fuzzed():
@@ -27,15 +24,13 @@ func _execute(context :GdUnitExecutionContext) -> void:
 
 	await context.gc()
 	context.error_monitor_stop()
-	if GdUnitSettings.is_project_settings_auto_save():
-		context.restore_project_settings()
 
 	# finally free the test instance
 	if is_instance_valid(context.test_case):
 		context.test_case.dispose()
 
 
-func set_debug_mode(debug_mode :bool = false) -> void:
+func set_debug_mode(debug_mode: bool = false) -> void:
 	super.set_debug_mode(debug_mode)
 	_stage_single_test.set_debug_mode(debug_mode)
 	_stage_fuzzer_test.set_debug_mode(debug_mode)

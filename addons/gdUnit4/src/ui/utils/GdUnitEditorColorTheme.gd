@@ -1,24 +1,22 @@
-## Provides editor theme colors sourced from [EditorSettings].
-## Add this node to the scene tree so it auto-refreshes colors when the
-## editor theme changes ([constant EditorSettings.NOTIFICATION_EDITOR_SETTINGS_CHANGED]).
 @tool
 class_name GdUnitEditorColorTheme
 extends Node
-
+## Provides editor theme colors sourced from [EditorSettings].
+## Add this node to the scene tree so it auto-refreshes colors when the
+## editor theme changes ([constant EditorSettings.NOTIFICATION_EDITOR_SETTINGS_CHANGED]).
 
 # Literal value of EditorSettings.NOTIFICATION_EDITOR_SETTINGS_CHANGED.
 # The editor classes must not be referenced by name anywhere in this script:
 # they do not exist in template builds (exported games, CLI runners), where a
 # direct reference fails to PARSE this script and every script depending on
 # it - the runtime Engine.is_editor_hint() guard never gets a chance.
-const _NOTIFICATION_EDITOR_SETTINGS_CHANGED := 10000
+const _NOTIFICATION_EDITOR_SETTINGS_CHANGED := 10_000
 
 static var text_color := Color.WEB_GRAY
 static var folder_color := Color.LIGHT_SKY_BLUE
 static var function_definition_color := Color.ANTIQUE_WHITE
 static var engine_type_color := Color.ANTIQUE_WHITE
 static var value_color := Color.DODGER_BLUE
-
 # test state colors
 static var state_initial := Color.LIGHT_GRAY
 static var state_success := Color.WEB_GREEN

@@ -1,31 +1,28 @@
 class_name GdAssertMessages
-extends Resource
+extends Resource  # gdstyle:ignore-file=quality/max-public-methods
 
-
-const SUB_COLOR :=  Color(1, 0, 0, .15)
-const ADD_COLOR :=  Color(0, 1, 0, .15)
-
+const SUB_COLOR := Color(1, 0, 0, .15)
+const ADD_COLOR := Color(0, 1, 0, .15)
 const NO_ORPHAN_DETAILS := "⚠️No details available. Run tests in debug mode to collect details."
-
 # Dictionary of control characters and their readable representations
 const CONTROL_CHARS = {
-	"\n": "<LF>",   # Line Feed
-	"\r": "<CR>",   # Carriage Return
+	"\n": "<LF>",  # Line Feed
+	"\r": "<CR>",  # Carriage Return
 	"\t": "<TAB>",  # Tab
-	"\b": "<BS>",   # Backspace
-	"\f": "<FF>",   # Form Feed
-	"\v": "<VT>",   # Vertical Tab
+	"\b": "<BS>",  # Backspace
+	"\f": "<FF>",  # Form Feed
+	"\v": "<VT>",  # Vertical Tab
 	"\a": "<BEL>",  # Bell
-	"": "<ESC>"   # Escape
+	"": "<ESC>",  # Escape
 }
 
-
-static var _warn_color :=  GdUnitEditorColorTheme.state_warning.to_html()
+static var _control_char_regex: RegEx = RegEx.create_from_string("[\\x00-\\x1F\\x7F]")
+static var _warn_color := GdUnitEditorColorTheme.state_warning.to_html()
 static var _error_color := GdUnitEditorColorTheme.state_failure.to_html()
 static var _value_color := GdUnitEditorColorTheme.value_color.to_html()
 
 
-static func format_dict(value :Variant) -> String:
+static func format_dict(value: Variant) -> String:
 	if not value is Dictionary:
 		return str(value)
 
@@ -33,14 +30,14 @@ static func format_dict(value :Variant) -> String:
 	if dict_value.is_empty():
 		return "{ }"
 	var as_rows := var_to_str(value).split("\n")
-	for index in range( 1, as_rows.size()-1):
+	for index in range(1, as_rows.size() - 1):
 		as_rows[index] = "	" + as_rows[index]
 	as_rows[-1] = "  " + as_rows[-1]
 	return "\n".join(as_rows)
 
 
 # improved version of InputEvent as text
-static func input_event_as_text(event :InputEvent) -> String:
+static func input_event_as_text(event: InputEvent) -> String:
 	var text := ""
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
@@ -80,58 +77,38 @@ static func input_event_as_text(event :InputEvent) -> String:
 	return text.dedent()
 
 
-static func _colored_string_div(characters: String) -> String:
-	return colored_array_div(characters.to_utf32_buffer().to_int32_array())
-
-
-static func colored_array_div(characters: PackedInt32Array) -> String:
-	if characters.is_empty():
+static func colored_diff(current: String, expected: String, hunks: Array[GdDiffTool.Hunk]) -> String:
+	if current.is_empty() and hunks.is_empty():
 		return "<empty>"
-	var result := PackedInt32Array()
-	var index := 0
-	var missing_chars := PackedInt32Array()
-	var additional_chars := PackedInt32Array()
-
-	while index < characters.size():
-		var character := characters[index]
-		match character:
-			GdDiffTool.DIV_ADD:
-				index += 1
-				@warning_ignore("return_value_discarded")
-				additional_chars.append(characters[index])
-			GdDiffTool.DIV_SUB:
-				index += 1
-				@warning_ignore("return_value_discarded")
-				missing_chars.append(characters[index])
-			_:
-				if not missing_chars.is_empty():
-					result.append_array(format_chars(missing_chars, SUB_COLOR))
-					missing_chars = PackedInt32Array()
-				if not additional_chars.is_empty():
-					result.append_array(format_chars(additional_chars, ADD_COLOR))
-					additional_chars = PackedInt32Array()
-				@warning_ignore("return_value_discarded")
-				result.append(character)
-		index += 1
-
-	result.append_array(format_chars(missing_chars, SUB_COLOR))
-	result.append_array(format_chars(additional_chars, ADD_COLOR))
-	return result.to_byte_array().get_string_from_utf32()
+	var result := PackedStringArray()
+	var position: int = 0
+	@warning_ignore_start("return_value_discarded")
+	for hunk: GdDiffTool.Hunk in hunks:
+		result.append(current.substr(position, hunk.current_start - position))
+		# characters only found in the expected value are missing, characters only found in the current value are additional
+		if hunk.expected_len > 0:
+			result.append(format_chars(expected.substr(hunk.expected_start, hunk.expected_len), SUB_COLOR))
+		if hunk.current_len > 0:
+			result.append(format_chars(current.substr(hunk.current_start, hunk.current_len), ADD_COLOR))
+		position = hunk.current_start + hunk.current_len
+	result.append(current.substr(position))
+	@warning_ignore_restore("return_value_discarded")
+	return "".join(result)
 
 
-static func _typed_value(value :Variant) -> String:
+static func _typed_value(value: Variant) -> String:
 	return GdDefaultValueDecoder.decode(value)
 
 
-static func _warning(error :String) -> String:
+static func _warning(error: String) -> String:
 	return "[color=%s]%s[/color]" % [_warn_color, error]
 
 
-static func _error(error :String) -> String:
+static func _error(error: String) -> String:
 	return "[color=%s]%s[/color]" % [_error_color, error]
 
 
-static func _nerror(number :Variant) -> String:
+static func _nerror(number: Variant) -> String:
 	match typeof(number):
 		TYPE_INT:
 			return "[color=%s]%d[/color]" % [_error_color, number]
@@ -145,10 +122,11 @@ static func _colored(value: Variant, color: Color) -> String:
 	return "[color=%s]%s[/color]" % [color.to_html(), value]
 
 
-static func _colored_value(value :Variant) -> String:
+static func _colored_value(value: Variant) -> String:  # gdstyle:ignore=quality/max-returns
 	match typeof(value):
 		TYPE_STRING, TYPE_STRING_NAME:
-			return "'[color=%s]%s[/color]'" % [_value_color, _colored_string_div(str(value))]
+			var text := str(value)
+			return "'[color=%s]%s[/color]'" % [_value_color, "<empty>" if text.is_empty() else text]
 		TYPE_INT:
 			return "[color=%s]%d[/color]" % [_value_color, value]
 		TYPE_FLOAT:
@@ -173,16 +151,15 @@ static func _colored_value(value :Variant) -> String:
 			return "'[color=%s]%s[/color]'" % [_value_color, value]
 
 
-
-static func _index_report_as_table(index_reports :Array) -> String:
+static func _index_report_as_table(index_reports: Array) -> String:
 	var table := "[table=3]$cells[/table]"
 	var header := "[cell][right][b]$text[/b][/right]\t[/cell]"
 	var cell := "[cell][right]$text[/right]\t[/cell]"
 	var cells := header.replace("$text", "Index") + header.replace("$text", "Current") + header.replace("$text", "Expected")
-	for report :Variant in index_reports:
-		var index :String = str(report["index"])
-		var current :String = str(report["current"])
-		var expected :String = str(report["expected"])
+	for report: Variant in index_reports:
+		var index: String = str(report["index"])
+		var current: String = str(report["current"])
+		var expected: String = str(report["expected"])
 		cells += cell.replace("$text", index) + cell.replace("$text", current) + cell.replace("$text", expected)
 	return table.replace("$cells", cells)
 
@@ -196,7 +173,7 @@ static func orphan_warning(orphans_count: int, info: String) -> String:
 			""".dedent().trim_prefix("\n").trim_suffix("\n") % [
 				_warning("WARNING:"),
 				_colored_value(orphans_count),
-				_colored(info, Color.STEEL_BLUE)
+				_colored(info, Color.STEEL_BLUE),
 				]
 	return """
 		%s Detected %s possible orphan nodes.
@@ -204,7 +181,7 @@ static func orphan_warning(orphans_count: int, info: String) -> String:
 		""".dedent().trim_prefix("\n").trim_suffix("\n") % [
 			_warning("WARNING:"),
 			_colored_value(orphans_count),
-			_warning(NO_ORPHAN_DETAILS)
+			_warning(NO_ORPHAN_DETAILS),
 		]
 
 
@@ -212,21 +189,21 @@ static func orphan_detected(orphan_count: int) -> String:
 	if EngineDebugger.is_active():
 		return "%s Detected %s orphan nodes." % [
 				_warning("WARNING:"),
-				_colored_value(orphan_count)
+				_colored_value(orphan_count),
 			]
 	return """
 		%s Detected %s orphan nodes.
 			%s""".dedent().trim_prefix("\n") % [
 			_warning("WARNING:"),
 			_colored_value(orphan_count),
-			_warning(NO_ORPHAN_DETAILS)
+			_warning(NO_ORPHAN_DETAILS),
 		]
 
 
 static func orphan_node_info(orphan_info: GdUnitOrphanNodeInfo) -> String:
 	var message := "<%s> Id:%s" % [
 		_colored(orphan_info._type, GdUnitEditorColorTheme.engine_type_color),
-		_colored(orphan_info._id, GdUnitEditorColorTheme.engine_type_color)
+		_colored(orphan_info._id, GdUnitEditorColorTheme.engine_type_color),
 	]
 	if orphan_info._stack_element == null:
 		message += _warning("\n\tNo source info available")
@@ -241,16 +218,15 @@ static func fuzzer_interuped(iterations: int, error: String) -> String:
 		error]
 
 
-static func test_timeout(timeout :int) -> String:
-	return "%s\n %s" % [_error("Timeout !"), _colored_value("Test timed out after %s" %  LocalTime.elapsed(timeout))]
+static func test_timeout(timeout: int) -> String:
+	return "%s\n %s" % [_error("Timeout !"), _colored_value("Test timed out after %s" % LocalTime.elapsed(timeout))]
 
 
 static func test_session_terminated() -> String:
 	return "%s" % _error("Test Session Terminated")
 
 
-# gdlint:disable = mixed-tabs-and-spaces
-static func test_suite_skipped(hint :String, skip_count :int) -> String:
+static func test_suite_skipped(hint: String, skip_count: int) -> String:
 	return """
 		%s
 		  Skipped %s tests
@@ -259,7 +235,7 @@ static func test_suite_skipped(hint :String, skip_count :int) -> String:
 		% [_error("The Entire test-suite is skipped!"), _colored_value(skip_count), _colored_value(hint)]
 
 
-static func test_skipped(hint :String) -> String:
+static func test_skipped(hint: String) -> String:
 	return """
 		%s
 		  Reason: %s
@@ -275,7 +251,7 @@ static func error_with_message(message: String) -> String:
 	return _error(message)
 
 
-static func error_is_null(current :Variant) -> String:
+static func error_is_null(current: Variant) -> String:
 	return "%s %s but was %s" % [_error("Expecting:"), _colored_value(null), _colored_value(current)]
 
 
@@ -283,7 +259,7 @@ static func error_is_not_null() -> String:
 	return "%s %s" % [_error("Expecting: not to be"), _colored_value(null)]
 
 
-static func error_equal(current :Variant, expected :Variant, index_reports :Array = []) -> String:
+static func error_equal(current: Variant, expected: Variant, index_reports: Array = []) -> String:
 	var report := """
 		%s
 		 %s
@@ -294,16 +270,16 @@ static func error_equal(current :Variant, expected :Variant, index_reports :Arra
 	return report
 
 
-static func error_not_equal(current :Variant, expected :Variant) -> String:
+static func error_not_equal(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n not equal to\n %s" % [_error("Expecting:"), _colored_value(expected), _colored_value(current)]
 
 
-static func error_not_equal_case_insensetiv(current :Variant, expected :Variant) -> String:
+static func error_not_equal_case_insensetiv(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n not equal to (case insensitiv)\n %s" % [
 			_error("Expecting:"), _colored_value(expected), _colored_value(current)]
 
 
-static func error_is_empty(current :Variant) -> String:
+static func error_is_empty(current: Variant) -> String:
 	return "%s\n must be empty but was\n %s" % [_error("Expecting:"), _colored_value(current)]
 
 
@@ -311,52 +287,53 @@ static func error_is_not_empty() -> String:
 	return "%s\n must not be empty" % [_error("Expecting:")]
 
 
-static func error_is_same(current :Variant, expected :Variant) -> String:
+static func error_is_same(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n to refer to the same object\n %s" % [_error("Expecting:"), _colored_value(expected), _colored_value(current)]
 
 
 @warning_ignore("unused_parameter")
-static func error_not_same(_current :Variant, expected :Variant) -> String:
+static func error_not_same(_current: Variant, expected: Variant) -> String:
 	return "%s\n %s" % [_error("Expecting not same:"), _colored_value(expected)]
 
 
-static func error_not_same_error(current :Variant, expected :Variant) -> String:
+static func error_not_same_error(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n but was\n %s" % [_error("Expecting error message:"), _colored_value(expected), _colored_value(current)]
 
 
-static func error_is_instanceof(current: GdUnitResult, expected :GdUnitResult) -> String:
-	return "%s\n %s\n But it was %s" % [_error("Expected instance of:"),\
+static func error_is_instanceof(current: GdUnitResult, expected: GdUnitResult) -> String:
+	return "%s\n %s\n But it was %s" % [_error("Expected instance of:"), \
 		_colored_value(expected.or_else(null)), _colored_value(current.or_else(null))]
 
 
 # -- Boolean Assert specific messages -----------------------------------------------------
-static func error_is_true(current :Variant) -> String:
+static func error_is_true(current: Variant) -> String:
 	return "%s %s but is %s" % [_error("Expecting:"), _colored_value(true), _colored_value(current)]
 
 
-static func error_is_false(current :Variant) -> String:
+static func error_is_false(current: Variant) -> String:
 	return "%s %s but is %s" % [_error("Expecting:"), _colored_value(false), _colored_value(current)]
 
 
 # - Integer/Float Assert specific messages -----------------------------------------------------
 
-static func error_is_even(current :Variant) -> String:
+
+static func error_is_even(current: Variant) -> String:
 	return "%s\n %s must be even" % [_error("Expecting:"), _colored_value(current)]
 
 
-static func error_is_odd(current :Variant) -> String:
+static func error_is_odd(current: Variant) -> String:
 	return "%s\n %s must be odd" % [_error("Expecting:"), _colored_value(current)]
 
 
-static func error_is_negative(current :Variant) -> String:
+static func error_is_negative(current: Variant) -> String:
 	return "%s\n %s be negative" % [_error("Expecting:"), _colored_value(current)]
 
 
-static func error_is_not_negative(current :Variant) -> String:
+static func error_is_not_negative(current: Variant) -> String:
 	return "%s\n %s be not negative" % [_error("Expecting:"), _colored_value(current)]
 
 
-static func error_is_zero(current :Variant) -> String:
+static func error_is_zero(current: Variant) -> String:
 	return "%s\n equal to 0 but is %s" % [_error("Expecting:"), _colored_value(current)]
 
 
@@ -364,14 +341,14 @@ static func error_is_not_zero() -> String:
 	return "%s\n not equal to 0" % [_error("Expecting:")]
 
 
-static func error_is_wrong_type(current_type :Variant.Type, expected_type :Variant.Type) -> String:
+static func error_is_wrong_type(current_type: Variant.Type, expected_type: Variant.Type) -> String:
 	return "%s\n Expecting type %s but is %s" % [
 		_error("Unexpected type comparison:"),
 		_colored_value(GdObjects.type_as_string(current_type)),
 		_colored_value(GdObjects.type_as_string(expected_type))]
 
 
-static func error_is_value(operation :int, current :Variant, expected :Variant, expected2 :Variant = null) -> String:
+static func error_is_value(operation: int, current: Variant, expected: Variant, expected2: Variant = null) -> String:  # gdstyle:ignore=quality/max-returns
 	match operation:
 		Comparator.EQUAL:
 			return "%s\n %s but was %s" % [_error("Expecting:"), _colored_value(expected), _colored_value(current)]
@@ -392,46 +369,46 @@ static func error_is_value(operation :int, current :Variant, expected :Variant, 
 	return "TODO create expected message"
 
 
-static func error_is_in(current :Variant, expected :Array) -> String:
+static func error_is_in(current: Variant, expected: Array) -> String:
 	return "%s\n %s\n is in\n %s" % [_error("Expecting:"), _colored_value(current), _colored_value(str(expected))]
 
 
-static func error_is_not_in(current :Variant, expected :Array) -> String:
+static func error_is_not_in(current: Variant, expected: Array) -> String:
 	return "%s\n %s\n is not in\n %s" % [_error("Expecting:"), _colored_value(current), _colored_value(str(expected))]
 
 
 # - StringAssert ---------------------------------------------------------------------------------
-static func error_equal_ignoring_case(current :Variant, expected :Variant) -> String:
+static func error_equal_ignoring_case(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n but was\n %s (ignoring case)" % [_error("Expecting:"), _colored_value(expected), _colored_value(current)]
 
 
-static func error_contains(current :Variant, expected :Variant) -> String:
+static func error_contains(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n do contains\n %s" % [_error("Expecting:"), _colored_value(current), _colored_value(expected)]
 
 
-static func error_not_contains(current :Variant, expected :Variant) -> String:
+static func error_not_contains(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n not do contain\n %s" % [_error("Expecting:"), _colored_value(current), _colored_value(expected)]
 
 
-static func error_contains_ignoring_case(current :Variant, expected :Variant) -> String:
+static func error_contains_ignoring_case(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n contains\n %s\n (ignoring case)" % [_error("Expecting:"), _colored_value(current), _colored_value(expected)]
 
 
-static func error_not_contains_ignoring_case(current :Variant, expected :Variant) -> String:
+static func error_not_contains_ignoring_case(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n not do contains\n %s\n (ignoring case)" % [_error("Expecting:"), _colored_value(current), _colored_value(expected)]
 
 
-static func error_starts_with(current :Variant, expected :Variant) -> String:
+static func error_starts_with(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n to start with\n %s" % [_error("Expecting:"), _colored_value(current), _colored_value(expected)]
 
 
-static func error_ends_with(current :Variant, expected :Variant) -> String:
+static func error_ends_with(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n to end with\n %s" % [_error("Expecting:"), _colored_value(current), _colored_value(expected)]
 
 
-static func error_has_length(current :Variant, expected: int, compare_operator :int) -> String:
+static func error_has_length(current: Variant, expected: int, compare_operator: int) -> String:
 	@warning_ignore("unsafe_method_access")
-	var current_length :Variant = current.length() if current != null else null
+	var current_length: Variant = current.length() if current != null else null
 	match compare_operator:
 		Comparator.EQUAL:
 			return "%s\n %s but was %s in\n %s" % [
@@ -456,6 +433,7 @@ static func error_has_length(current :Variant, expected: int, compare_operator :
 
 # - ArrayAssert specific messgaes ---------------------------------------------------
 
+
 static func error_arr_contains(current: Variant, expected: Variant, not_expect: Variant, not_found: Variant, by_reference: bool) -> String:
 	var failure_message := "Expecting contains SAME elements:" if by_reference else "Expecting contains elements:"
 	var error := "%s\n %s\n do contains (in any order)\n %s" % [
@@ -472,9 +450,9 @@ static func error_arr_contains_exactly(
 	current: Variant,
 	expected: Variant,
 	not_expect: Variant,
-	not_found: Variant, compare_mode: GdObjects.COMPARE_MODE) -> String:
+	not_found: Variant, compare_mode: GdObjects.CompareMode) -> String:
 	var failure_message := (
-		"Expecting contains exactly elements:" if compare_mode == GdObjects.COMPARE_MODE.PARAMETER_DEEP_TEST
+		"Expecting contains exactly elements:" if compare_mode == GdObjects.CompareMode.PARAMETER_DEEP_TEST
 		else "Expecting contains SAME exactly elements:"
 	)
 	if is_empty(not_expect) and is_empty(not_found):
@@ -499,10 +477,10 @@ static func error_arr_contains_exactly_in_any_order(
 	expected: Variant,
 	not_expect: Variant,
 	not_found: Variant,
-	compare_mode: GdObjects.COMPARE_MODE) -> String:
+	compare_mode: GdObjects.CompareMode) -> String:
 
 	var failure_message := (
-		"Expecting contains exactly elements:" if compare_mode == GdObjects.COMPARE_MODE.PARAMETER_DEEP_TEST
+		"Expecting contains exactly elements:" if compare_mode == GdObjects.CompareMode.PARAMETER_DEEP_TEST
 		else "Expecting contains SAME exactly elements:"
 	)
 	var error := "%s\n %s\n do contains exactly (in any order)\n %s" % [
@@ -515,8 +493,8 @@ static func error_arr_contains_exactly_in_any_order(
 	return error
 
 
-static func error_arr_not_contains(current: Variant, expected: Variant, found: Variant, compare_mode: GdObjects.COMPARE_MODE) -> String:
-	var failure_message := "Expecting:" if compare_mode == GdObjects.COMPARE_MODE.PARAMETER_DEEP_TEST else "Expecting SAME:"
+static func error_arr_not_contains(current: Variant, expected: Variant, found: Variant, compare_mode: GdObjects.CompareMode) -> String:
+	var failure_message := "Expecting:" if compare_mode == GdObjects.CompareMode.PARAMETER_DEEP_TEST else "Expecting SAME:"
 	var error := "%s\n %s\n do not contains\n %s" % [
 					_error(failure_message), _colored_value(current), _colored_value(expected)]
 	if not is_empty(found):
@@ -525,27 +503,27 @@ static func error_arr_not_contains(current: Variant, expected: Variant, found: V
 
 
 # - DictionaryAssert specific messages ----------------------------------------------
-static func error_contains_keys(current :Array, expected :Array, keys_not_found :Array, compare_mode :GdObjects.COMPARE_MODE) -> String:
+static func error_contains_keys(current: Array, expected: Array, keys_not_found: Array, compare_mode: GdObjects.CompareMode) -> String:
 	var failure := (
-		"Expecting contains keys:" if compare_mode == GdObjects.COMPARE_MODE.PARAMETER_DEEP_TEST
+		"Expecting contains keys:" if compare_mode == GdObjects.CompareMode.PARAMETER_DEEP_TEST
 		else "Expecting contains SAME keys:"
 	)
 	return "%s\n %s\n to contains:\n %s\n but can't find key's:\n %s" % [
 			_error(failure), _colored_value(current), _colored_value(expected), _colored_value(keys_not_found)]
 
 
-static func error_not_contains_keys(current :Array, expected :Array, keys_not_found :Array, compare_mode :GdObjects.COMPARE_MODE) -> String:
+static func error_not_contains_keys(current: Array, expected: Array, keys_not_found: Array, compare_mode: GdObjects.CompareMode) -> String:
 	var failure := (
-		"Expecting NOT contains keys:" if compare_mode == GdObjects.COMPARE_MODE.PARAMETER_DEEP_TEST
+		"Expecting NOT contains keys:" if compare_mode == GdObjects.CompareMode.PARAMETER_DEEP_TEST
 		else "Expecting NOT contains SAME keys"
 	)
 	return "%s\n %s\n do not contains:\n %s\n but contains key's:\n %s" % [
 			_error(failure), _colored_value(current), _colored_value(expected), _colored_value(keys_not_found)]
 
 
-static func error_contains_key_value(key :Variant, value :Variant, current_value :Variant, compare_mode :GdObjects.COMPARE_MODE) -> String:
+static func error_contains_key_value(key: Variant, value: Variant, current_value: Variant, compare_mode: GdObjects.CompareMode) -> String:
 	var failure := (
-		"Expecting contains key and value:" if compare_mode == GdObjects.COMPARE_MODE.PARAMETER_DEEP_TEST
+		"Expecting contains key and value:" if compare_mode == GdObjects.CompareMode.PARAMETER_DEEP_TEST
 		else "Expecting contains SAME key and value:"
 	)
 	return "%s\n %s : %s\n but contains\n %s : %s" % [
@@ -553,35 +531,35 @@ static func error_contains_key_value(key :Variant, value :Variant, current_value
 
 
 # - ResultAssert specific errors ----------------------------------------------------
-static func error_result_is_empty(current :GdUnitResult) -> String:
+static func error_result_is_empty(current: GdUnitResult) -> String:
 	return _result_error_message(current, GdUnitResult.EMPTY)
 
 
-static func error_result_is_success(current :GdUnitResult) -> String:
+static func error_result_is_success(current: GdUnitResult) -> String:
 	return _result_error_message(current, GdUnitResult.SUCCESS)
 
 
-static func error_result_is_warning(current :GdUnitResult) -> String:
+static func error_result_is_warning(current: GdUnitResult) -> String:
 	return _result_error_message(current, GdUnitResult.WARN)
 
 
-static func error_result_is_error(current :GdUnitResult) -> String:
+static func error_result_is_error(current: GdUnitResult) -> String:
 	return _result_error_message(current, GdUnitResult.ERROR)
 
 
-static func error_result_has_message(current :String, expected :String) -> String:
+static func error_result_has_message(current: String, expected: String) -> String:
 	return "%s\n %s\n but was\n %s." % [_error("Expecting:"), _colored_value(expected), _colored_value(current)]
 
 
-static func error_result_has_message_on_success(expected :String) -> String:
+static func error_result_has_message_on_success(expected: String) -> String:
 	return "%s\n %s\n but the GdUnitResult is a success." % [_error("Expecting:"), _colored_value(expected)]
 
 
-static func error_result_is_value(current :Variant, expected :Variant) -> String:
+static func error_result_is_value(current: Variant, expected: Variant) -> String:
 	return "%s\n %s\n but was\n %s." % [_error("Expecting to contain same value:"), _colored_value(expected), _colored_value(current)]
 
 
-static func _result_error_message(current :GdUnitResult, expected_type :int) -> String:
+static func _result_error_message(current: GdUnitResult, expected_type: int) -> String:
 	if current == null:
 		return _error("Expecting the result must be a %s but was <null>." % result_type(expected_type))
 	if current.is_success():
@@ -590,14 +568,14 @@ static func _result_error_message(current :GdUnitResult, expected_type :int) -> 
 	return "%s\n %s" % [_error(error), _colored_value(result_message(current))]
 
 
-static func error_interrupted(func_name :String, expected :Variant, elapsed :String) -> String:
+static func error_interrupted(func_name: String, expected: Variant, elapsed: String) -> String:
 	func_name = humanized(func_name)
 	if expected == null:
 		return "%s %s but timed out after %s" % [_error("Expected:"), func_name, elapsed]
 	return "%s %s %s but timed out after %s" % [_error("Expected:"), func_name, _colored_value(expected), elapsed]
 
 
-static func error_wait_signal(signal_name :String, args :Array, elapsed :String) -> String:
+static func error_wait_signal(signal_name: String, args: Array, elapsed: String) -> String:
 	if args.is_empty():
 		return "%s %s but timed out after %s" % [
 				_error("Expecting emit signal:"), _colored_value(signal_name + "()"), elapsed]
@@ -605,7 +583,7 @@ static func error_wait_signal(signal_name :String, args :Array, elapsed :String)
 			_error("Expecting emit signal:"), _colored_value(signal_name + "(" + str(args) + ")"), elapsed]
 
 
-static func error_signal_emitted(signal_name :String, args :Array, elapsed :String) -> String:
+static func error_signal_emitted(signal_name: String, args: Array, elapsed: String) -> String:
 	if args.is_empty():
 		return "%s %s but is emitted after %s" % [
 				_error("Expecting do not emit signal:"), _colored_value(signal_name + "()"), elapsed]
@@ -613,12 +591,12 @@ static func error_signal_emitted(signal_name :String, args :Array, elapsed :Stri
 			_error("Expecting do not emit signal:"), _colored_value(signal_name + "(" + str(args) + ")"), elapsed]
 
 
-static func error_await_signal_on_invalid_instance(source :Variant, signal_name :String, args :Array) -> String:
+static func error_await_signal_on_invalid_instance(source: Variant, signal_name: String, args: Array) -> String:
 	return "%s\n await_signal_on(%s, %s, %s)" % [
 			_error("Invalid source! Can't await on signal:"), _colored_value(source), signal_name, args]
 
 
-static func result_type(type :int) -> String:
+static func result_type(type: int) -> String:
 	match type:
 		GdUnitResult.SUCCESS: return "SUCCESS"
 		GdUnitResult.WARN: return "WARNING"
@@ -627,20 +605,23 @@ static func result_type(type :int) -> String:
 	return "UNKNOWN"
 
 
-static func result_message(result :GdUnitResult) -> String:
+static func result_message(result: GdUnitResult) -> String:
 	match result._state:
 		GdUnitResult.SUCCESS: return ""
 		GdUnitResult.WARN: return result.warn_message()
 		GdUnitResult.ERROR: return result.error_message()
 		GdUnitResult.EMPTY: return ""
 	return "UNKNOWN"
+
+
 # -----------------------------------------------------------------------------------
 
+
 # - Spy|Mock specific errors ----------------------------------------------------
-static func error_no_more_interactions(summary :Dictionary) -> String:
+static func error_no_more_interactions(summary: Dictionary) -> String:
 	var interactions := PackedStringArray()
-	for args :Array in summary.keys():
-		var times :int = summary[args]
+	for args: Array in summary.keys():
+		var times: int = summary[args]
 		@warning_ignore("return_value_discarded")
 		interactions.append(_format_arguments(args, times))
 	return "%s\n%s\n%s" % [_error("Expecting no more interactions!"), _error("But found interactions on:"), "\n".join(interactions)]
@@ -660,41 +641,41 @@ static func error_validate_interactions(current_interactions: Dictionary, expect
 			_error("Expecting interaction on:"), expected_interaction, _error("But found interactions on:"), "\n".join(collected_interactions)]
 
 
-static func _format_arguments(args :Array, times :int) -> String:
-	var fname :String = args[0]
+static func _format_arguments(args: Array, times: int) -> String:
+	var fname: String = args[0]
 	var fargs := args.slice(1) as Array
 	var typed_args := _to_typed_args(fargs)
 	var fsignature := _colored_value("%s(%s)" % [fname, ", ".join(typed_args)])
 	return "	%s	%d time's" % [fsignature, times]
 
 
-static func _to_typed_args(args :Array) -> PackedStringArray:
+static func _to_typed_args(args: Array) -> PackedStringArray:
 	var typed := PackedStringArray()
-	for arg :Variant in args:
+	for arg: Variant in args:
 		@warning_ignore("return_value_discarded")
 		typed.append(_format_arg(arg) + " :" + GdObjects.type_as_string(typeof(arg)))
 	return typed
 
 
-static func _format_arg(arg :Variant) -> String:
+static func _format_arg(arg: Variant) -> String:
 	if arg is InputEvent:
 		var ie: InputEvent = arg
 		return input_event_as_text(ie)
 	return str(arg)
 
 
-static func _find_first_diff(left :Array, right :Array) -> String:
+static func _find_first_diff(left: Array, right: Array) -> String:
 	for index in left.size():
-		var l :Variant = left[index]
-		var r :Variant = "<no entry>" if index >= right.size() else right[index]
+		var l: Variant = left[index]
+		var r: Variant = "<no entry>" if index >= right.size() else right[index]
 		if not GdObjects.equals(l, r):
 			return "at position %s\n '%s' vs '%s'" % [_colored_value(index), _typed_value(l), _typed_value(r)]
 	return ""
 
 
-static func error_has_size(current :Variant, expected: int) -> String:
+static func error_has_size(current: Variant, expected: int) -> String:
 	@warning_ignore("unsafe_method_access")
-	var current_size :Variant = null if current == null else current.size()
+	var current_size: Variant = null if current == null else current.size()
 	return "%s\n %s\n but was\n %s" % [_error("Expecting size:"), _colored_value(expected), _colored_value(current_size)]
 
 
@@ -702,47 +683,37 @@ static func error_contains_exactly(current: Array, expected: Array) -> String:
 	return "%s\n %s\n but was\n %s" % [_error("Expecting exactly equal:"), _colored_value(expected), _colored_value(current)]
 
 
-static func format_chars(characters: PackedInt32Array, type: Color) -> PackedInt32Array:
-	if characters.size() == 0:# or characters[0] == 10:
+static func format_chars(characters: String, type: Color) -> String:
+	if characters.is_empty():
 		return characters
 
 	# Replace each control character with its readable form
-	var formatted_text := characters.to_byte_array().get_string_from_utf32()
+	var formatted_text := characters
 	for control_char: String in CONTROL_CHARS:
 		var replace_text: String = CONTROL_CHARS[control_char]
 		formatted_text = formatted_text.replace(control_char, replace_text)
 
-	# Handle special ASCII control characters (0x00-0x1F, 0x7F)
-	var ascii_text := ""
-	for i in formatted_text.length():
-		var character := formatted_text[i]
-		var code := character.unicode_at(0)
-		if code < 0x20 and not CONTROL_CHARS.has(character):  # Control characters not handled above
-			ascii_text += "<0x%02X>" % code
-		elif code == 0x7F:  # DEL character
-			ascii_text += "<DEL>"
-		else:
-			ascii_text += character
+	# Handle special ASCII control characters (0x00-0x1F, 0x7F) not handled above.
+	# Collect the distinct characters first, a replace per character is much faster than visiting every character of a large text.
+	var found_control_chars := {}
+	for control_match in _control_char_regex.search_all(formatted_text):
+		found_control_chars[control_match.get_string()] = true
+	for control_char: String in found_control_chars:
+		var code := control_char.unicode_at(0)
+		formatted_text = formatted_text.replace(control_char, "<DEL>" if code == 0x7f else "<0x%02X>" % code)
 
-	var message := "[bgcolor=#%s][color=white]%s[/color][/bgcolor]" % [
-		type.to_html(),
-		ascii_text
-	]
-
-	var result := PackedInt32Array()
-	result.append_array(message.to_utf32_buffer().to_int32_array())
-	return result
+	return "[bgcolor=#%s][color=white]%s[/color][/bgcolor]" % [type.to_html(), formatted_text]
 
 
-static func format_invalid(value :String) -> String:
+static func format_invalid(value: String) -> String:
 	return "[bgcolor=#%s][color=with]%s[/color][/bgcolor]" % [SUB_COLOR.to_html(), value]
 
 
-static func humanized(value :String) -> String:
+static func humanized(value: String) -> String:
 	return value.replace("_", " ")
 
 
-static func build_failure_message(failure :String, additional_failure_message: String, custom_failure_message: String) -> String:
+static func build_failure_message(failure: String, additional_failure_message: String, custom_failure_message: String) -> String:
 	var message := failure if custom_failure_message.is_empty() else custom_failure_message
 	if additional_failure_message.is_empty():
 		return message

@@ -23,7 +23,6 @@ const TABLE_RECORD_TESTSUITE = """
 									</td>
 								</tr>
 """
-
 const TABLE_RECORD_PATH = """
 								<tr class="${report_state}">
 									<td><a class="${report_state}" href="${report_link}">${path}</a></td>
@@ -46,8 +45,6 @@ const TABLE_RECORD_PATH = """
 									</td>
 								</tr>
 """
-
-
 const TABLE_REPORT_TESTSUITE = """
 								<tr class="${report_state}">
 									<td>TestSuite hooks</td>
@@ -61,8 +58,6 @@ ${failure-report}
 									</td>
 								</tr>
 """
-
-
 const TABLE_RECORD_TESTCASE = """
 								<tr class="testcase-group">
 									<td>${testcase_name}</td>
@@ -77,12 +72,9 @@ ${failure-report}
 									</td>
 								</tr>
 """
-
-
 const TABLE_BY_PATHS = "${report_table_paths}"
 const TABLE_BY_TESTSUITES = "${report_table_testsuites}"
 const TABLE_BY_TESTCASES = "${report_table_tests}"
-
 # the report state success, error, warning
 const REPORT_STATE = "${report_state}"
 const REPORT_STATE_LABEL = "${report_state_label}"
@@ -97,15 +89,12 @@ const ORPHAN_COUNT = "${orphan_count}"
 const DURATION = "${duration}"
 const FAILURE_REPORT = "${failure-report}"
 const SUCCESS_PERCENT = "${success_percent}"
-
-
 const QUICK_STATE_SKIPPED = "${skipped-percent}"
 const QUICK_STATE_PASSED = "${passed-percent}"
 const QUICK_STATE_FLAKY = "${flaky-percent}"
 const QUICK_STATE_ERROR = "${error-percent}"
 const QUICK_STATE_FAILED = "${failed-percent}"
 const QUICK_STATE_WARNING = "${warning-percent}"
-
 const TESTSUITE_NAME = "${testsuite_name}"
 const TESTCASE_NAME = "${testcase_name}"
 const REPORT_LINK = "${report_link}"
@@ -181,8 +170,7 @@ static func get_report_path(report: GdUnitReportSummary) -> String:
 static func calculate_percentage(p_test_count: int, count: int) -> String:
 	if count <= 0:
 		return "0%"
-	return "%d" % (( 0 if count < 0 else count) * 100.0 / p_test_count) + "%"
-
+	return "%d" % ((0 if count < 0 else count) * 100.0 / p_test_count) + "%"
 
 
 static func create_suite_record(report_link: String, report: GdUnitTestSuiteReport) -> String:

@@ -4,7 +4,6 @@ class_name JUnitXmlReportWriter
 extends GdUnitReportWriter
 
 const GdUnitTools := preload("res://addons/gdUnit4/src/core/GdUnitTools.gd")
-
 const ATTR_CLASSNAME := "classname"
 const ATTR_ERRORS := "errors"
 const ATTR_FAILURES := "failures"
@@ -19,7 +18,6 @@ const ATTR_TESTS := "tests"
 const ATTR_TIME := "time"
 const ATTR_TIMESTAMP := "timestamp"
 const ATTR_TYPE := "type"
-
 const HEADER := '<?xml version="1.0" encoding="UTF-8" ?>\n'
 
 
@@ -57,7 +55,7 @@ func build_junit_report(report_path: String, report: GdUnitReportSummary) -> Str
 func build_test_suites(summary: GdUnitReportSummary) -> Array:
 	var test_suites: Array[XmlElement] = []
 	for index in summary.get_reports().size():
-		var suite_report :GdUnitTestSuiteReport = summary.get_reports()[index]
+		var suite_report: GdUnitTestSuiteReport = summary.get_reports()[index]
 		var iso8601_datetime := Time.get_datetime_string_from_unix_time(suite_report.time_stamp())
 		test_suites.append(XmlElement.new("testsuite")\
 			.attribute(ATTR_ID, index)\
@@ -78,7 +76,7 @@ func build_test_suites(summary: GdUnitReportSummary) -> Array:
 func build_test_cases(suite_report: GdUnitTestSuiteReport) -> Array:
 	var test_cases: Array[XmlElement] = []
 	for index in suite_report.get_reports().size():
-		var report :GdUnitTestCaseReport = suite_report.get_reports()[index]
+		var report: GdUnitTestCaseReport = suite_report.get_reports()[index]
 		test_cases.append( XmlElement.new("testcase")\
 			.attribute(ATTR_NAME, JUnitXmlReportWriter.encode_xml(report.name()))\
 			.attribute(ATTR_CLASSNAME, report.suite_name())\
@@ -117,7 +115,7 @@ func convert_rtf_to_text(bbcode: String) -> String:
 	return GdUnitTools.richtext_normalize(bbcode)
 
 
-static func to_type(type: int) -> String:
+static func to_type(type: int) -> String:  # gdstyle:ignore=quality/max-returns
 	match type:
 		GdUnitReport.SUCCESS:
 			return "SUCCESS"
@@ -142,7 +140,6 @@ static func to_time(duration: int) -> String:
 
 static func encode_xml(value: String) -> String:
 	return value.xml_escape(true)
-
 
 #static func to_ISO8601_datetime() -> String:
 	#return "%04d-%02d-%02dT%02d:%02d:%02d" % [date["year"], date["month"], date["day"],  date["hour"], date["minute"], date["second"]]

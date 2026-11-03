@@ -1,6 +1,6 @@
-## Base interface of all GdUnit asserts
 @abstract class_name GdUnitAssert
 extends RefCounted
+## Base interface of all GdUnit asserts
 
 
 ## Verifies that the current value is null.
@@ -24,11 +24,11 @@ extends RefCounted
 ## or user-friendly message that better describes the test failure context.[br]
 ## Usage:
 ##     [codeblock]
-##		# Override with custom context-specific message
-##		func test_player_inventory():
-##		    assert_that(player.get_item_count("sword"))\
-##		        .override_failure_message("Player should have exactly one sword")\
-##		        .is_equal(1)
+## 		# Override with custom context-specific message
+## 		func test_player_inventory():
+## 		    assert_that(player.get_item_count("sword"))\
+## 		        .override_failure_message("Player should have exactly one sword")\
+## 		        .is_equal(1)
 ##     [/codeblock]
 @abstract func override_failure_message(message: String) -> GdUnitAssert
 
@@ -38,10 +38,10 @@ extends RefCounted
 ## while keeping the original assertion details for better debugging context.[br]
 ## Usage:
 ##     [codeblock]
-##		# Add context to existing failure message
-##		func test_player_health():
-##		    assert_that(player.health)\
-##		        .append_failure_message("Player was damaged by: %s" % last_damage_source)\
-##		        .is_greater(0)
+## 		# Add context to existing failure message
+## 		func test_player_health():
+## 		    assert_that(player.health)\
+## 		        .append_failure_message("Player was damaged by: %s" % last_damage_source)\
+## 		        .is_greater(0)
 ##     [/codeblock]
 @abstract func append_failure_message(message: String) -> GdUnitAssert

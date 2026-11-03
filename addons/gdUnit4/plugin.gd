@@ -20,8 +20,8 @@ func _enter_tree() -> void:
 		GdUnitCSIMessageWriter.new().prints_warning("It was recognized that GdUnit4 is running in a test environment, therefore the GdUnit4 plugin will not be executed!")
 		return
 
-	if Engine.get_version_info().hex < 0x40500:
-		prints("This GdUnit4 plugin version '%s' requires Godot version '4.5' or higher to run." % GdUnit4Version.current())
+	if Engine.get_version_info().hex < 0x40700:
+		prints("This GdUnit4 plugin version '%s' requires Godot version '4.7' or higher to run." % GdUnit4Version.current())
 		return
 	GdUnitSettings.setup()
 	GdUnitEditorColorTheme.setup()
@@ -69,8 +69,9 @@ func check_running_in_test_env() -> bool:
 
 func _add_context_menus() -> void:
 	_filesystem_context_menu = preload("res://addons/gdUnit4/src/ui/menu/GdUnitEditorFileSystemContextMenuHandler.gd").new()
-	_editor_context_menu = preload("res://addons/gdUnit4/src/ui/menu/GdUnitScriptEditorContextMenuHandler.gd").new()
-	_editor_code_context_menu = preload("res://addons/gdUnit4/src/ui/menu/GdUnitScriptEditorContextMenuHandler.gd").new()
+	const ScriptEditorContextMenuHandler := preload("res://addons/gdUnit4/src/ui/menu/GdUnitScriptEditorContextMenuHandler.gd")
+	_editor_context_menu = ScriptEditorContextMenuHandler.new()
+	_editor_code_context_menu = ScriptEditorContextMenuHandler.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_FILESYSTEM, _filesystem_context_menu)
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR, _editor_context_menu)
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, _editor_code_context_menu)

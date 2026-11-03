@@ -1,6 +1,8 @@
 @tool
 extends ScrollContainer
 
+var selected_style := StyleBoxFlat.new()
+var _selected_row: Control = null
 
 @onready var _hooks_list: VBoxContainer = %hook_list
 @onready var _hook_row_template: Panel = %row_template
@@ -10,10 +12,6 @@ extends ScrollContainer
 @onready var _btn_delete: Button = %hook_actions/btn_delete_hook
 @onready var _select_hook_dlg: FileDialog = %select_hook_dlg
 @onready var _error_msg_popup: AcceptDialog = %error_msg_popup
-
-
-var _selected_row: Control = null
-var selected_style := StyleBoxFlat.new()
 
 
 func _ready() -> void:
@@ -51,11 +49,12 @@ func _create_hook_row(hook: GdUnitTestSessionHook) -> Control:
 	panel.set_meta("hook", hook)
 	panel.tooltip_text = "System hook - (Read-only)" if is_system else "User hook"
 	panel.focus_entered.connect(_select_row.bind(panel))
-	panel.gui_input.connect(func(event: InputEvent) -> void:
-		@warning_ignore("unsafe_property_access")
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			_select_row(panel)
-			panel.accept_event()
+	panel.gui_input.connect(
+		func(event: InputEvent) -> void:
+			@warning_ignore("unsafe_property_access")
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				_select_row(panel)
+				panel.accept_event()
 	)
 
 	# Left color indicator border

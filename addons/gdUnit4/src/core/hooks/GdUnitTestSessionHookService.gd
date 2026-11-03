@@ -1,28 +1,28 @@
 class_name GdUnitTestSessionHookService
 extends Object
 
-
 var enigne_hooks: Array[GdUnitTestSessionHook] = []:
 	get:
 		return enigne_hooks
 	set(value):
 		enigne_hooks.append(value)
 
-
 var _save_settings: bool = false
 
 
 static func instance() -> GdUnitTestSessionHookService:
-	return GdUnitSingleton.instance("GdUnitTestSessionHookService", func()->GdUnitTestSessionHookService:
-		GdUnitSignals.instance().gdunit_message.emit("Installing GdUnit4 session system hooks.")
-		var service := GdUnitTestSessionHookService.new()
-		# Register default system hooks here
-		service._save_settings = false
-		service.register(GdUnitHtmlReporterTestSessionHook.new())
-		service.register(GdUnitXMLReporterTestSessionHook.new())
-		service.load_hook_settings()
-		service._save_settings = true
-		return service
+	return GdUnitSingleton.instance(
+		"GdUnitTestSessionHookService",
+		func() -> GdUnitTestSessionHookService:
+			GdUnitSignals.instance().gdunit_message.emit("Installing GdUnit4 session system hooks.")
+			var service := GdUnitTestSessionHookService.new()
+			# Register default system hooks here
+			service._save_settings = false
+			service.register(GdUnitHtmlReporterTestSessionHook.new())
+			service.register(GdUnitXMLReporterTestSessionHook.new())
+			service.load_hook_settings()
+			service._save_settings = true
+			return service
 	)
 
 
@@ -38,7 +38,7 @@ func find_custom(hook: GdUnitTestSessionHook) -> int:
 
 
 func load_hook(hook_resourc_path: String) -> GdUnitResult:
-	if !FileAccess.file_exists(hook_resourc_path):
+	if not FileAccess.file_exists(hook_resourc_path):
 		return GdUnitResult.error("The hook '%s' not exists." % hook_resourc_path)
 	var script: GDScript = load(hook_resourc_path)
 	if script.get_base_script() != GdUnitTestSessionHook:
@@ -116,8 +116,8 @@ func execute(hook_func: String, session: GdUnitTestSession, reverse := false) ->
 	var failed_hook_calls: Array[GdUnitResult] = []
 
 	for hook_index in enigne_hooks.size():
-		var index := enigne_hooks.size()-hook_index-1 if reverse else hook_index
-		var hook: = enigne_hooks[index]
+		var index := enigne_hooks.size() - hook_index - 1 if reverse else hook_index
+		var hook := enigne_hooks[index]
 		if not is_enabled(hook):
 			continue
 		if OS.is_stdout_verbose():
@@ -134,7 +134,7 @@ func execute(hook_func: String, session: GdUnitTestSession, reverse := false) ->
 	var errors := failed_hook_calls.map(func(result: GdUnitResult) -> String:
 		return "Hook call '%s' failed with error: '%s'" % [hook_func, result.error_message()]
 	)
-	return GdUnitResult.error( "\n".join(errors))
+	return GdUnitResult.error("\n".join(errors))
 
 
 func save_hock_setttings() -> void:

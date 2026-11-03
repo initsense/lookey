@@ -1,6 +1,6 @@
-## An assertion tool to verify for Godot runtime errors like assert() and push notifications like push_error().
 @abstract class_name GdUnitGodotErrorAssert
 extends GdUnitAssert
+## An assertion tool to verify for Godot runtime errors like assert() and push notifications like push_error().
 
 
 ## Verifies that the current value is null.
@@ -30,7 +30,7 @@ extends GdUnitAssert
 ## Verifies if the executed code runs without any runtime errors
 ## Usage:
 ##     [codeblock]
-##		await assert_error(<callable>).is_success()
+## 		await assert_error(<callable>).is_success()
 ##     [/codeblock]
 @abstract func is_success() -> GdUnitGodotErrorAssert
 
@@ -38,7 +38,7 @@ extends GdUnitAssert
 ## Verifies if the executed code runs into a runtime error
 ## Usage:
 ##     [codeblock]
-##		await assert_error(<callable>).is_runtime_error(<expected error message>)
+## 		await assert_error(<callable>).is_runtime_error(<expected error message>)
 ##     [/codeblock]
 @abstract func is_runtime_error(expected_error: Variant) -> GdUnitGodotErrorAssert
 
@@ -46,7 +46,7 @@ extends GdUnitAssert
 ## Verifies if the executed code has a push_warning() used
 ## Usage:
 ##     [codeblock]
-##		await assert_error(<callable>).is_push_warning(<expected push warning message>)
+## 		await assert_error(<callable>).is_push_warning(<expected push warning message>)
 ##     [/codeblock]
 @abstract func is_push_warning(expected_warning: Variant) -> GdUnitGodotErrorAssert
 
@@ -54,6 +54,6 @@ extends GdUnitAssert
 ## Verifies if the executed code has a push_error() used
 ## Usage:
 ##     [codeblock]
-##		await assert_error(<callable>).is_push_error(<expected push error message>)
+## 		await assert_error(<callable>).is_push_error(<expected push error message>)
 ##     [/codeblock]
 @abstract func is_push_error(expected_error: Variant) -> GdUnitGodotErrorAssert

@@ -29,7 +29,10 @@ static func check_leaked_instances() -> void:
 	for key in Engine.get_meta_list():
 		if key.begins_with(DOUBLER_INSTANCE_ID_PREFIX):
 			var instance: Variant = Engine.get_meta(key)
-			push_error("GdUnit internal error: an spy/mock instance '%s', class:'%s' is not removed from the engine and will lead in a leaked instance!" % [instance, instance.__SOURCE_CLASS])
+			push_error(
+				"GdUnit internal error: an spy/mock instance '%s', class:'%s' is not removed from the engine and will lead in a leaked instance!"
+				% [instance, instance.__SOURCE_CLASS]
+			)
 			await (Engine.get_main_loop() as SceneTree).process_frame
 
 
@@ -37,9 +40,9 @@ static func check_leaked_instances() -> void:
 # class_info = { "class_name": <>, "class_path" : <>}
 static func load_template(template: String, class_info: Dictionary) -> PackedStringArray:
 	var clazz_name: String = class_info.get("class_name")
+	# Replace template class_name DoubledClass<class> with source class name
 	var source_code := template\
 		.replace("${source_class}", clazz_name)\
-		# Replace template class_name DoubledClass<class> with source class name
 		.replace("SourceClassName", clazz_name.replace(".", "_"))
 	var lines := GdScriptParser.to_unix_format(source_code).split("\n")
 	@warning_ignore("return_value_discarded")
