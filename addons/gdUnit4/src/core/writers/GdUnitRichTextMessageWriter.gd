@@ -13,11 +13,9 @@ extends GdUnitMessageWriter
 ## [br]
 ## Used to format test reports in the editor UI.
 
-
 ## The [RichTextLabel] instance to write formatted messages
 var _output: RichTextLabel
 var _report_formatter: GdUnitReportPanel
-
 ## Tracks current position in characters from line start
 var _current_pos := 0
 

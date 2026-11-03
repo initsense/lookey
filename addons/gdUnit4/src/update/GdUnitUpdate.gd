@@ -5,6 +5,10 @@ const GdUnitTools := preload("res://addons/gdUnit4/src/core/GdUnitTools.gd")
 const GdUnitUpdateClient := preload("res://addons/gdUnit4/src/update/GdUnitUpdateClient.gd")
 const GDUNIT_TEMP := "user://tmp"
 
+var _debug_mode := false
+var _update_client: GdUnitUpdateClient
+var _download_url: String
+
 @onready var _progress_content: RichTextLabel = %message
 @onready var _progress_bar: TextureProgressBar = %progress
 @onready var _cancel_btn: Button = %cancel
@@ -12,16 +16,11 @@ const GDUNIT_TEMP := "user://tmp"
 @onready var _spinner_img := GdUnitUiTools.get_spinner()
 
 
-var _debug_mode := false
-var _update_client :GdUnitUpdateClient
-var _download_url :String
-
-
 func _ready() -> void:
 	init_progress(6)
 
 
-func _process(_delta :float) -> void:
+func _process(_delta: float) -> void:
 	if _progress_content != null and _progress_content.is_visible_in_tree():
 		_progress_content.queue_redraw()
 
@@ -70,7 +69,7 @@ func run_update() -> void:
 	await update_progress("Extracting")
 	var zip_file := temp_dir() + "/update.zip"
 	var tmp_path := create_temp_dir("update")
-	var result :Variant = extract_zip(zip_file, tmp_path)
+	var result: Variant = extract_zip(zip_file, tmp_path)
 	if result == null:
 		await update_progress("Update failed! .. Rollback.", Color.INDIAN_RED)
 		await get_tree().create_timer(3).timeout
@@ -81,7 +80,7 @@ func run_update() -> void:
 		return
 
 	await update_progress("Uninstall GdUnit4.")
-	disable_gdUnit()
+	disable_gdunit()
 	if not _debug_mode:
 		GdUnitFileAccess.delete_directory("res://addons/gdUnit4/")
 	# give editor time to react on deleted files
@@ -100,7 +99,7 @@ func run_update() -> void:
 
 	await update_progress("New GdUnit version successfully installed, Restarting Godot please wait.")
 	await get_tree().create_timer(3).timeout
-	enable_gdUnit()
+	enable_gdunit()
 	hide()
 	GdUnitFileAccess.delete_directory("res://addons/.gdunit_update")
 	restart_godot()
@@ -166,7 +165,7 @@ func restart_godot() -> void:
 
 
 @warning_ignore("return_value_discarded")
-func enable_gdUnit() -> void:
+func enable_gdunit() -> void:
 	var enabled_plugins := PackedStringArray()
 	if ProjectSettings.has_setting("editor_plugins/enabled"):
 		enabled_plugins = ProjectSettings.get_setting("editor_plugins/enabled")
@@ -176,7 +175,7 @@ func enable_gdUnit() -> void:
 	ProjectSettings.save()
 
 
-func disable_gdUnit() -> void:
+func disable_gdunit() -> void:
 	EditorInterface.set_plugin_enabled("gdUnit4", false)
 
 
@@ -187,7 +186,7 @@ func temp_dir() -> String:
 	return GDUNIT_TEMP
 
 
-func create_temp_dir(folder_name :String) -> String:
+func create_temp_dir(folder_name: String) -> String:
 	var new_folder := temp_dir() + "/" + folder_name
 	GdUnitFileAccess.delete_directory(new_folder)
 	if not DirAccess.dir_exists_absolute(new_folder):
@@ -229,9 +228,8 @@ func copy_directory(from_dir: String, to_dir: String) -> bool:
 				printerr("Error checked copy file '%s' to '%s'" % [source, dest])
 				return false
 		return true
-	else:
-		printerr("Directory not found: " + from_dir)
-		return false
+	printerr("Directory not found: " + from_dir)
+	return false
 
 
 func extract_zip(zip_package: String, dest_path: String) -> Variant:
@@ -260,7 +258,7 @@ func extract_zip(zip_package: String, dest_path: String) -> Variant:
 
 func download_release() -> void:
 	var zip_file := GdUnitFileAccess.temp_dir() + "/update.zip"
-	var response :GdUnitUpdateClient.HttpResponse
+	var response: GdUnitUpdateClient.HttpResponse
 	if _debug_mode:
 		response = GdUnitUpdateClient.HttpResponse.new(200, PackedByteArray())
 		zip_file = "res://update.zip"

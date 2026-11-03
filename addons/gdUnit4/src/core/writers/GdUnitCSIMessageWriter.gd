@@ -11,10 +11,9 @@ extends GdUnitMessageWriter
 ## [br]
 ## Used primarily for console-based test execution and CI/CD environments.
 
-
 enum {
 	COLOR_TABLE,
-	COLOR_RGB
+	COLOR_RGB,
 }
 
 const CSI_BOLD = "[1m"
@@ -25,10 +24,8 @@ const CSI_RESET = "[0m"
 # Control Sequence Introducer
 var _debug_show_color_codes := false
 var _color_mode := COLOR_TABLE
-
 ## Current cursor position in the line
 var _current_pos := 0
-
 # Pre-compiled regex patterns for tag matching
 var _tag_regex: RegEx
 
@@ -38,14 +35,14 @@ var _tag_regex: RegEx
 ## [param flags] The style flags to apply (BOLD, ITALIC, UNDERLINE).[br]
 ## Returns the corresponding CSI codes.
 func _apply_style_flags(flags: int) -> String:
-	var _style := ""
+	var style_codes := ""
 	if flags & BOLD:
-		_style += CSI_BOLD
+		style_codes += CSI_BOLD
 	if flags & ITALIC:
-		_style += CSI_ITALIC
+		style_codes += CSI_ITALIC
 	if flags & UNDERLINE:
-		_style += CSI_UNDERLINE
-	return _style
+		style_codes += CSI_UNDERLINE
+	return style_codes
 
 
 ## Converts a color string (named or hex) to a Color object
@@ -157,8 +154,8 @@ func _print_stack_trace(stack_trace: GdUnitStackTrace, _indent: int) -> void:
 func _print_message(_message: String, _color: Color, _indent: int, _flags: int) -> void:
 	var text := _bbcode_tags_to_csi_codes(_message)
 	var indent_text := "".lpad(_indent * 2)
-	var _style := _apply_style_flags(_flags)
-	printraw("%s[38;2;%d;%d;%dm%s%s[0m" % [indent_text, _color.r8, _color.g8, _color.b8, _style, text])
+	var style_codes := _apply_style_flags(_flags)
+	printraw("%s[38;2;%d;%d;%dm%s%s[0m" % [indent_text, _color.r8, _color.g8, _color.b8, style_codes, text])
 	_current_pos += _indent * 2 + text.length()
 
 
@@ -175,12 +172,12 @@ func _print_at(_message: String, cursor_pos: int, _color: Color, _effect: GdUnit
 		cursor_pos = cursor_pos - _message.length()
 
 	if cursor_pos > _current_pos:
-		printraw("[%dG" % cursor_pos) # Move cursor to absolute position
+		printraw("[%dG" % cursor_pos)  # Move cursor to absolute position
 	else:
 		_message = " " + _message
 
-	var _style := _apply_style_flags(_flags)
-	printraw("[38;2;%d;%d;%dm%s%s[0m" % [_color.r8, _color.g8, _color.b8, _style, _message])
+	var style_codes := _apply_style_flags(_flags)
+	printraw("[38;2;%d;%d;%dm%s%s[0m" % [_color.r8, _color.g8, _color.b8, style_codes, _message])
 	_current_pos = cursor_pos + _message.length()
 
 
@@ -206,7 +203,7 @@ func restore_cursor() -> GdUnitCSIMessageWriter:
 
 ## Clears screen content and resets cursor position.
 func clear() -> void:
-	printraw("[2J[H") # Clear screen and move cursor to home
+	printraw("[2J[H")  # Clear screen and move cursor to home
 	_current_pos = 0
 
 

@@ -1,29 +1,15 @@
 @tool
-extends Control
+extends Control  # gdstyle:ignore-file=quality/max-file-length,quality/max-public-methods
 
 ## Will be emitted when the test index counter is changed
 signal test_counters_changed(index: int, total: int, state: GdUnitInspectorTreeConstants.STATE)
 signal tree_item_selected(item: TreeItem)
 
-
-@onready var _tree: Tree = %Tree
-@onready var _report_panel: GdUnitReportPanel = %report
-@onready var _context_menu: GdUnitInspectorContextMenu = %contextMenu
-@onready var _discover_hint: Control = %discover_hint
-@onready var _spinner: Button = %spinner
-
-# loading tree icons
-var ICON_SPINNER: Texture2D
-var ICON_GD_SCRIPT: Texture2D
-var ICON_CS_SCRIPT: Texture2D
-var ICON_FOLDER: Texture2D
-
-
 enum GdUnitType {
 	FOLDER,
 	TEST_SUITE,
 	TEST_CASE,
-	TEST_GROUP
+	TEST_GROUP,
 }
 
 const META_GDUNIT_PROGRESS_COUNT_MAX := "gdUnit_progress_count_max"
@@ -39,11 +25,49 @@ const META_GDUNIT_EXECUTION_TIME := "gdUnit_execution_time"
 const META_GDUNIT_ORIGINAL_INDEX = "gdunit_original_index"
 const STATE = GdUnitInspectorTreeConstants.STATE
 
-
+# loading tree icons
+var _icon_gd_script: Texture2D
+var _icon_cs_script: Texture2D
+var _icon_folder: Texture2D
 var _tree_root: TreeItem
 var _current_selected_item: TreeItem = null
 var _current_tree_view_mode := GdUnitSettings.get_inspector_tree_view_mode()
 var _run_test_recovery := true
+
+@onready var _tree: Tree = %Tree
+@onready var _report_panel: GdUnitReportPanel = %report
+@onready var _context_menu: GdUnitInspectorContextMenu = %contextMenu
+@onready var _discover_hint: Control = %discover_hint
+@onready var _spinner: Button = %spinner
+
+
+@warning_ignore("return_value_discarded")
+func _ready() -> void:
+	if Engine.is_editor_hint():
+		var base_control := EditorInterface.get_base_control()
+		base_control.set_meta("GdUnit4Inspector", self)
+
+	_init_icons()
+	init_tree()
+	GdUnitSignals.instance().gdunit_settings_changed.connect(_on_settings_changed)
+	GdUnitSignals.instance().gdunit_event.connect(_on_gdunit_event)
+	GdUnitSignals.instance().gdunit_test_discover_added.connect(on_test_case_discover_added)
+	GdUnitSignals.instance().gdunit_test_discover_deleted.connect(on_test_case_discover_deleted)
+	GdUnitSignals.instance().gdunit_test_discover_modified.connect(on_test_case_discover_modified)
+	if _run_test_recovery:
+		GdUnitTestDiscoverer.restore_last_session()
+
+
+func _notification(what: int) -> void:
+	if what == EditorSettings.NOTIFICATION_EDITOR_SETTINGS_CHANGED:
+		_init_icons()
+
+
+# we need current to manually redraw bacause of the animation bug
+# https://github.com/godotengine/godot/issues/69330
+func _process(_delta: float) -> void:
+	if is_visible_in_tree():
+		queue_redraw()
 
 
 ## Used for debugging purposes only
@@ -183,40 +207,11 @@ func disable_test_recovery() -> void:
 	_run_test_recovery = false
 
 
-@warning_ignore("return_value_discarded")
-func _ready() -> void:
-	if Engine.is_editor_hint():
-		var base_control := EditorInterface.get_base_control()
-		base_control.set_meta("GdUnit4Inspector", self)
-
-	_init_icons()
-	init_tree()
-	GdUnitSignals.instance().gdunit_settings_changed.connect(_on_settings_changed)
-	GdUnitSignals.instance().gdunit_event.connect(_on_gdunit_event)
-	GdUnitSignals.instance().gdunit_test_discover_added.connect(on_test_case_discover_added)
-	GdUnitSignals.instance().gdunit_test_discover_deleted.connect(on_test_case_discover_deleted)
-	GdUnitSignals.instance().gdunit_test_discover_modified.connect(on_test_case_discover_modified)
-	if _run_test_recovery:
-		GdUnitTestDiscoverer.restore_last_session()
-
-
-func _notification(what: int) -> void:
-	if what == EditorSettings.NOTIFICATION_EDITOR_SETTINGS_CHANGED:
-		_init_icons()
-
-
 func _init_icons() -> void:
 	_spinner.icon = GdUnitUiTools.get_spinner()
-	ICON_GD_SCRIPT = GdUnitUiTools.get_icon("GDScript", GdUnitEditorColorTheme.state_initial)
-	ICON_CS_SCRIPT = GdUnitUiTools.get_icon("CSharpScript", GdUnitEditorColorTheme.state_initial)
-	ICON_FOLDER = GdUnitUiTools.get_icon("Folder", GdUnitEditorColorTheme.folder_color)
-
-
-# we need current to manually redraw bacause of the animation bug
-# https://github.com/godotengine/godot/issues/69330
-func _process(_delta: float) -> void:
-	if is_visible_in_tree():
-		queue_redraw()
+	_icon_gd_script = GdUnitUiTools.get_icon("GDScript", GdUnitEditorColorTheme.state_initial)
+	_icon_cs_script = GdUnitUiTools.get_icon("CSharpScript", GdUnitEditorColorTheme.state_initial)
+	_icon_folder = GdUnitUiTools.get_icon("Folder", GdUnitEditorColorTheme.folder_color)
 
 
 func init_tree() -> void:
@@ -253,7 +248,7 @@ func cleanup_tree() -> void:
 	_current_selected_item = null
 
 
-func _free_recursive(items:=_tree_root.get_children()) -> void:
+func _free_recursive(items := _tree_root.get_children()) -> void:
 	for item in items:
 		_free_recursive(item.get_children())
 		item.call_deferred("free")
@@ -264,7 +259,7 @@ func sort_tree_items(parent: TreeItem) -> void:
 	_tree.queue_redraw()
 
 
-static func _sort_tree_items(parent: TreeItem, sort_mode: GdUnitInspectorTreeConstants.SORT_MODE) -> void:
+static func _sort_tree_items(parent: TreeItem, sort_mode: GdUnitInspectorTreeConstants.SortMode) -> void:
 	parent.visible = false
 	var items := parent.get_children()
 	# first remove all childs before sorting
@@ -273,16 +268,16 @@ static func _sort_tree_items(parent: TreeItem, sort_mode: GdUnitInspectorTreeCon
 
 	# do sort by selected sort mode
 	match sort_mode:
-		GdUnitInspectorTreeConstants.SORT_MODE.UNSORTED:
+		GdUnitInspectorTreeConstants.SortMode.UNSORTED:
 			items.sort_custom(sort_items_by_original_index)
 
-		GdUnitInspectorTreeConstants.SORT_MODE.NAME_ASCENDING:
+		GdUnitInspectorTreeConstants.SortMode.NAME_ASCENDING:
 			items.sort_custom(sort_items_by_name.bind(true))
 
-		GdUnitInspectorTreeConstants.SORT_MODE.NAME_DESCENDING:
+		GdUnitInspectorTreeConstants.SortMode.NAME_DESCENDING:
 			items.sort_custom(sort_items_by_name.bind(false))
 
-		GdUnitInspectorTreeConstants.SORT_MODE.EXECUTION_TIME:
+		GdUnitInspectorTreeConstants.SortMode.EXECUTION_TIME:
 			items.sort_custom(sort_items_by_execution_time)
 
 	# readding sorted childs
@@ -321,12 +316,12 @@ static func sort_items_by_execution_time(a: TreeItem, b: TreeItem) -> bool:
 	if type_b == GdUnitType.FOLDER and type_a != GdUnitType.FOLDER:
 		return false
 
-	var execution_time_a :int = a.get_meta(META_GDUNIT_EXECUTION_TIME)
-	var execution_time_b :int = b.get_meta(META_GDUNIT_EXECUTION_TIME)
+	var execution_time_a: int = a.get_meta(META_GDUNIT_EXECUTION_TIME)
+	var execution_time_b: int = b.get_meta(META_GDUNIT_EXECUTION_TIME)
 	# if has same execution time sort by name
 	if execution_time_a == execution_time_b:
-		var name_a :String = a.get_meta(META_GDUNIT_NAME)
-		var name_b :String = b.get_meta(META_GDUNIT_NAME)
+		var name_a: String = a.get_meta(META_GDUNIT_NAME)
+		var name_b: String = b.get_meta(META_GDUNIT_NAME)
 		return name_a.naturalnocasecmp_to(name_b) > 0
 	return execution_time_a > execution_time_b
 
@@ -341,20 +336,20 @@ static func sort_items_by_original_index(a: TreeItem, b: TreeItem) -> bool:
 	if type_b == GdUnitType.FOLDER and type_a != GdUnitType.FOLDER:
 		return false
 
-	var index_a :int = a.get_meta(META_GDUNIT_ORIGINAL_INDEX)
-	var index_b :int = b.get_meta(META_GDUNIT_ORIGINAL_INDEX)
+	var index_a: int = a.get_meta(META_GDUNIT_ORIGINAL_INDEX)
+	var index_b: int = b.get_meta(META_GDUNIT_ORIGINAL_INDEX)
 
 	# Sorting by index
 	return index_a < index_b
 
 
-func restructure_tree(parent: TreeItem, tree_mode: GdUnitInspectorTreeConstants.TREE_VIEW_MODE) -> void:
+func restructure_tree(parent: TreeItem, tree_mode: GdUnitInspectorTreeConstants.TreeViewMode) -> void:
 	_current_tree_view_mode = tree_mode
 
 	match tree_mode:
-		GdUnitInspectorTreeConstants.TREE_VIEW_MODE.FLAT:
+		GdUnitInspectorTreeConstants.TreeViewMode.FLAT:
 			restructure_tree_to_flat(parent)
-		GdUnitInspectorTreeConstants.TREE_VIEW_MODE.TREE:
+		GdUnitInspectorTreeConstants.TreeViewMode.TREE:
 			restructure_tree_to_tree(parent)
 	recalculate_counters(_tree_root)
 	# finally apply actual sort mode
@@ -977,13 +972,12 @@ func _find_highest_state(item: TreeItem) -> STATE:
 	return state
 
 
-
 func get_icon_by_file_type(path: String) -> Texture2D:
 	if path.get_extension() == "gd":
-		return ICON_GD_SCRIPT
+		return _icon_gd_script
 	if path.get_extension() == "cs":
-		return ICON_CS_SCRIPT
-	return ICON_FOLDER
+		return _icon_cs_script
+	return _icon_folder
 
 
 func on_test_case_discover_added(test_case: GdUnitTestCase) -> void:
@@ -994,12 +988,12 @@ func on_test_case_discover_added(test_case: GdUnitTestCase) -> void:
 	# Skip tree structure until test root folder
 	var index := parts.find(test_root_folder)
 	if index != -1:
-		parts = parts.slice(index+1)
+		parts = parts.slice(index + 1)
 
 	match _current_tree_view_mode:
-		GdUnitInspectorTreeConstants.TREE_VIEW_MODE.FLAT:
+		GdUnitInspectorTreeConstants.TreeViewMode.FLAT:
 			create_items_tree_mode_flat(test_case, parts)
-		GdUnitInspectorTreeConstants.TREE_VIEW_MODE.TREE:
+		GdUnitInspectorTreeConstants.TreeViewMode.TREE:
 			create_items_tree_mode_tree(test_case, parts)
 
 
@@ -1067,7 +1061,7 @@ func on_test_case_discover_deleted(test_case: GdUnitTestCase) -> void:
 		var item_success_count: int = item.get_meta(META_GDUNIT_SUCCESS_TESTS)
 		var item_total_test_count: int = item.get_meta(META_GDUNIT_PROGRESS_COUNT_MAX, 0)
 		var total_test_count: int = parent.get_meta(META_GDUNIT_PROGRESS_COUNT_MAX, 0)
-		parent.set_meta(META_GDUNIT_PROGRESS_COUNT_MAX, total_test_count-item_total_test_count)
+		parent.set_meta(META_GDUNIT_PROGRESS_COUNT_MAX, total_test_count - item_total_test_count)
 
 		# propagate counter update to all parents
 		update_item_total_counter(parent)
@@ -1116,7 +1110,7 @@ func _dump_tree_as_json(dump_name: String) -> void:
 	file.store_string(JSON.stringify(dict, "\t"))
 
 
-func _to_json(parent :TreeItem) -> Dictionary:
+func _to_json(parent: TreeItem) -> Dictionary:
 	var item_as_dict := GdObjects.obj2dict(parent)
 	item_as_dict["TreeItem"]["childrens"] = parent.get_children().map(func(item: TreeItem) -> Dictionary:
 			return _to_json(item))
@@ -1152,19 +1146,19 @@ func test_session_stop() -> void:
 	# wait until the tree redraw
 	await get_tree().process_frame
 	var failure_item := _find_first_item_by_state(_tree_root, STATE.FAILED)
-	select_item( failure_item if failure_item else _current_selected_item)
+	select_item(failure_item if failure_item else _current_selected_item)
 
 
-################################################################################
+# ###############################################################################
 # Tree signal receiver
-################################################################################
+# ###############################################################################
 func _on_tree_item_mouse_selected(mouse_position: Vector2, mouse_button_index: int) -> void:
 	if mouse_button_index == MOUSE_BUTTON_RIGHT:
 		_context_menu.position = get_screen_position() + mouse_position
 		_context_menu.popup()
 
 
-func _on_Tree_item_selected() -> void:
+func _on_tree_item_selected() -> void:
 	_current_selected_item = _tree.get_selected()
 	var reports := get_item_reports(_current_selected_item)
 	_report_panel.show_report(reports)
@@ -1172,7 +1166,7 @@ func _on_Tree_item_selected() -> void:
 
 
 # Opens the test suite
-func _on_Tree_item_activated() -> void:
+func _on_tree_item_activated() -> void:
 	var selected_item := _tree.get_selected()
 	var line_number := get_item_test_line_number(selected_item)
 	if line_number != -1:
@@ -1194,10 +1188,9 @@ func _on_Tree_item_activated() -> void:
 		selected_item.collapsed = not selected_item.collapsed
 
 
-################################################################################
+# ###############################################################################
 # external signal receiver
-################################################################################
-
+# ###############################################################################
 func _on_gdunit_event(event: GdUnitEvent) -> void:
 	match event.type():
 		GdUnitEvent.DISCOVER_START:
@@ -1228,11 +1221,11 @@ func _on_gdunit_event(event: GdUnitEvent) -> void:
 			await test_session_stop()
 
 
-func _on_settings_changed(property :GdUnitProperty) -> void:
+func _on_settings_changed(property: GdUnitProperty) -> void:
 	match property.name():
 		GdUnitSettings.INSPECTOR_TREE_SORT_MODE:
 			sort_tree_items(_tree_root)
-			#_dump_tree_as_json("tree_sorted_by_%s" % GdUnitInspectorTreeConstants.SORT_MODE.keys()[property.value()])
+			#_dump_tree_as_json("tree_sorted_by_%s" % GdUnitInspectorTreeConstants.SortMode.keys()[property.value()])
 
 		GdUnitSettings.INSPECTOR_TREE_VIEW_MODE:
 			restructure_tree(_tree_root, GdUnitSettings.get_inspector_tree_view_mode())

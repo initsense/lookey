@@ -1,8 +1,7 @@
-class_name _TestCase
+class_name GdUnitTestCaseImpl
 extends Node
 
 signal completed()
-
 
 var _test_case: GdUnitTestCase
 var _attribute: TestCaseAttribute
@@ -27,7 +26,7 @@ func _init(test_case: GdUnitTestCase, attribute: TestCaseAttribute, parameter_re
 func execute(p_test_parameter := Array(), p_iteration := 0) -> void:
 	_failure_received(false)
 	_current_iteration = p_iteration - 1
-	if _current_iteration == - 1:
+	if _current_iteration == -1:
 		_set_failure_handler()
 		set_timeout()
 
@@ -87,7 +86,7 @@ func test_completed() -> void:
 
 
 func update_fuzzers(input_values: Array, iteration: int) -> void:
-	for fuzzer :Variant in input_values:
+	for fuzzer: Variant in input_values:
 		if fuzzer is Fuzzer:
 			fuzzer._iteration_index = iteration + 1
 
@@ -112,7 +111,7 @@ func do_interrupt() -> void:
 	# We need to dispose manually the function state here
 	GdObjects.dispose_function_state(_func_state)
 	if not is_expect_interupted():
-		var execution_context := GdUnitThreadManager.get_current_context().get_execution_context()
+		var execution_context := GdUnitExecutionContext.current()
 		if is_fuzzed():
 			execution_context.add_report(GdUnitReport.new()\
 				.create(GdUnitReport.INTERUPTED, line_number(), GdAssertMessages.fuzzer_interuped(_current_iteration, "timedout")))
@@ -126,7 +125,7 @@ func do_terminate() -> void:
 	_terminated = true
 	# We need to dispose manually the function state here
 	GdObjects.dispose_function_state(_func_state)
-	var execution_context := GdUnitThreadManager.get_current_context().get_execution_context()
+	var execution_context := GdUnitExecutionContext.current()
 	execution_context.add_report(GdUnitReport.new()\
 		.create(GdUnitReport.TERMINATED, line_number(), GdAssertMessages.test_session_terminated()))
 	test_completed.call_deferred()
@@ -219,7 +218,7 @@ func script_path() -> String:
 	return _test_case.source_file
 
 
-func ResourcePath() -> String:
+func ResourcePath() -> String:  # gdstyle:ignore=naming/function-name-snake-case
 	return _test_case.source_file
 
 
@@ -228,7 +227,7 @@ func generate_seed() -> void:
 		seed(_attribute.test_seed)
 
 
-func do_skip(skipped: bool, reason: String="") -> void:
+func do_skip(skipped: bool, reason: String = "") -> void:
 	_attribute.is_skipped = skipped
 	_attribute.skip_reason = reason
 

@@ -1,8 +1,8 @@
+@abstract class_name GdUnitSceneRunner
+extends RefCounted
 ## The Scene Runner is a tool used for simulating interactions on a scene.
 ## With this tool, you can simulate input events such as keyboard or mouse input and/or simulate scene processing over a certain number of frames.
 ## This tool is typically used for integration testing a scene.
-@abstract class_name GdUnitSceneRunner
-extends RefCounted
 
 
 ## Simulates that an action has been pressed.[br]
@@ -24,18 +24,16 @@ extends RefCounted
 
 
 ## Simulates that a key has been pressed.[br]
-## @deprecated: the modifier [b]shift_pressed[/b] and [b]ctrl_pressed[/b] will be removed in v7.0
 ## [member key_code] : the key code e.g. [constant KEY_ENTER][br]
 ## [codeblock]
 ##    func test_key_presssed():
 ##       var runner = scene_runner("res://scenes/simple_scene.tscn")
 ##       await runner.simulate_key_pressed(KEY_SPACE)
 ## [/codeblock]
-@abstract func simulate_key_pressed(key_code: int, shift_pressed := false, ctrl_pressed := false) -> GdUnitSceneRunner
+@abstract func simulate_key_pressed(key_code: int) -> GdUnitSceneRunner
 
 
 ## Simulates that a key is pressing.[br]
-## @deprecated: the modifier [b]shift_pressed[/b] and [b]ctrl_pressed[/b] will be removed in v7.0[br]See `test_key_shift_and_A_presssing` for example using key combinations
 ## [member key_code] : the key code e.g. [constant KEY_ENTER][br]
 ## [codeblock]
 ##    # Do simulate key pressing A
@@ -51,7 +49,7 @@ extends RefCounted
 ##       runner.simulate_key_press(KEY_A)
 ##       await _runner.await_input_processed()
 ## [/codeblock]
-@abstract func simulate_key_press(key_code: int, shift_pressed := false, ctrl_pressed := false) -> GdUnitSceneRunner
+@abstract func simulate_key_press(key_code: int) -> GdUnitSceneRunner
 
 
 ## Simulates that a key has been released.[br]
@@ -70,20 +68,20 @@ extends RefCounted
 ##       runner.simulate_key_release(KEY_A)
 ##       await _runner.await_input_processed()
 ## [/codeblock]
-## @deprecated: the modifier [b]shift_pressed[/b] and [b]ctrl_pressed[/b] will be removed in v7.0[br]See `test_key_shift_and_A_releasing` for example using key combinations
-@abstract func simulate_key_release(key_code: int, shift_pressed := false, ctrl_pressed := false) -> GdUnitSceneRunner
+@abstract func simulate_key_release(key_code: int) -> GdUnitSceneRunner
 
 
-## Sets the mouse position to the specified vector, provided in pixels and relative to an origin at the upper left corner of the currently focused Window Manager game window.[br]
+## Sets the mouse position to the specified vector, provided in pixels and relative to an origin at the upper left corner of the scene viewport.[br]
 ## [member position] : The absolute position in pixels as Vector2
 @abstract func set_mouse_position(position: Vector2) -> GdUnitSceneRunner
 
 
-## Returns the mouse's position in this Viewport using the coordinate system of this Viewport.
+## Returns the mouse's position in the scene viewport using the coordinate system of the scene viewport.
 @abstract func get_mouse_position() -> Vector2
 
 
-## Gets the current global mouse position of the current window
+## Returns the global mouse position in window coordinates, the scene viewport is shown scaled in the window.[br]
+## In headless mode there is no window and it is equal to [method get_mouse_position].
 @abstract func get_global_mouse_position() -> Vector2
 
 
@@ -208,7 +206,13 @@ extends RefCounted
 ##       # start drag at position 50,50 and drop it at 100,50
 ##       await runner.simulate_screen_touch_drag_drop(1, Vector2(50, 50), Vector2(100,50))
 ## [/codeblock]
-@abstract func simulate_screen_touch_drag_drop(index: int, position: Vector2, drop_position: Vector2, time: float = 1.0, trans_type: Tween.TransitionType = Tween.TRANS_LINEAR) -> GdUnitSceneRunner
+@abstract func simulate_screen_touch_drag_drop(
+	index: int,
+	position: Vector2,
+	drop_position: Vector2,
+	time: float = 1.0,
+	trans_type: Tween.TransitionType = Tween.TRANS_LINEAR
+) -> GdUnitSceneRunner
 
 
 ## Simulates a touch screen drag event to given position.[br]
@@ -298,7 +302,7 @@ extends RefCounted
 ## [member signal_name] : The name of the signal to wait for[br]
 ## [member args] : The signal arguments as an array[br]
 ## [member timeout] : The maximum duration (in milliseconds) to wait for the signal to be emitted before failing
-@abstract func await_signal(signal_name: String, args := [], timeout := 2000 ) -> void
+@abstract func await_signal(signal_name: String, args := [], timeout := 2000) -> void
 
 
 ## Waits for the specified signal to be emitted by a particular source node. If the signal is not emitted within the given timeout, the operation fails.[br]
@@ -306,7 +310,7 @@ extends RefCounted
 ## [member signal_name] : The name of the signal to wait for[br]
 ## [member args] : The signal arguments as an array[br]
 ## [member timeout] : tThe maximum duration (in milliseconds) to wait for the signal to be emitted before failing
-@abstract func await_signal_on(source: Object, signal_name: String, args := [], timeout := 2000 ) -> void
+@abstract func await_signal_on(source: Object, signal_name: String, args := [], timeout := 2000) -> void
 
 
 ## Restores the scene window to a windowed mode and brings it to the foreground.[br]

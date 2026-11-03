@@ -23,6 +23,20 @@ extends RefCounted
 ## writer.color(Color.GREEN).align(Align.RIGHT).print_at("Success", 80)
 ## [/codeblock]
 
+## Represents special text effects that can be applied to the output
+enum Effect {
+	## No special effect applied
+	NONE,
+	## Applies a wave animation to the text
+	WAVE,
+}
+## Controls text alignment at the specified cursor position
+enum Align {
+	## Aligns text to the left of the cursor position
+	LEFT,
+	## Aligns text to the right of the cursor position, accounting for text length
+	RIGHT,
+}
 
 ## Text style flag for bold formatting
 const BOLD = 0x1
@@ -31,38 +45,15 @@ const ITALIC = 0x2
 ## Text style flag for underline formatting
 const UNDERLINE = 0x4
 
-
-## Represents special text effects that can be applied to the output
-enum Effect {
-	## No special effect applied
-	NONE,
-	## Applies a wave animation to the text
-	WAVE
-}
-
-
-## Controls text alignment at the specified cursor position
-enum Align {
-	## Aligns text to the left of the cursor position
-	LEFT,
-	## Aligns text to the right of the cursor position, accounting for text length
-	RIGHT
-}
-
-
 ## The current text color to be used for the next output operation
 var _current_color := Color.WHITE
-
 ## The current indentation level to be used for the next output operation.[br]
 ## Each level represents two spaces of indentation.
 var _current_indent := 0
-
 ## The current text style flags (BOLD, ITALIC, UNDERLINE) to be used for the next output operation
 var _current_flags := 0
-
 ## The current text alignment to be used for the next output operation
 var _current_align := Align.LEFT
-
 ## The current text effect to be used for the next output operation
 var _current_effect := GdUnitMessageWriter.Effect.NONE
 

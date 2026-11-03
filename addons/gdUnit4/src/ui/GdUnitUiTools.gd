@@ -2,15 +2,12 @@
 class_name GdUnitUiTools
 extends RefCounted
 
-
-const STATE = GdUnitInspectorTreeConstants.STATE
-
-
 enum ImageFlipMode {
-	HORIZONTAl,
-	VERITCAL
+	HORIZONTAL,
+	VERITCAL,
 }
 
+const STATE = GdUnitInspectorTreeConstants.STATE
 
 static var _spinner: AnimatedTexture
 static var icon_cache: Dictionary[STATE, Texture2D]
@@ -52,7 +49,7 @@ static func get_state_icon(state: STATE) -> Texture2D:
 
 
 ## Returns the icon by name, if it exists.
-static func get_icon(icon_name: String, color: = Color.BLACK) -> Texture2D:
+static func get_icon(icon_name: String, color := Color.BLACK) -> Texture2D:
 	if not Engine.is_editor_hint():
 		return null
 	var icon := EditorInterface.get_base_control().get_theme_icon(icon_name, "EditorIcons")
@@ -64,7 +61,7 @@ static func get_icon(icon_name: String, color: = Color.BLACK) -> Texture2D:
 
 
 ## Returns the icon flipped
-static func get_flipped_icon(icon_name: String, mode: = ImageFlipMode.HORIZONTAl) -> Texture2D:
+static func get_flipped_icon(icon_name: String, mode := ImageFlipMode.HORIZONTAL) -> Texture2D:
 	if not Engine.is_editor_hint():
 		return null
 	var icon := EditorInterface.get_base_control().get_theme_icon(icon_name, "EditorIcons")
@@ -80,7 +77,7 @@ static func get_spinner() -> AnimatedTexture:
 	_spinner.frames = 8
 	_spinner.speed_scale = 2.5
 	for frame in _spinner.frames:
-		_spinner.set_frame_texture(frame, get_icon("Progress%d" % (frame+1)))
+		_spinner.set_frame_texture(frame, get_icon("Progress%d" % (frame + 1)))
 		_spinner.set_frame_duration(frame, 0.2)
 	return _spinner
 

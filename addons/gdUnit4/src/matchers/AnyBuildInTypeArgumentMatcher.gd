@@ -1,14 +1,14 @@
 class_name AnyBuildInTypeArgumentMatcher
 extends GdUnitArgumentMatcher
 
-var _type : PackedInt32Array = []
+var _type: PackedInt32Array = []
 
 
-func _init(type :PackedInt32Array) -> void:
+func _init(type: PackedInt32Array) -> void:
 	_type = type
 
 
-func is_match(value :Variant) -> bool:
+func is_match(value: Variant) -> bool:
 	return _type.has(typeof(value))
 
 
@@ -28,7 +28,7 @@ func _to_string() -> String:
 		TYPE_RECT2: return "any_rect2()"
 		TYPE_RECT2I: return "any_rect2i()"
 		TYPE_PLANE: return "any_plane()"
-		TYPE_QUATERNION: return "any_quat()"
+		TYPE_QUATERNION: return "any_quaternion()"
 		TYPE_AABB: return "any_aabb()"
 		TYPE_BASIS: return "any_basis()"
 		TYPE_TRANSFORM2D: return "any_transform_2d()"

@@ -1,17 +1,13 @@
 class_name GdUnitCommandInspectorTreeExpand
 extends GdUnitBaseCommand
 
-const  GdUnitInspectorTreeMainPanel := preload("res://addons/gdUnit4/src/ui/parts/GdUnitInspectorTreeMainPanel.gd")
+const GdUnitInspectorTreeMainPanel := preload("res://addons/gdUnit4/src/ui/parts/GdUnitInspectorTreeMainPanel.gd")
 const ID := "Inspector Tree Expand"
 
 
 func _init() -> void:
 	super(ID, GdUnitShortcut.ShortCut.NONE)
 	icon = GdUnitUiTools.get_icon("ExpandTree")
-
-
-func is_running() -> bool:
-	return false
 
 
 func execute(..._parameters: Array) -> void:
@@ -23,3 +19,7 @@ func execute(..._parameters: Array) -> void:
 		selected_item = selected_item.get_parent()
 
 	inspector.do_collapse_all(false, selected_item)
+
+
+func _do_stop() -> void:
+	pass

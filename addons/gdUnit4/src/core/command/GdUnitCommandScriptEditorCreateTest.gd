@@ -1,17 +1,12 @@
 class_name GdUnitCommandScriptEditorCreateTest
 extends GdUnitBaseCommand
 
-
 const ID := "Create Test"
 
 
 func _init() -> void:
 	super(ID, GdUnitShortcut.ShortCut.CREATE_TEST)
-	icon =  GdUnitUiTools.get_icon("New")
-
-
-func is_running() -> bool:
-	return false
+	icon = GdUnitUiTools.get_icon("New")
 
 
 func execute(..._parameters: Array) -> void:
@@ -27,6 +22,10 @@ func execute(..._parameters: Array) -> void:
 	var script_path: String = info.get("path")
 	var script_line: int = info.get("line")
 	GdUnitScriptEditorControls.edit_script(script_path, script_line)
+
+
+func _do_stop() -> void:
+	pass
 
 
 func _is_active_script_editor() -> bool:

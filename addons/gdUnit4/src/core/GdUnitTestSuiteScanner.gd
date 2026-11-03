@@ -1,26 +1,21 @@
 class_name GdUnitTestSuiteScanner
-extends RefCounted
+extends RefCounted  # gdstyle:ignore-file=order/class-member-order
 
-const TEST_FUNC_TEMPLATE ="""
+const TEST_FUNC_TEMPLATE = """
 
 func test_${func_name}() -> void:
 	# remove this line and complete your test
 	assert_not_yet_implemented()
 """
-
-
 # we exclude the gdunit source directorys by default
-const exclude_scan_directories = [
+const EXCLUDE_SCAN_DIRECTORIES = [
 	"res://addons/gdUnit4/bin",
 	"res://addons/gdUnit4/src",
 	"res://reports"]
-
-
 const ARGUMENT_TIMEOUT := "timeout"
 const ARGUMENT_SKIP := "do_skip"
 const ARGUMENT_SKIP_REASON := "skip_reason"
 const ARGUMENT_PARAMETER_SET := "test_parameters"
-
 
 var _script_parser := GdScriptParser.new()
 var _included_resources: PackedStringArray = []
@@ -75,8 +70,9 @@ func _scan_test_suites_scripts(dir: DirAccess, collected_suites: Array[Script]) 
 		prints("Exclude directory %s, containing .gdignore file" % dir.get_current_dir())
 		return []
 
-	if exclude_scan_directories.has(dir.get_current_dir()):
+	if EXCLUDE_SCAN_DIRECTORIES.has(dir.get_current_dir()):
 		return collected_suites
+
 
 	var err := dir.list_dir_begin()
 	if err != OK:
@@ -161,7 +157,7 @@ func load_suite(script: GDScript, tests: Array[GdUnitTestCase]) -> GdUnitTestSui
 		for test: GdUnitTestCase in test_group:
 			# We need a copy, because of mutable state
 			var attribute: TestCaseAttribute = test_attribute.clone()
-			test_suite.add_child(_TestCase.new(test, attribute, parameter_resolver))
+			test_suite.add_child(GdUnitTestCaseImpl.new(test, attribute, parameter_resolver))
 	return test_suite
 
 
@@ -201,7 +197,6 @@ func _build_test_attribute(script: GDScript, fd: GdFunctionDescriptor) -> TestCa
 					attribute.test_seed = type_convert(arg.default(), TYPE_INT)
 				ARGUMENT_PARAMETER_SET:
 					collected_unknown_aruments.clear()
-					pass
 				_:
 					collected_unknown_aruments.append(arg.name())
 
@@ -273,15 +268,15 @@ func _handle_test_suite_arguments(test_suite: GdUnitTestSuite, script: GDScript,
 
 # converts given file name by configured naming convention
 static func _to_naming_convention(file_name: String) -> String:
-	var nc :int = GdUnitSettings.get_setting(GdUnitSettings.TEST_SUITE_NAMING_CONVENTION, 0)
+	var nc: int = GdUnitSettings.get_setting(GdUnitSettings.TEST_SUITE_NAMING_CONVENTION, 0)
 	match nc:
-		GdUnitSettings.NAMING_CONVENTIONS.AUTO_DETECT:
+		GdUnitSettings.NamingConventions.AUTO_DETECT:
 			if GdObjects.is_snake_case(file_name):
 				return GdObjects.to_snake_case(file_name + "Test")
 			return GdObjects.to_pascal_case(file_name + "Test")
-		GdUnitSettings.NAMING_CONVENTIONS.SNAKE_CASE:
+		GdUnitSettings.NamingConventions.SNAKE_CASE:
 			return GdObjects.to_snake_case(file_name + "Test")
-		GdUnitSettings.NAMING_CONVENTIONS.PASCAL_CASE:
+		GdUnitSettings.NamingConventions.PASCAL_CASE:
 			return GdObjects.to_pascal_case(file_name + "Test")
 	push_error("Unexpected case")
 	return "-<Unexpected>-"
@@ -301,7 +296,7 @@ static func resolve_test_suite_path(source_script_path: String, test_root_folder
 	var test_suite_path: String
 	var src_folder := source_script_path.find("/src/")
 	if src_folder != -1:
-		test_suite_path = source_script_path.replace("/src/", "/"+test_root_folder+"/")
+		test_suite_path = source_script_path.replace("/src/", "/" + test_root_folder + "/")
 	else:
 		var paths := source_script_path.split("/", false)
 		# is a plugin script?
@@ -324,9 +319,9 @@ static func normalize_path(path: String) -> String:
 static func create_test_suite(test_suite_path: String, source_path: String) -> GdUnitResult:
 	# create directory if not exists
 	if not DirAccess.dir_exists_absolute(test_suite_path.get_base_dir()):
-		var error_ := DirAccess.make_dir_recursive_absolute(test_suite_path.get_base_dir())
-		if error_ != OK:
-			return GdUnitResult.error("Can't create directoy  at: %s. Error code %s" % [test_suite_path.get_base_dir(), error_])
+		var dir_error := DirAccess.make_dir_recursive_absolute(test_suite_path.get_base_dir())
+		if dir_error != OK:
+			return GdUnitResult.error("Can't create directoy  at: %s. Error code %s" % [test_suite_path.get_base_dir(), dir_error])
 	var script := GDScript.new()
 	script.source_code = GdUnitTestSuiteTemplate.build_template(source_path)
 	var error := ResourceSaver.save(script, test_suite_path)
@@ -343,7 +338,7 @@ static func get_test_case_line_number(resource_path: String, func_name: String) 
 			var row := file.get_line()
 			line_number += 1
 			# ignore comments and empty lines and not test functions
-			if row.begins_with("#") || row.length() == 0 || row.find("func test_") == -1:
+			if row.begins_with("#") or row.length() == 0 or row.find("func test_") == -1:
 				continue
 			# abort if test case name found
 			if row.find("func") != -1 and row.find("test_" + func_name) != -1:
@@ -357,7 +352,7 @@ func get_extends_classname(resource_path: String) -> String:
 		while not file.eof_reached():
 			var row := file.get_line()
 			# skip comments and empty lines
-			if row.begins_with("#") || row.length() == 0:
+			if row.begins_with("#") or row.length() == 0:
 				continue
 			# Stop at first function
 			if row.contains("func"):
@@ -368,7 +363,7 @@ func get_extends_classname(resource_path: String) -> String:
 	return ""
 
 
-static func add_test_case(resource_path: String, func_name: String)  -> GdUnitResult:
+static func add_test_case(resource_path: String, func_name: String) -> GdUnitResult:
 	var script := load_with_disabled_warnings(resource_path)
 	# count all exiting lines and add two as space to add new test case
 	var line_number := count_lines(script) + 2
@@ -388,7 +383,7 @@ static func add_test_case(resource_path: String, func_name: String)  -> GdUnitRe
 	var error := ResourceSaver.save(script, resource_path)
 	if error != OK:
 		return GdUnitResult.error("Can't add test case at: %s to '%s'. Error code %s" % [func_name, resource_path, error])
-	return GdUnitResult.success({ "path" : resource_path, "line" : line_number})
+	return GdUnitResult.success({ "path": resource_path, "line": line_number })
 
 
 static func count_lines(script: Script) -> int:
@@ -399,7 +394,7 @@ static func test_suite_exists(test_suite_path: String) -> bool:
 	return FileAccess.file_exists(test_suite_path)
 
 
-static func test_case_exists(test_suite_path :String, func_name :String) -> bool:
+static func test_case_exists(test_suite_path: String, func_name: String) -> bool:
 	if not test_suite_exists(test_suite_path):
 		return false
 	var script := load_with_disabled_warnings(test_suite_path)
@@ -412,7 +407,7 @@ static func test_case_exists(test_suite_path :String, func_name :String) -> bool
 static func create_test_case(test_suite_path: String, func_name: String, source_script_path: String) -> GdUnitResult:
 	if test_case_exists(test_suite_path, func_name):
 		var line_number := get_test_case_line_number(test_suite_path, func_name)
-		return GdUnitResult.success({ "path" : test_suite_path, "line" : line_number})
+		return GdUnitResult.success({ "path": test_suite_path, "line": line_number })
 
 	if not test_suite_exists(test_suite_path):
 		var result := create_test_suite(test_suite_path, source_script_path)

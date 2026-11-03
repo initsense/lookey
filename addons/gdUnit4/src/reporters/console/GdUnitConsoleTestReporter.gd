@@ -1,7 +1,6 @@
 @tool
 class_name GdUnitConsoleTestReporter
 
-
 var test_session: GdUnitTestSession:
 	get:
 		return test_session
@@ -13,7 +12,6 @@ var test_session: GdUnitTestSession:
 		test_session = value
 		if test_session != null:
 			test_session.test_event.connect(on_gdunit_event)
-
 
 var _writer: GdUnitMessageWriter
 var _reporter: GdUnitTestReporter = GdUnitTestReporter.new()
@@ -58,8 +56,9 @@ func on_gdunit_event(event: GdUnitEvent) -> void:
 				print_message("finalize()", GdUnitEditorColorTheme.function_definition_color)
 				_writer.indent(-1)
 				_print_failure_report(event.reports())
-			_print_statistics(_reporter.build_test_suite_statisitcs(event))
-			_print_status(event)
+			var statistics := _reporter.build_test_suite_statisitcs(event)
+			_print_statistics(statistics)
+			_print_status(event, statistics)
 			println_message("")
 			if _detailed:
 				println_message("")
@@ -76,7 +75,7 @@ func on_gdunit_event(event: GdUnitEvent) -> void:
 			if _detailed:
 				var test := test_session.find_test_by_id(event.guid())
 				_print_test_path(test, event.guid())
-			_print_status(event)
+			_print_status(event, {})
 			_writer.indent(-1)
 			_print_failure_report(event.reports())
 			if _detailed:
@@ -95,17 +94,30 @@ func _print_test_path(test: GdUnitTestCase, uid: GdUnitGUID) -> void:
 	print_message(test.display_name, GdUnitEditorColorTheme.function_definition_color)
 
 
-func _print_status(event: GdUnitEvent) -> void:
+## Prints the status of a test or a test suite.[br]
+## A suite event only carries its own hook results, so the suite status is taken from the collected `statistics`.
+## For test events the `statistics` are not used and can be empty.
+func _print_status(event: GdUnitEvent, statistics: Dictionary) -> void:
+	@warning_ignore("unsafe_cast")
+	var is_failed := (event.is_failed()
+		if event.type() == GdUnitEvent.TESTCASE_AFTER
+		else (statistics[GdUnitEvent.FAILED_COUNT] as int != 0))
+	@warning_ignore("unsafe_cast")
+	var is_error := (event.is_error()
+		if event.type() == GdUnitEvent.TESTCASE_AFTER
+		else (statistics[GdUnitEvent.ERROR_COUNT] as int != 0))
+	var is_success := not is_failed and not is_error
+
 	if event.is_flaky() and event.is_success():
 		var retries: int = event.statistic(GdUnitEvent.RETRY_COUNT)
 		_writer.color(Color.GREEN_YELLOW) \
 			.style(GdUnitMessageWriter.ITALIC) \
 			.print_at("FLAKY (%d retries)" % retries, _status_indent)
-	elif event.is_success():
+	elif is_success:
 		_writer.color(Color.FOREST_GREEN).print_at("PASSED", _status_indent)
 	elif event.is_skipped():
 		_writer.color(Color.GOLDENROD).style(GdUnitMessageWriter.ITALIC).print_at("SKIPPED", _status_indent)
-	elif event.is_failed() or event.is_error():
+	elif is_failed or is_error:
 		var retries: int = event.statistic(GdUnitEvent.RETRY_COUNT)
 		var message := "FAILED (retry %d)" % retries if retries > 1 else "FAILED"
 		_writer.color(Color.FIREBRICK) \
@@ -144,7 +156,6 @@ func _print_failure_report(reports: Array[GdUnitReport]) -> void:
 			_writer.indent(-1)
 	_writer.indent(-1)
 
-
 	if not reports.is_empty():
 		println_message("")
 
@@ -169,7 +180,7 @@ func _print_summary() -> void:
 			total_failure_count(),
 			total_flaky_count(),
 			total_skipped_count(),
-			total_orphan_count()
+			total_orphan_count(),
 		])
 
 

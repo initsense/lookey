@@ -2,8 +2,6 @@
 extends MainLoop
 
 const GdUnitTools := preload("res://addons/gdUnit4/src/core/GdUnitTools.gd")
-
-# gdlint: disable=max-line-length
 const LOG_FRAME_TEMPLATE = """
 <!DOCTYPE html>
 <html style="display: inline-grid;">
@@ -21,7 +19,6 @@ ${content}
 </body>
 </html>
 """
-
 const NO_LOG_MESSAGE = """
 <h3>No logging available!</h3>
 </br>
@@ -38,10 +35,8 @@ var _cmd_options := CmdOptions.new([
 			"Specifies the output directory in which the reports are to be written. The default is res://reports/.",
 			TYPE_STRING,
 			true
-		)
+		),
 	])
-
-
 var _report_root_path: String
 var _current_report_path: String
 var _debug_cmd_args := PackedStringArray()

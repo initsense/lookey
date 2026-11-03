@@ -1,3 +1,6 @@
+@icon("res://addons/gdUnit4/src/ui/settings/logo.png")
+class_name GdUnitTestSuite
+extends Node  # gdstyle:ignore-file=quality/max-public-methods
 ## The main class for all GdUnit test suites[br]
 ## This class is the main class to implement your unit tests[br]
 ## You have to extend and implement your test cases as described[br]
@@ -10,22 +13,24 @@
 ## [/codeblock]
 ## @tutorial:  https://mikeschulze.github.io/gdUnit4/faq/test-suite/
 
-@icon("res://addons/gdUnit4/src/ui/settings/logo.png")
-class_name GdUnitTestSuite
-extends Node
+## do return a default value for primitive types or null
+const RETURN_DEFAULTS = GdUnitMock.RETURN_DEFAULTS
+## do call the real implementation
+const CALL_REAL_FUNC = GdUnitMock.CALL_REAL_FUNC
+## do return a default value for primitive types and a fully mocked value for Object types
+## builds full deep mocked object
+const RETURN_DEEP_STUB = GdUnitMock.RETURN_DEEP_STUB
 
-
-### internal runtime variables that must not be overwritten!!!
+# ## internal runtime variables that must not be overwritten!!!
 @warning_ignore("unused_private_class_variable")
 var __is_skipped := false
 @warning_ignore("unused_private_class_variable")
 var __skip_reason := "Unknow."
-var __active_test_case: String
 var __awaiter := __gdunit_awaiter()
 
 
-### We now load all used asserts and tool scripts into the cache according to the principle of "lazy loading"
-### in order to noticeably reduce the loading time of the test suite.
+# ## We now load all used asserts and tool scripts into the cache according to the principle of "lazy loading"
+# ## in order to noticeably reduce the loading time of the test suite.
 # We go this hard way to increase the loading performance to avoid reparsing all the used scripts
 # for more detailed info -> https://github.com/godotengine/godot/issues/67400
 static func __lazy_load(script_path: String) -> GDScript:
@@ -84,20 +89,10 @@ func is_failure() -> bool:
 	return Engine.get_meta("GD_TEST_FAILURE") if Engine.has_meta("GD_TEST_FAILURE") else false
 
 
-func set_active_test_case(test_case: String) -> void:
-	__active_test_case = test_case
-
-
 # === Tools ====================================================================
-# Mapps Godot error number to a readable error message. See at ERROR
-# https://docs.godotengine.org/de/stable/classes/class_@globalscope.html#enum-globalscope-error
-func error_as_string(error_number: int) -> String:
-	return error_string(error_number)
-
-
 ## A litle helper to auto freeing your created objects after test execution
 func auto_free(obj: Variant) -> Variant:
-	var execution_context := GdUnitThreadManager.get_current_context().get_execution_context()
+	var execution_context := GdUnitExecutionContext.current()
 
 	# If the execution context is null, we are not in the execution call stack, so we mark the object as “queued free.”
 	if execution_context == null:
@@ -109,42 +104,45 @@ func auto_free(obj: Variant) -> Variant:
 	return execution_context.register_auto_free(obj)
 
 
-## Saves the current project settings into the active execution context.[br]
+## Takes a snapshot of the current project settings into the active execution context.[br]
 ## Useful when the "Auto Save Project Settings" setting is disabled and a test needs settings isolation on demand.[br]
+## Has no effect and pushes an error while the setting is enabled, the settings are then already saved and restored automatically.[br]
 ## [br]
 ## Call this in [code]before()[/code]/[code]before_test()[/code] to snapshot the settings a test
 ## is about to change, to restore see [method restore_project_settings].
-func save_project_settings() -> void:
-	var execution_context := GdUnitThreadManager.get_current_context().get_execution_context()
-	if execution_context == null:
+func snapshot_project_settings() -> void:
+	var execution_context := GdUnitExecutionContext.current()
+	if execution_context == null or __ignore_on_project_settings_auto_save("snapshot_project_settings"):
 		return
-	execution_context.save_project_settings()
+	execution_context.snapshot_project_settings(true)
 
 
-## Restores the project settings previously captured by [method save_project_settings].[br]
+## Restores the project settings previously captured by [method snapshot_project_settings].[br]
+## [br]
+## Has no effect and pushes an error while the "Auto Save Project Settings" setting is enabled.[br]
 ## [br]
 ## Call this in [code]after()[/code]/[code]after_test()[/code] to undo any settings a test changed.
 func restore_project_settings() -> void:
-	var execution_context := GdUnitThreadManager.get_current_context().get_execution_context()
-	if execution_context == null:
+	var execution_context := GdUnitExecutionContext.current()
+	if execution_context == null or __ignore_on_project_settings_auto_save("restore_project_settings"):
 		return
 	execution_context.restore_project_settings()
+
+
+func __ignore_on_project_settings_auto_save(function_name: String) -> bool:
+	if not GdUnitSettings.is_project_settings_auto_save():
+		return false
+	push_error("'%s()' has no effect while 'Auto Save Project Settings' is enabled, the project settings are already saved and restored automatically."
+		% function_name)
+	return true
 
 
 @warning_ignore("native_method_override")
 func add_child(node: Node, force_readable_name := false, internal := Node.INTERNAL_MODE_DISABLED) -> void:
 	super.add_child(node, force_readable_name, internal)
-	var execution_context := GdUnitThreadManager.get_current_context().get_execution_context()
+	var execution_context := GdUnitExecutionContext.current()
 	if execution_context != null:
 		execution_context.orphan_monitor_start()
-
-
-## Discard the error message triggered by a timeout (interruption).[br]
-## By default, an interrupted test is reported as an error.[br]
-## This function allows you to change the message to Success when an interrupted error is reported.
-func discard_error_interupted_by_timeout() -> void:
-	@warning_ignore("unsafe_method_access")
-	__gdunit_tools().register_expect_interupted_by_timeout(self, __active_test_case)
 
 
 ## Creates a new directory under the temporary directory *user://tmp*[br]
@@ -252,7 +250,7 @@ func await_millis(timeout: int) -> void:
 ## [b]Note:[/b] This is a debugging utility function that should be removed
 ## or commented out once orphan issues are resolved.
 func collect_orphan_node_details() -> void:
-	GdUnitThreadManager.get_current_context().get_execution_context().orphan_monitor_collect()
+	GdUnitExecutionContext.current().orphan_monitor_collect()
 
 
 ## Creates a new scene runner to allow simulate interactions checked a scene.[br]
@@ -271,14 +269,6 @@ func scene_runner(scene: Variant, verbose := false) -> GdUnitSceneRunner:
 
 
 # === Mocking  & Spy ===========================================================
-
-## do return a default value for primitive types or null
-const RETURN_DEFAULTS = GdUnitMock.RETURN_DEFAULTS
-## do call the real implementation
-const CALL_REAL_FUNC = GdUnitMock.CALL_REAL_FUNC
-## do return a default value for primitive types and a fully mocked value for Object types
-## builds full deep mocked object
-const RETURN_DEEP_STUB = GdUnitMock.RETURN_DEEP_STUB
 
 
 ## Creates a mock for given class name
@@ -332,20 +322,20 @@ func reset(obj: Variant) -> void:
 ## By default, the specified source is automatically released when the test ends.
 ## You can control this behavior by setting auto_free to false if you do not want the source to be automatically freed.[br]
 ## Usage:
-##	[codeblock]
-##		var emitter := monitor_signals(MyEmitter.new())
-##		# call the function to send the signal
-##		emitter.do_it()
-##		# verify the signial is emitted
-##		await assert_signal(emitter).is_emitted('my_signal')
-##	[/codeblock]
-func monitor_signals(source: Object, _auto_free := true) -> Object:
+## 	[codeblock]
+## 		var emitter := monitor_signals(MyEmitter.new())
+## 		# call the function to send the signal
+## 		emitter.do_it()
+## 		# verify the signial is emitted
+## 		await assert_signal(emitter).is_emitted('my_signal')
+## 	[/codeblock]
+func monitor_signals(source: Object, use_auto_free := true) -> Object:
 	@warning_ignore("unsafe_method_access")
 	__lazy_load("res://addons/gdUnit4/src/core/thread/GdUnitThreadManager.gd")\
 		.get_current_context()\
 		.get_signal_collector()\
 		.register_emitter(source, true) # force recreate to start with a fresh monitoring
-	return auto_free(source) if _auto_free else source
+	return auto_free(source) if use_auto_free else source
 
 
 # === Argument matchers ========================================================
@@ -447,7 +437,7 @@ func any_plane() -> GdUnitArgumentMatcher:
 
 
 ## Argument matcher to match any Quaternion value
-func any_quat() -> GdUnitArgumentMatcher:
+func any_quaternion() -> GdUnitArgumentMatcher:
 	@warning_ignore("unsafe_method_access")
 	return __gdunit_argument_matchers().by_type(TYPE_QUATERNION)
 
@@ -561,7 +551,7 @@ func any_packed_color_array() -> GdUnitArgumentMatcher:
 
 
 ## Argument matcher to match any instance of given class
-func any_class(clazz :Object) -> GdUnitArgumentMatcher:
+func any_class(clazz: Object) -> GdUnitArgumentMatcher:
 	@warning_ignore("unsafe_method_access")
 	return __gdunit_argument_matchers().any_class(clazz)
 
@@ -605,9 +595,10 @@ func tuple(...args: Array) -> GdUnitTuple:
 
 # === Asserts ==================================================================
 
+
 ## The common assertion tool to verify values.
 ## It checks the given value by type to fit to the best assert
-func assert_that(current: Variant) -> GdUnitAssert:
+func assert_that(current: Variant) -> GdUnitAssert:  # gdstyle:ignore=quality/max-returns
 	match typeof(current):
 		TYPE_BOOL:
 			return assert_bool(current)
@@ -621,8 +612,8 @@ func assert_that(current: Variant) -> GdUnitAssert:
 			return assert_vector(current, false)
 		TYPE_DICTIONARY:
 			return assert_dict(current)
-		TYPE_ARRAY, TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY,\
-		TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY, TYPE_PACKED_STRING_ARRAY,\
+		TYPE_ARRAY, TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, \
+		TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY, TYPE_PACKED_STRING_ARRAY, \
 		TYPE_PACKED_VECTOR2_ARRAY, TYPE_PACKED_VECTOR3_ARRAY, TYPE_PACKED_COLOR_ARRAY:
 			return assert_array(current, false)
 		TYPE_OBJECT, TYPE_NIL:
@@ -655,7 +646,7 @@ func assert_float(current: Variant) -> GdUnitFloatAssert:
 ## This assertion supports all vector types.[br]
 ## Usage:
 ##     [codeblock]
-##		assert_vector(Vector2(1.2, 1.000001)).is_equal(Vector2(1.2, 1.000001))
+## 		assert_vector(Vector2(1.2, 1.000001)).is_equal(Vector2(1.2, 1.000001))
 ##     [/codeblock]
 func assert_vector(current: Variant, type_check := true) -> GdUnitVectorAssert:
 	return __lazy_load("res://addons/gdUnit4/src/asserts/GdUnitVectorAssertImpl.gd").new(current, type_check)
@@ -699,8 +690,8 @@ func assert_signal(instance: Object) -> GdUnitSignalAssert:
 ## This assert is only designed for internal use to verify failing asserts working as expected.[br]
 ## Usage:
 ##     [codeblock]
-##		assert_failure(func(): assert_bool(true).is_not_equal(true)) \
-##		    .has_message("Expecting:\n 'true'\n not equal to\n 'true'")
+## 		assert_failure(func(): assert_bool(true).is_not_equal(true)) \
+## 		    .has_message("Expecting:\n 'true'\n not equal to\n 'true'")
 ##     [/codeblock]
 func assert_failure(assertion: Callable) -> GdUnitFailureAssert:
 	@warning_ignore("unsafe_method_access")
@@ -711,8 +702,8 @@ func assert_failure(assertion: Callable) -> GdUnitFailureAssert:
 ## This assert is only designed for internal use to verify failing asserts working as expected.[br]
 ## Usage:
 ##     [codeblock]
-##		await assert_failure_await(func(): assert_bool(true).is_not_equal(true)) \
-##		    .has_message("Expecting:\n 'true'\n not equal to\n 'true'")
+## 		await assert_failure_await(func(): assert_bool(true).is_not_equal(true)) \
+## 		    .has_message("Expecting:\n 'true'\n not equal to\n 'true'")
 ##     [/codeblock]
 func assert_failure_await(assertion: Callable) -> GdUnitFailureAssert:
 	@warning_ignore("unsafe_method_access")
@@ -723,13 +714,13 @@ func assert_failure_await(assertion: Callable) -> GdUnitFailureAssert:
 ## You can use to verify certain Godot errors like failing assertions, push_error, push_warn.[br]
 ## Usage:
 ##     [codeblock]
-##		# tests no error occurred during execution of the code
-##		await assert_error(func (): return 0 )\
-##		    .is_success()
+## 		# tests no error occurred during execution of the code
+## 		await assert_error(func (): return 0 )\
+## 		    .is_success()
 ##
-##		# tests a push_error('test error') occured during execution of the code
-##		await assert_error(func (): push_error('test error') )\
-##		    .is_push_error('test error')
+## 		# tests a push_error('test error') occured during execution of the code
+## 		await assert_error(func (): push_error('test error') )\
+## 		    .is_push_error('test error')
 ##     [/codeblock]
 func assert_error(current: Callable) -> GdUnitGodotErrorAssert:
 	return __lazy_load("res://addons/gdUnit4/src/asserts/GdUnitGodotErrorAssertImpl.gd").new(current)
@@ -740,9 +731,9 @@ func assert_error(current: Callable) -> GdUnitGodotErrorAssert:
 ## It provides a clear indication that the test failure is expected because the feature is still under development.[br]
 ## Usage:
 ##     [codeblock]
-##		# Test for a feature that will be implemented later
-##		func test_advanced_ai_behavior():
-##		    assert_not_yet_implemented()
+## 		# Test for a feature that will be implemented later
+## 		func test_advanced_ai_behavior():
+## 		    assert_not_yet_implemented()
 ##
 ##     [/codeblock]
 func assert_not_yet_implemented() -> void:
@@ -756,13 +747,13 @@ func assert_not_yet_implemented() -> void:
 ## Useful for complex conditional testing scenarios where standard assertions are insufficient.[br]
 ## Usage:
 ##     [codeblock]
-##		# Fail test when conditions are not met
-##		if !custom_check(player):
-##		    fail("Player should be alive but has %d health" % player.health)
-##		    return
+## 		# Fail test when conditions are not met
+## 		if !custom_check(player):
+## 		    fail("Player should be alive but has %d health" % player.health)
+## 		    return
 ##
-##		# Continue with test if conditions pass
-##		assert_that(player.health).is_greater(0)
+## 		# Continue with test if conditions pass
+## 		assert_that(player.health).is_greater(0)
 ##     [/codeblock]
 func fail(message: String) -> void:
 	@warning_ignore("unsafe_method_access")
@@ -770,5 +761,5 @@ func fail(message: String) -> void:
 
 
 # --- internal stuff do not override!!!
-func ResourcePath() -> String:
+func ResourcePath() -> String:  # gdstyle:ignore=naming/function-name-snake-case
 	return get_script().resource_path
