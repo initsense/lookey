@@ -25,7 +25,7 @@ radius = 0.3
 
 [node name="Player" type="CharacterBody3D" unique_id=2146663169]
 collision_layer = 2
-collision_mask = 255
+collision_mask = 2049
 axis_lock_angular_x = true
 axis_lock_angular_y = true
 axis_lock_angular_z = true
@@ -50,7 +50,7 @@ script = ExtResource("9_qmq2g")
 
 [node name="Camera3D" type="Camera3D" parent="Head" unique_id=846289224 groups=["camera_player"]]
 unique_name_in_owner = true
-cull_mask = 525055
+cull_mask = 525311
 fov = 65.0
 
 [node name="VisualRoot" type="Node3D" parent="." unique_id=71265810]
@@ -82,4 +82,5 @@ metadata/_custom_type_script = "uid://bh3rdvokmrar1"
 
 [node name="FloorRaycast" type="RayCast3D" parent="Raycasts" unique_id=1511484640]
 unique_name_in_owner = true
+collision_mask = 2049
 target_position = Vector3(0, -2, 0)

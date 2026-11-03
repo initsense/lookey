@@ -1,12 +1,35 @@
 extends GdUnitTestSuite
-## Pigment tables, the layer-bit helper, and the mirror reflection transform.
+## Pigment tables, mirror cull masks, link/affect state, occlusion, and
+## dissolve-exit transitions for reveal-mirror and dissolve-mirror mechanics.
+
+
+const OBJECT_SCENE := preload("res://prefabs/object.tscn")
+const MIRROR_SCENE := preload("res://entities/mirror/mirror.tscn")
+const PLAYER_SCENE := preload("res://entities/player/player.tscn")
 
 
 func test_tables() -> void:
 	for pigment: Pigments.Pigment in Pigments.Pigment.values():
 		assert_bool(Pigments.LAYERS.has(pigment)).is_true()
-		# The mirror frame uses this same table as its border color.
 		assert_bool(Pigments.COLORS.has(pigment)).is_true()
+
+
+func test_entity_layers() -> void:
+	assert_int(Pigments.LAYERS[Pigments.Pigment.WHITE]).is_equal(9)
+	for pigment: Pigments.Pigment in Pigments.Pigment.values():
+		var manifest: int = Pigments.get_entity_layer(pigment, false)
+		var hidden: int = Pigments.get_entity_layer(pigment, true)
+		assert_int(manifest).is_greater_equal(3)
+		assert_int(manifest).is_less_equal(9)
+		assert_int(hidden).is_equal(manifest + Pigments.INVISIBLE_SHIFT)
+		assert_int(hidden).is_greater_equal(13)
+		assert_int(hidden).is_less_equal(19)
+		assert_int(manifest).is_not_equal(Pigments.WORLD_GEOMETRY_LAYER)
+		assert_int(manifest).is_not_equal(Pigments.PLAYER_LAYER)
+		assert_int(manifest).is_not_equal(Pigments.ENTITY_COLLIDER_LAYER)
+		assert_int(hidden).is_not_equal(Pigments.WORLD_GEOMETRY_LAYER)
+		assert_int(hidden).is_not_equal(Pigments.PLAYER_LAYER)
+		assert_int(hidden).is_not_equal(Pigments.ENTITY_COLLIDER_LAYER)
 
 
 func test_set_layer_bit() -> void:
@@ -22,11 +45,416 @@ func test_set_layer_bit() -> void:
 
 
 func test_mirror_transform() -> void:
-	# Reflection across the plane z = 5.
 	var mirror_transform: Transform3D = Mirror3D.get_mirror_transform(Vector3(0, 0, 1), Vector3(0, 0, 5))
 	assert_vector(mirror_transform * Vector3(1, 2, 3)).is_equal(Vector3(1, 2, 7))
-	# Reflecting twice is the identity.
 	assert_vector(mirror_transform * (mirror_transform * Vector3(1, 2, 3))).is_equal(Vector3(1, 2, 3))
-	# Reflection across the plane x = 2.
 	mirror_transform = Mirror3D.get_mirror_transform(Vector3(1, 0, 0), Vector3(2, 0, 0))
 	assert_vector(mirror_transform * Vector3(5, 1, 1)).is_equal(Vector3(-1, 1, 1))
+
+
+func test_pigment_compatibility() -> void:
+	assert_bool(Pigments.is_compatible(Pigments.Pigment.YELLOW, Pigments.Pigment.YELLOW)).is_true()
+	assert_bool(Pigments.is_compatible(Pigments.Pigment.YELLOW, Pigments.Pigment.WHITE)).is_true()
+	assert_bool(Pigments.is_compatible(Pigments.Pigment.YELLOW, Pigments.Pigment.BLUE)).is_false()
+	assert_bool(Pigments.is_compatible(Pigments.Pigment.WHITE, Pigments.Pigment.RED)).is_true()
+	assert_bool(Pigments.is_compatible(Pigments.Pigment.WHITE, Pigments.Pigment.WHITE)).is_true()
+	assert_bool(Pigments.is_compatible(Pigments.Pigment.BLUE, Pigments.Pigment.WHITE)).is_true()
+	for pigment: Pigments.Pigment in Pigments.Pigment.values():
+		assert_bool(Pigments.is_compatible(Pigments.Pigment.WHITE, pigment)).is_true()
+		assert_bool(Pigments.is_compatible(pigment, Pigments.Pigment.WHITE)).is_true()
+
+
+func test_reveal_mirror_cull_mask() -> void:
+	var yellow_reveal: int = Pigments.compute_mirror_cull_mask(Pigments.Pigment.YELLOW, true)
+	assert_bool(_has_layer(yellow_reveal, 1)).is_true()
+	assert_bool(_has_layer(yellow_reveal, 2)).is_true()
+	for layer: int in range(3, 10):
+		assert_bool(_has_layer(yellow_reveal, layer)).is_true()
+	assert_bool(_has_layer(yellow_reveal, 16)).is_true()
+	assert_bool(_has_layer(yellow_reveal, 19)).is_true()
+	for layer: int in [13, 14, 15, 17, 18]:
+		assert_bool(_has_layer(yellow_reveal, layer)).is_false()
+
+	var white_reveal: int = Pigments.compute_mirror_cull_mask(Pigments.Pigment.WHITE, true)
+	for layer: int in range(13, 20):
+		assert_bool(_has_layer(white_reveal, layer)).is_true()
+
+
+func test_dissolve_mirror_cull_mask() -> void:
+	var blue_dissolve: int = Pigments.compute_mirror_cull_mask(Pigments.Pigment.BLUE, false)
+	assert_bool(_has_layer(blue_dissolve, 1)).is_true()
+	assert_bool(_has_layer(blue_dissolve, 2)).is_true()
+	assert_bool(_has_layer(blue_dissolve, 4)).is_false()
+	assert_bool(_has_layer(blue_dissolve, 9)).is_false()
+	for layer: int in [3, 5, 6, 7, 8]:
+		assert_bool(_has_layer(blue_dissolve, layer)).is_true()
+	for layer: int in range(13, 20):
+		assert_bool(_has_layer(blue_dissolve, layer)).is_false()
+
+	var white_dissolve: int = Pigments.compute_mirror_cull_mask(Pigments.Pigment.WHITE, false)
+	assert_bool(_has_layer(white_dissolve, 1)).is_true()
+	assert_bool(_has_layer(white_dissolve, 2)).is_true()
+	for layer: int in range(3, 10):
+		assert_bool(_has_layer(white_dissolve, layer)).is_false()
+
+
+func test_eligibility_rules() -> void:
+	assert_bool(
+		Pigments.is_entity_eligible(
+			Pigments.Pigment.YELLOW, true, Pigments.Pigment.YELLOW, true
+		)
+	).is_true()
+	assert_bool(
+		Pigments.is_entity_eligible(
+			Pigments.Pigment.YELLOW, true, Pigments.Pigment.YELLOW, false
+		)
+	).is_false()
+	assert_bool(
+		Pigments.is_entity_eligible(
+			Pigments.Pigment.YELLOW, false, Pigments.Pigment.YELLOW, false
+		)
+	).is_true()
+	assert_bool(
+		Pigments.is_entity_eligible(
+			Pigments.Pigment.YELLOW, false, Pigments.Pigment.YELLOW, true
+		)
+	).is_false()
+	assert_bool(
+		Pigments.is_entity_eligible(
+			Pigments.Pigment.YELLOW, true, Pigments.Pigment.BLUE, true
+		)
+	).is_false()
+
+
+func test_hidden_entity_reveal_link_and_collider() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var entity: PigmentEntity = _spawn_object(root, Pigments.Pigment.YELLOW, true, Vector3.ZERO)
+	var mirror_a := Mirror3D.new()
+	mirror_a.pigment = Pigments.Pigment.YELLOW
+	mirror_a.mirror_type = Mirror3D.MirrorType.REVEAL
+	var mirror_b := Mirror3D.new()
+	mirror_b.pigment = Pigments.Pigment.BLUE
+	mirror_b.mirror_type = Mirror3D.MirrorType.REVEAL
+	var dissolve := Mirror3D.new()
+	dissolve.pigment = Pigments.Pigment.YELLOW
+	dissolve.mirror_type = Mirror3D.MirrorType.DISSOLVE
+
+	await get_tree().physics_frame
+
+	assert_bool(entity.is_hidden_entity()).is_true()
+	assert_bool(entity.is_linked()).is_false()
+	assert_bool(entity.is_affected()).is_false()
+	assert_bool(entity.is_collidable()).is_false()
+	assert_int(entity.mesh.layers).is_equal(1 << (Pigments.get_entity_layer(Pigments.Pigment.YELLOW, true) - 1))
+
+	entity.set_mirror_link_state(mirror_b, true, false)
+	assert_bool(entity.is_linked()).is_true()
+	assert_bool(entity.is_affected()).is_false()
+	assert_bool(entity.is_collidable()).is_false()
+
+	entity.set_mirror_link_state(mirror_b, false, false)
+	entity.set_mirror_link_state(dissolve, true, false)
+	assert_bool(entity.is_linked()).is_true()
+	assert_bool(entity.is_affected()).is_false()
+	assert_bool(entity.is_collidable()).is_false()
+
+	entity.set_mirror_link_state(dissolve, false, false)
+	entity.set_mirror_link_state(mirror_a, true, true)
+	assert_bool(entity.is_linked()).is_true()
+	assert_bool(entity.is_affected()).is_true()
+	assert_bool(entity.is_collidable()).is_true()
+	assert_int(entity.mesh.layers).is_equal(1 << (Pigments.get_entity_layer(Pigments.Pigment.YELLOW, true) - 1))
+
+	entity.set_mirror_link_state(mirror_a, false, false)
+	assert_bool(entity.is_collidable()).is_false()
+
+	root.queue_free()
+	mirror_a.free()
+	mirror_b.free()
+	dissolve.free()
+
+
+func test_manifest_entity_dissolve_link_and_collider() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var entity: PigmentEntity = _spawn_object(root, Pigments.Pigment.BLUE, false, Vector3.ZERO)
+	var dissolve := Mirror3D.new()
+	dissolve.pigment = Pigments.Pigment.BLUE
+	dissolve.mirror_type = Mirror3D.MirrorType.DISSOLVE
+	var wrong_dissolve := Mirror3D.new()
+	wrong_dissolve.pigment = Pigments.Pigment.RED
+	wrong_dissolve.mirror_type = Mirror3D.MirrorType.DISSOLVE
+	var reveal := Mirror3D.new()
+	reveal.pigment = Pigments.Pigment.BLUE
+	reveal.mirror_type = Mirror3D.MirrorType.REVEAL
+
+	await get_tree().physics_frame
+
+	assert_bool(entity.is_hidden_entity()).is_false()
+	assert_bool(entity.is_collidable()).is_true()
+	assert_int(entity.mesh.layers).is_equal(1 << (Pigments.get_entity_layer(Pigments.Pigment.BLUE, false) - 1))
+
+	entity.set_mirror_link_state(wrong_dissolve, true, false)
+	assert_bool(entity.is_linked()).is_true()
+	assert_bool(entity.is_affected()).is_false()
+	assert_bool(entity.is_collidable()).is_true()
+
+	entity.set_mirror_link_state(wrong_dissolve, false, false)
+	entity.set_mirror_link_state(reveal, true, false)
+	assert_bool(entity.is_collidable()).is_true()
+
+	entity.set_mirror_link_state(reveal, false, false)
+	entity.set_mirror_link_state(dissolve, true, true)
+	assert_bool(entity.is_affected()).is_true()
+	assert_bool(entity.is_collidable()).is_false()
+	assert_int(entity.mesh.layers).is_equal(1 << (Pigments.get_entity_layer(Pigments.Pigment.BLUE, false) - 1))
+	assert_bool(
+		(entity.static_body.collision_layer & (1 << (Pigments.get_entity_layer(Pigments.Pigment.BLUE, false) - 1))) != 0
+	).is_true()
+
+	root.queue_free()
+	dissolve.free()
+	wrong_dissolve.free()
+	reveal.free()
+
+
+func test_multi_mirror_aggregation() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var entity: PigmentEntity = _spawn_object(root, Pigments.Pigment.YELLOW, true, Vector3.ZERO)
+	var mirror_a := Mirror3D.new()
+	var mirror_b := Mirror3D.new()
+	await get_tree().physics_frame
+
+	entity.set_mirror_link_state(mirror_a, true, true)
+	entity.set_mirror_link_state(mirror_b, true, true)
+	assert_bool(entity.is_affected()).is_true()
+	assert_bool(entity.is_linked()).is_true()
+
+	entity.set_mirror_link_state(mirror_a, true, false)
+	assert_bool(entity.is_affected()).is_true()
+	assert_bool(entity.is_linked()).is_true()
+
+	entity.set_mirror_link_state(mirror_b, false, false)
+	assert_bool(entity.is_affected()).is_false()
+	assert_bool(entity.is_linked()).is_true()
+
+	entity.set_mirror_link_state(mirror_a, false, false)
+	assert_bool(entity.is_linked()).is_false()
+
+	root.queue_free()
+	mirror_a.free()
+	mirror_b.free()
+
+
+func test_white_hidden_entity_layers() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var entity: PigmentEntity = _spawn_object(root, Pigments.Pigment.WHITE, true, Vector3.ZERO)
+	await get_tree().physics_frame
+	assert_int(entity.mesh.layers).is_equal(1 << 18)
+	assert_bool(
+		(entity.static_body.collision_layer & (1 << 18)) != 0
+	).is_true()
+	root.queue_free()
+
+
+func test_dissolve_exit_holds_while_overlapping_non_player_entity() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var entity_a: PigmentEntity = _spawn_object(root, Pigments.Pigment.BLUE, false, Vector3(0, 1, 0))
+	var entity_b: PigmentEntity = _spawn_object(root, Pigments.Pigment.RED, false, Vector3(0, 1, 0))
+	var dissolve := Mirror3D.new()
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+	entity_a.set_mirror_link_state(dissolve, true, true)
+	assert_bool(entity_a.is_collidable()).is_false()
+
+	entity_a.set_mirror_link_state(dissolve, false, false)
+	await get_tree().physics_frame
+	assert_bool(entity_a.is_collidable()).is_false()
+
+	entity_b.global_position = Vector3(5, 1, 0)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(entity_a.is_collidable()).is_true()
+
+	root.queue_free()
+	dissolve.free()
+
+
+func test_dissolve_exit_pushes_overlapping_player() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var player: CharacterBody3D = PLAYER_SCENE.instantiate()
+	root.add_child(player)
+	player.global_position = Vector3(0, 0, 0)
+
+	var entity: PigmentEntity = _spawn_object(root, Pigments.Pigment.BLUE, false, Vector3(0, 1, 0))
+	var dissolve := Mirror3D.new()
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+	entity.set_mirror_link_state(dissolve, true, true)
+	player.global_position = Vector3(0, 0.5, 0)
+	var entity_origin: Vector3 = entity.global_position
+
+	entity.set_mirror_link_state(dissolve, false, false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+	assert_bool(entity.is_collidable()).is_true()
+	assert_vector(entity.global_position).is_equal(entity_origin)
+	assert_bool(player.global_position.distance_to(Vector3(0, 0.5, 0)) > 0.01).is_true()
+
+	root.queue_free()
+	dissolve.free()
+
+
+func test_render_dependent_occlusion_in_dissolve_mirror() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var hidden: PigmentEntity = root.get_node("Hidden")
+	var front: PigmentEntity = root.get_node("Front")
+	var interaction: Node = mirror.get_node("Interaction")
+
+	# Offset entities off the camera->mirror axis so the occluder sits on
+	# Segment 1 (reflected-world) without also blocking Segment 2 (real-world).
+	hidden.global_position = Vector3(1.2, 1.2, 0.4)
+	front.global_position = Vector3(1.2, 1.2, 1.8)
+	front.scale = Vector3(1.5, 1.5, 0.6)
+
+	mirror.pigment = Pigments.Pigment.BLUE
+	mirror.mirror_type = Mirror3D.MirrorType.DISSOLVE
+	mirror.size = Vector2(5, 4)
+	mirror._apply_pigment()
+	front.pigment = Pigments.Pigment.BLUE
+	front.is_invisible = false
+	hidden.pigment = Pigments.Pigment.BLUE
+	hidden.is_invisible = true
+	front._apply_layers_and_material()
+	hidden._apply_layers_and_material()
+	front._update_real_world_collider()
+	hidden._update_real_world_collider()
+	interaction._refresh_tracked_entities()
+	interaction.is_mirror_visible = true
+
+	await _wait_for_link_eval(interaction)
+
+	# Blue front object is dissolved in the blue dissolve-mirror, so it must not
+	# occlude the blue hidden object behind it.
+	assert_bool(hidden.is_linked()).is_true()
+
+	front.pigment = Pigments.Pigment.RED
+	front._apply_layers_and_material()
+	front._update_real_world_collider()
+	await _wait_for_link_eval(interaction)
+	assert_bool(hidden.is_linked()).is_false()
+
+	root.queue_free()
+
+
+func test_hidden_entity_does_not_occlude_real_world_segment() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var hidden: PigmentEntity = root.get_node("Hidden")
+	var front: PigmentEntity = root.get_node("Front")
+	var interaction: Node = mirror.get_node("Interaction")
+
+	mirror.pigment = Pigments.Pigment.YELLOW
+	mirror.mirror_type = Mirror3D.MirrorType.REVEAL
+	mirror._apply_pigment()
+	hidden.pigment = Pigments.Pigment.YELLOW
+	hidden.is_invisible = true
+	hidden.global_position = Vector3(0, 1.2, 0.5)
+	front.static_body.collision_layer = 0
+	front.visible = false
+	hidden._apply_layers_and_material()
+	hidden._update_real_world_collider()
+
+	# Place a second hidden entity between the camera and the mirror on the
+	# real-world segment. It must not block linking of the target hidden entity.
+	var blocker: PigmentEntity = _spawn_object(
+		root,
+		Pigments.Pigment.YELLOW,
+		true,
+		Vector3(0, 1.2, 1.0)
+	)
+	blocker.scale = Vector3(2.0, 2.0, 0.5)
+	interaction._refresh_tracked_entities()
+	interaction.is_mirror_visible = true
+
+	await get_tree().physics_frame
+	await _wait_for_link_eval(interaction)
+	assert_bool(hidden.is_linked()).is_true()
+	assert_that(blocker).is_not_null()
+
+	root.queue_free()
+
+
+func _has_layer(mask: int, layer: int) -> bool:
+	return (mask & (1 << (layer - 1))) != 0
+
+
+func _spawn_object(
+	parent: Node,
+	pigment: Pigments.Pigment,
+	is_hidden: bool,
+	position: Vector3
+) -> PigmentEntity:
+	var entity: PigmentEntity = OBJECT_SCENE.instantiate()
+	entity.pigment = pigment
+	entity.is_invisible = is_hidden
+	parent.add_child(entity)
+	entity.global_position = position
+	return entity
+
+
+func _build_link_scene() -> Node3D:
+	var root := Node3D.new()
+	add_child(root)
+
+	var player: CharacterBody3D = PLAYER_SCENE.instantiate()
+	root.add_child(player)
+	player.name = "Player"
+	player.global_position = Vector3(0, 0, -2)
+	player.rotation = Vector3.ZERO
+
+	var front: PigmentEntity = _spawn_object(root, Pigments.Pigment.BLUE, false, Vector3(0, 1, 1.5))
+	front.name = "Front"
+	var hidden: PigmentEntity = _spawn_object(root, Pigments.Pigment.BLUE, true, Vector3(0, 1, 0.5))
+	hidden.name = "Hidden"
+
+	var mirror: Mirror3D = MIRROR_SCENE.instantiate()
+	mirror.player = player
+	mirror.object_to_reflect = hidden
+	root.add_child(mirror)
+	mirror.name = "Mirror"
+	mirror.always_active = true
+	mirror.size = Vector2(4, 3)
+	mirror.global_position = Vector3(0, 1.5, 3)
+	# Face the player (QuadMesh normal is +Z in local space).
+	mirror.rotation = Vector3(0.0, PI, 0.0)
+	mirror.player_cam = player.get_node("Head/Camera3D") as Camera3D
+	# Player Head is pre-rotated 180 deg, so the camera looks toward +Z / the mirror.
+	mirror.player_cam.make_current()
+	mirror._apply_pigment()
+
+	var interaction: Node = mirror.get_node("Interaction")
+	interaction._refresh_tracked_entities()
+	interaction.is_mirror_visible = true
+
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	return root
+
+
+func _wait_for_link_eval(interaction: Node) -> void:
+	interaction.is_mirror_visible = true
+	for _i: int in range(STAGGER_WAIT_FRAMES):
+		await get_tree().physics_frame
+
+
+const STAGGER_WAIT_FRAMES: int = 8
