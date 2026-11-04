@@ -28,16 +28,57 @@ shader_parameter/smoothness = 1.5
 resource_local_to_scene = true
 material = SubResource("ShaderMaterial_iv7pg")
 
+[sub_resource type="ViewportTexture" id="ViewportTexture_reflected"]
+viewport_path = NodePath("ReflectedViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_reflected"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("2_qi7e4")
+shader_parameter/color = Color(0.9, 0.97, 0.94, 1)
+shader_parameter/mirror_texture_linear = SubResource("ViewportTexture_reflected")
+shader_parameter/use_mirror_texture_linear = true
+shader_parameter/distortion_strength = 0.0
+shader_parameter/border_color = Color(1, 1, 1, 1)
+shader_parameter/border_thickness = 0.2
+shader_parameter/smoothness = 1.5
+
+[sub_resource type="QuadMesh" id="QuadMesh_reflected"]
+resource_local_to_scene = true
+material = SubResource("ShaderMaterial_reflected")
+
 [node name="Mirror" type="Node3D" unique_id=1528812690]
+editor_description = "A planar mirror that reflects the room and applies reveal or dissolve effects based on its pigment color."
 script = ExtResource("1_mtvun")
 distortion_texture = SubResource("NoiseTexture2D_707dm")
 
 [node name="Viewport" type="SubViewport" parent="." unique_id=1642709109]
+editor_description = "Renders the reflection that the player sees when looking directly at this mirror."
 use_occlusion_culling = true
 canvas_cull_mask = 4294442495
 size = Vector2i(400, 400)
 
 [node name="Camera" type="Camera3D" parent="Viewport" unique_id=2134310569]
+editor_description = "Virtual camera positioned behind the mirror to capture the direct reflection for the player."
+process_priority = 1
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.392988, 0.69233525, -1.1808743)
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+frustum_offset = Vector2(-1.392988, -0.69233525)
+near = 1.2308743
+far = 51.953
+
+[node name="ReflectedViewport" type="SubViewport" parent="." unique_id=1642709110]
+editor_description = "Renders the reflection of this mirror as seen from inside another mirror, using the outer mirror's reveal or dissolve rules."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport" unique_id=2134310570]
+editor_description = "Virtual camera used when another mirror reflects this mirror, matching the outer mirror's viewpoint and visibility layers."
 process_priority = 1
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.392988, 0.69233525, -1.1808743)
 keep_aspect = 0
@@ -49,16 +90,27 @@ near = 1.2308743
 far = 51.953
 
 [node name="Quad" type="MeshInstance3D" parent="." unique_id=801796927]
+editor_description = "The mirror surface seen directly by the player (Render Layer 10)."
+layers = 512
 mesh = SubResource("QuadMesh_5i7m6")
 
+[node name="ReflectedQuad" type="MeshInstance3D" parent="." unique_id=801796928]
+editor_description = "The mirror surface seen only by other mirrors' cameras (Render Layer 11). Hidden in the editor so it does not overlap Quad."
+visible = false
+layers = 1024
+mesh = SubResource("QuadMesh_reflected")
+
 [node name="RayCast" type="RayCast3D" parent="." unique_id=1534865881]
+editor_description = "Helper raycast node for mirror line-of-sight checks."
 collision_mask = 253
 
 [node name="MirrorNotifier" type="VisibleOnScreenNotifier3D" parent="." unique_id=1137825952]
+editor_description = "Detects when the mirror enters or leaves the player's screen."
 layers = 524288
 aabb = AABB(-0.522976, -0.525133, -0.022962, 1.04595, 1.05027, 0.045924)
 
 [node name="Interaction" type="Node3D" parent="." unique_id=632032196]
+editor_description = "Checks which colored objects are visible in this mirror and enables or disables their physical collision."
 script = ExtResource("3_inter")
 
 [connection signal="screen_entered" from="MirrorNotifier" to="Interaction" method="_on_mirror_notifier_screen_entered"]

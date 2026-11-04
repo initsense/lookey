@@ -9,19 +9,24 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_jcxak"]
 
 [node name="Object" type="Node3D" unique_id=900244337]
+editor_description = "A colored puzzle object that can be visible (manifest) or hidden in the real world, and reacts to compatible mirrors."
 script = ExtResource("1_lp5j1")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=241916071]
+editor_description = "Displays the 3D shape and pigment color of this object on the matching render layer."
 mesh = SubResource("BoxMesh_07h2l")
 surface_material_override/0 = SubResource("StandardMaterial3D_niaei")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="MeshInstance3D" unique_id=99576839]
+editor_description = "Physics body that blocks the player when this object is solid and active."
 collision_mask = 2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="MeshInstance3D/StaticBody3D" unique_id=2111379460]
+editor_description = "Defines the solid collision box for this object."
 shape = SubResource("BoxShape3D_jcxak")
 
 [node name="VisibleOnScreenNotifier3D" type="VisibleOnScreenNotifier3D" parent="." unique_id=356340680]
+editor_description = "Tracks when the object's bounding box is inside a camera view."
 layers = 1024
 aabb = AABB(-0.5, -0.5, -0.5, 1, 1, 1)
 

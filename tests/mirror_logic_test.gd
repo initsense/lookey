@@ -394,6 +394,194 @@ func test_hidden_entity_does_not_occlude_real_world_segment() -> void:
 	root.queue_free()
 
 
+func test_mirror_dual_viewport_and_layer_isolation() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	MirrorManager.refresh_now()
+
+	assert_int(mirror._mirror_quad.layers).is_equal(1 << (Mirror3D.DIRECT_MIRROR_LAYER - 1))
+	assert_that(mirror._reflected_quad).is_not_null()
+	assert_int(mirror._reflected_quad.layers).is_equal(1 << (Mirror3D.REFLECTED_MIRROR_LAYER - 1))
+	assert_that(mirror._reflected_camera).is_not_null()
+	assert_int(mirror._reflected_camera.keep_aspect).is_equal(Camera3D.KEEP_WIDTH)
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_true()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.DIRECT_MIRROR_LAYER)).is_false()
+
+	root.queue_free()
+
+
+func test_nested_reveal_mirror_cull_mask_and_camera() -> void:
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.YELLOW,
+		Mirror3D.MirrorType.REVEAL,
+		Pigments.Pigment.GREEN,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
+	var outer_mirror: Mirror3D = root.get_node("OuterMirror")
+	MirrorManager.refresh_now()
+
+	var yellow_hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.YELLOW, true)
+	var green_hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.GREEN, true)
+
+	# The yellow mirror reveals yellow hidden entities in its own glass,
+	# including the glass other mirrors see. It does not reveal green.
+	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, yellow_hidden_layer)).is_true()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, yellow_hidden_layer)).is_true()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, green_hidden_layer)).is_false()
+
+	var expected_pos: Vector3 = inner_mirror.reflect_point(outer_mirror._mirror_camera.global_position)
+	assert_bool(inner_mirror._reflected_camera.global_position.distance_to(expected_pos) < 0.01).is_true()
+
+	# A green mirror keeps green rules when a yellow mirror reflects it.
+	inner_mirror.pigment = Pigments.Pigment.GREEN
+	outer_mirror.pigment = Pigments.Pigment.YELLOW
+	inner_mirror._apply_pigment()
+	outer_mirror._apply_pigment()
+	MirrorManager.refresh_now()
+
+	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, yellow_hidden_layer)).is_false()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, yellow_hidden_layer)).is_false()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, green_hidden_layer)).is_true()
+
+	root.queue_free()
+
+
+func test_nested_dissolve_mirror_cull_mask_and_camera() -> void:
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.RED,
+		Mirror3D.MirrorType.DISSOLVE,
+		Pigments.Pigment.BLUE,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
+	var outer_mirror: Mirror3D = root.get_node("OuterMirror")
+	MirrorManager.refresh_now()
+
+	var red_manifest_layer: int = Pigments.get_entity_layer(Pigments.Pigment.RED, false)
+
+	# A red dissolve mirror hides red manifest entities in its own glass,
+	# including the glass other mirrors see.
+	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, red_manifest_layer)).is_false()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, red_manifest_layer)).is_false()
+
+	# A blue reveal mirror keeps showing red manifest entities when a red dissolve mirror reflects it.
+	inner_mirror.pigment = Pigments.Pigment.BLUE
+	inner_mirror.mirror_type = Mirror3D.MirrorType.REVEAL
+	outer_mirror.pigment = Pigments.Pigment.RED
+	outer_mirror.mirror_type = Mirror3D.MirrorType.DISSOLVE
+	inner_mirror._apply_pigment()
+	outer_mirror._apply_pigment()
+	MirrorManager.refresh_now()
+
+	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, red_manifest_layer)).is_true()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, red_manifest_layer)).is_true()
+
+	root.queue_free()
+
+
+func test_nested_reveal_linking_and_collider_across_two_mirrors() -> void:
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.YELLOW,
+		Mirror3D.MirrorType.REVEAL,
+		Pigments.Pigment.GREEN,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
+	var outer_mirror: Mirror3D = root.get_node("OuterMirror")
+	var inner_interaction: Node = inner_mirror.get_node("Interaction")
+	var outer_interaction: Node = outer_mirror.get_node("Interaction")
+
+	# Position the hidden yellow object so 1-bounce misses OuterMirror,
+	# and only the 2-bounce path (Object -> InnerMirror -> OuterMirror -> Player) reaches the camera.
+	var hidden_yellow: PigmentEntity = _spawn_object(
+		root,
+		Pigments.Pigment.YELLOW,
+		true,
+		Vector3(3.0, 1.5, 2.0)
+	)
+	inner_interaction._refresh_tracked_entities()
+	outer_interaction._refresh_tracked_entities()
+	inner_interaction.is_mirror_visible = false
+	outer_interaction.is_mirror_visible = true
+	MirrorManager.refresh_now()
+
+	await _wait_for_link_eval(outer_interaction)
+
+	# Example 1: Outer mirror is Green Reveal, Inner mirror is Yellow Reveal (not directly seen by player).
+	# The yellow object is linked through the 2-bounce chain, but NOT affected because OuterMirror is Green.
+	assert_bool(hidden_yellow.is_linked()).is_true()
+	assert_bool(hidden_yellow.is_affected()).is_false()
+	assert_bool(hidden_yellow.is_collidable()).is_false()
+
+	# Inverse: Outer mirror is Yellow Reveal, Inner mirror is Green Reveal.
+	# OuterMirror reveals and enables collision on the yellow object even though it bounced off the green mirror.
+	inner_mirror.pigment = Pigments.Pigment.GREEN
+	outer_mirror.pigment = Pigments.Pigment.YELLOW
+	inner_mirror._apply_pigment()
+	outer_mirror._apply_pigment()
+	MirrorManager.refresh_now()
+
+	await _wait_for_link_eval(outer_interaction)
+
+	assert_bool(hidden_yellow.is_linked()).is_true()
+	assert_bool(hidden_yellow.is_affected()).is_true()
+	assert_bool(hidden_yellow.is_collidable()).is_true()
+
+	root.queue_free()
+
+
+func test_nested_dissolve_linking_and_collider_across_two_mirrors() -> void:
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.RED,
+		Mirror3D.MirrorType.DISSOLVE,
+		Pigments.Pigment.BLUE,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
+	var outer_mirror: Mirror3D = root.get_node("OuterMirror")
+	var inner_interaction: Node = inner_mirror.get_node("Interaction")
+	var outer_interaction: Node = outer_mirror.get_node("Interaction")
+
+	var manifest_red: PigmentEntity = _spawn_object(
+		root,
+		Pigments.Pigment.RED,
+		false,
+		Vector3(3.0, 1.5, 2.0)
+	)
+	inner_interaction._refresh_tracked_entities()
+	outer_interaction._refresh_tracked_entities()
+	inner_interaction.is_mirror_visible = false
+	outer_interaction.is_mirror_visible = true
+	MirrorManager.refresh_now()
+
+	await _wait_for_link_eval(outer_interaction)
+
+	# Example 2: Outer mirror is Blue, Inner mirror is Red Dissolve (not directly seen by player).
+	# The red object is linked through OuterMirror, but remains solid because Blue cannot dissolve Red.
+	assert_bool(manifest_red.is_linked()).is_true()
+	assert_bool(manifest_red.is_affected()).is_false()
+	assert_bool(manifest_red.is_collidable()).is_true()
+
+	# Inverse: Outer mirror is Red Dissolve, Inner mirror is Blue.
+	# OuterMirror dissolves the red object reflected via the blue inner mirror.
+	inner_mirror.pigment = Pigments.Pigment.BLUE
+	inner_mirror.mirror_type = Mirror3D.MirrorType.REVEAL
+	outer_mirror.pigment = Pigments.Pigment.RED
+	outer_mirror.mirror_type = Mirror3D.MirrorType.DISSOLVE
+	inner_mirror._apply_pigment()
+	outer_mirror._apply_pigment()
+	MirrorManager.refresh_now()
+
+	await _wait_for_link_eval(outer_interaction)
+
+	assert_bool(manifest_red.is_linked()).is_true()
+	assert_bool(manifest_red.is_affected()).is_true()
+	assert_bool(manifest_red.is_collidable()).is_false()
+
+	root.queue_free()
+
+
 func _has_layer(mask: int, layer: int) -> bool:
 	return (mask & (1 << (layer - 1))) != 0
 
@@ -448,6 +636,56 @@ func _build_link_scene() -> Node3D:
 
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	return root
+
+
+func _build_nested_mirror_scene(
+	inner_pigment: Pigments.Pigment,
+	inner_type: Mirror3D.MirrorType,
+	outer_pigment: Pigments.Pigment,
+	outer_type: Mirror3D.MirrorType
+) -> Node3D:
+	var root := Node3D.new()
+	add_child(root)
+
+	var player: CharacterBody3D = PLAYER_SCENE.instantiate()
+	root.add_child(player)
+	player.name = "Player"
+	player.global_position = Vector3(0, 0, -2)
+	player.rotation = Vector3.ZERO
+
+	var player_cam: Camera3D = player.get_node("Head/Camera3D") as Camera3D
+	player_cam.make_current()
+
+	var inner_mirror: Mirror3D = MIRROR_SCENE.instantiate()
+	inner_mirror.name = "InnerMirror"
+	inner_mirror.player = player
+	inner_mirror.pigment = inner_pigment
+	inner_mirror.mirror_type = inner_type
+	inner_mirror.always_active = true
+	inner_mirror.size = Vector2(1.5, 3.0)
+	root.add_child(inner_mirror)
+	inner_mirror.global_position = Vector3(2.0, 1.5, -1.0)
+	inner_mirror.rotation = Vector3.ZERO
+	inner_mirror.player_cam = player_cam
+	inner_mirror._apply_pigment()
+
+	var outer_mirror: Mirror3D = MIRROR_SCENE.instantiate()
+	outer_mirror.name = "OuterMirror"
+	outer_mirror.player = player
+	outer_mirror.pigment = outer_pigment
+	outer_mirror.mirror_type = outer_type
+	outer_mirror.always_active = true
+	outer_mirror.size = Vector2(1.5, 3.0)
+	root.add_child(outer_mirror)
+	outer_mirror.global_position = Vector3(1.0, 1.5, 3.0)
+	outer_mirror.rotation = Vector3(0.0, PI, 0.0)
+	outer_mirror.player_cam = player_cam
+	outer_mirror._apply_pigment()
+
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	MirrorManager.refresh_now()
 	return root
 
 

@@ -10,9 +10,10 @@ Canonical source: `docs/design.md`. Gameplay mirrors are only **reveal-mirror** 
 ## Affected entity
 
 - All **affected-entity** instances are **linked**; not all linked entities are affected.
-- A linked entity is affected only when:
-  1. Its state matches the mirror type (hidden ↔ reveal, manifest ↔ dissolve).
-  2. Its pigment is compatible with the mirror pigment.
+- A linked entity is affected by a mirror (whether reflected directly or through a chain of other mirrors) only when:
+  1. Its state matches that outer mirror's type (hidden ↔ reveal, manifest ↔ dissolve).
+  2. Its pigment is compatible with that outer mirror's pigment.
+- Each mirror always reveals or dissolves its own compatible entities in its reflected-world, regardless of whether those entities are reflected directly or bounced through other mirrors.
 
 ## Reveal-mirror
 

@@ -1,0 +1,20 @@
+---
+description: Standards for organizing scenes and writing beginner-friendly descriptions in the Godot Editor
+alwaysApply: true
+---
+
+# Editor Organization and Descriptions
+
+Keep scenes, nodes, and scripts easy to inspect and understand inside the Godot Editor for anyone opening the project.
+
+## Scene Tree Organization
+
+- Prefer explicit, clearly named child nodes in `.tscn` scene files over hidden nodes spawned only in code, so the full component structure is visible in the Scene dock.
+- If a helper node (such as a secondary quad or collider) would visually overlap another node in the 3D editor viewport, keep it in the `.tscn` file with `visible = false` in the editor and enable it at runtime.
+- Group related properties in the Inspector using `@export_category` and `@export_group`.
+
+## Beginner-Friendly Descriptions
+
+- Add an `editor_description` string to nodes in `.tscn` scenes so hovering a node in the Scene dock explains its job in plain, everyday English.
+- Add `##` doc comments above every class, `@export` variable, and key public function in GDScript files.
+- Write all descriptions in informal, beginner-friendly language that explains *what* the node or setting does in the game rather than repeating engine or math jargon.

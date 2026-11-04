@@ -1,17 +1,18 @@
 extends Node3D
-## Evaluates which PigmentEntity instances are linked through this mirror and
-## which of those are affected, using frustum gates and reflection raycasts.
-
+## Checks which colored objects (PigmentEntity) are visible to the player through
+## this mirror — both directly and bounced through other mirrors — and tells those
+## objects when to enable or disable their physical collision.
 
 const SURFACE_EPSILON: float = 0.01
 const STAGGER_GROUP_SIZE: int = 4
 
 static var _next_stagger_index: int = 0
 
+## True while this mirror's bounding box is on the player's screen.
 var is_mirror_visible: bool = false
 
-@onready var _mirror: Mirror3D = get_parent()
-@onready var _mirror_quad: MeshInstance3D = _mirror.get_node("Quad")
+@onready var _mirror: Mirror3D = get_parent() as Mirror3D
+@onready var _mirror_quad: MeshInstance3D = _mirror.get_node_or_null("Quad") as MeshInstance3D
 
 var _tracked_entities: Array[PigmentEntity] = []
 var _linked_cache: Dictionary[PigmentEntity, bool] = {}
@@ -49,7 +50,7 @@ func _exit_tree() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if not _mirror.player:
-		return
+		_mirror._resolve_player_and_camera()
 	if not is_instance_valid(_mirror.player_cam):
 		return
 
@@ -65,7 +66,20 @@ func _physics_process(_delta: float) -> void:
 
 
 func _evaluate_entity(entity: PigmentEntity) -> void:
-	if not _passes_cheap_gates(entity):
+	if not _passes_outer_mirror_gates(entity):
+		_report_link_state(entity, false)
+		return
+
+	var candidate_chains: Array = MirrorManager.get_chains_for_outer_mirror(_mirror)
+	if candidate_chains.is_empty():
+		candidate_chains = [[_mirror]]
+
+	var valid_chains: Array = []
+	for chain: Array in candidate_chains:
+		if _passes_chain_gates(entity, chain):
+			valid_chains.append(chain)
+
+	if valid_chains.is_empty():
 		_report_link_state(entity, false)
 		return
 
@@ -79,7 +93,12 @@ func _evaluate_entity(entity: PigmentEntity) -> void:
 
 	var is_linked: bool = previously_linked
 	if should_raycast:
-		is_linked = _any_vertex_reflection_visible(entity)
+		is_linked = false
+		for chain: Array in valid_chains:
+			var chain_exclude: Array = _build_chain_exclude_rids(entity, chain)
+			if _any_vertex_reflection_visible_along_chain(entity, chain, chain_exclude):
+				is_linked = true
+				break
 
 	_report_link_state(entity, is_linked)
 
@@ -97,7 +116,7 @@ func _report_link_state(entity: PigmentEntity, is_linked: bool) -> void:
 	entity.set_mirror_link_state(_mirror, is_linked, is_affected)
 
 
-func _passes_cheap_gates(entity: PigmentEntity) -> bool:
+func _passes_outer_mirror_gates(entity: PigmentEntity) -> bool:
 	if not is_mirror_visible and not _is_aabb_in_camera_frustum(_mirror_quad_aabb()):
 		return false
 
@@ -110,42 +129,53 @@ func _passes_cheap_gates(entity: PigmentEntity) -> bool:
 	if camera_to_mirror >= _mirror.freeze_distance:
 		return false
 
-	if entity.mesh == null:
+	if entity.mesh == null or entity.mesh.mesh == null:
 		return false
 
-	var object_to_mirror: float = entity.mesh.global_position.distance_to(
-		_mirror_quad.global_position
+	return true
+
+
+func _passes_chain_gates(entity: PigmentEntity, chain: Array) -> bool:
+	if chain.is_empty():
+		return false
+
+	var innermost: Mirror3D = chain[0]
+	if innermost == null or not is_instance_valid(innermost):
+		return false
+
+	var object_to_inner: float = entity.mesh.global_position.distance_to(
+		innermost.get_mirror_origin()
 	)
-	if object_to_mirror > _mirror.cull_far:
+	if object_to_inner > innermost.cull_far:
 		return false
 
-	var reflected_aabb: AABB = _reflected_entity_aabb(entity)
+	var reflected_aabb: AABB = _reflected_entity_aabb_for_chain(entity, chain)
 	if not _is_aabb_in_camera_frustum(reflected_aabb):
 		return false
 
 	return true
 
 
-func _any_vertex_reflection_visible(entity: PigmentEntity) -> bool:
+func _any_vertex_reflection_visible_along_chain(
+	entity: PigmentEntity,
+	chain: Array,
+	exclude: Array
+) -> bool:
 	if entity.mesh == null or entity.mesh.mesh == null:
 		return false
 
-	var mirror_plane_normal: Vector3 = _mirror_quad.global_basis.z.normalized()
-	var mirror_plane_origin: Vector3 = _mirror_quad.global_position
 	var target_point: Vector3 = _mirror.player_cam.global_position
 	var mesh: Mesh = entity.mesh.mesh
 	var mesh_transform: Transform3D = entity.mesh.global_transform
-	var exclude: Array = _exclude_rids.get(entity, [])
 
 	for s: int in range(mesh.get_surface_count()):
 		var arrays: Array = mesh.surface_get_arrays(s)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		for local_vertex: Vector3 in vertices:
 			var world_vertex: Vector3 = mesh_transform * local_vertex
-			if _is_vertex_reflection_visible(
+			if _is_vertex_reflection_visible_along_chain(
 				world_vertex,
-				mirror_plane_normal,
-				mirror_plane_origin,
+				chain,
 				target_point,
 				exclude
 			):
@@ -153,42 +183,79 @@ func _any_vertex_reflection_visible(entity: PigmentEntity) -> bool:
 	return false
 
 
-func _is_vertex_reflection_visible(
+func _is_vertex_reflection_visible_along_chain(
 	world_vertex: Vector3,
-	mirror_normal: Vector3,
-	mirror_origin: Vector3,
+	chain: Array,
 	target_point: Vector3,
 	exclude: Array
 ) -> bool:
-	var reflected_vertex: Vector3 = _reflect_point(world_vertex, mirror_normal, mirror_origin)
-	var direction: Vector3 = target_point - reflected_vertex
-	var denom: float = direction.dot(mirror_normal)
-	if is_zero_approx(denom):
+	var count: int = chain.size()
+	if count == 0:
 		return false
 
-	var t: float = (mirror_origin - reflected_vertex).dot(mirror_normal) / denom
-	if t < 0.0 or t > 1.0:
-		return false
+	# 1. Unfold the vertex sequentially across each mirror in the chain (innermost to outermost).
+	var unfolded: Array[Vector3] = []
+	unfolded.resize(count + 1)
+	unfolded[0] = world_vertex
+	for i: int in range(count):
+		var m: Mirror3D = chain[i]
+		unfolded[i + 1] = _reflect_point(
+			unfolded[i],
+			m.get_mirror_normal(),
+			m.get_mirror_origin()
+		)
 
-	var q: Vector3 = reflected_vertex + t * direction
-	if not _is_point_within_mirror_bounds(q):
-		return false
+	# 2. Back-project from the player camera down to the object to find the bounce point on each mirror.
+	var bounce_points: Array[Vector3] = []
+	bounce_points.resize(count)
+	var receiver_point: Vector3 = target_point
 
+	var idx: int = count - 1
+	while idx >= 0:
+		var m: Mirror3D = chain[idx]
+		var m_normal: Vector3 = m.get_mirror_normal()
+		var m_origin: Vector3 = m.get_mirror_origin()
+		var virtual_source: Vector3 = unfolded[idx + 1]
+		var direction: Vector3 = receiver_point - virtual_source
+		var denom: float = direction.dot(m_normal)
+		if is_zero_approx(denom):
+			return false
+
+		var t: float = (m_origin - virtual_source).dot(m_normal) / denom
+		if t <= 0.0 or t >= 1.0:
+			return false
+
+		var q: Vector3 = virtual_source + t * direction
+		if not _is_point_within_mirror_bounds(q, m):
+			return false
+
+		bounce_points[idx] = q
+		receiver_point = q
+		idx -= 1
+
+	# 3. Check occlusion along all reflected segments using the outer mirror's reflected-world mask,
+	# and along the final mirror-to-player segment using the real-world mask.
 	var reflected_mask: int = _mirror.cull_mask & Pigments.REFLECTED_OCCLUSION_MASK
-	if _raycast_blocked(world_vertex, q, reflected_mask, exclude):
+	if _raycast_blocked(world_vertex, bounce_points[0], reflected_mask, exclude):
 		return false
 
-	if _raycast_blocked(q, target_point, Pigments.REAL_WORLD_OCCLUSION_MASK, exclude):
+	for i: int in range(count - 1):
+		if _raycast_blocked(bounce_points[i], bounce_points[i + 1], reflected_mask, exclude):
+			return false
+
+	if _raycast_blocked(bounce_points[count - 1], target_point, Pigments.REAL_WORLD_OCCLUSION_MASK, exclude):
 		return false
 
 	return true
 
 
-func _is_point_within_mirror_bounds(world_point: Vector3) -> bool:
-	var local_point: Vector3 = _mirror_quad.global_transform.affine_inverse() * world_point
+func _is_point_within_mirror_bounds(world_point: Vector3, mirror: Mirror3D) -> bool:
+	if mirror._mirror_quad == null:
+		return false
+	var local_point: Vector3 = mirror._mirror_quad.global_transform.affine_inverse() * world_point
 	return (
-		absf(local_point.x) <= _mirror.size.x * 0.5
-		and absf(local_point.y) <= _mirror.size.y * 0.5
+		absf(local_point.x) <= mirror.size.x * 0.5
+		and absf(local_point.y) <= mirror.size.y * 0.5
 	)
 
 
@@ -227,32 +294,35 @@ func _mirror_quad_aabb() -> AABB:
 	return _mirror_quad.global_transform * local_aabb
 
 
-func _reflected_entity_aabb(entity: PigmentEntity) -> AABB:
+func _reflected_entity_aabb_for_chain(entity: PigmentEntity, chain: Array) -> AABB:
 	var mesh_aabb: AABB = entity.mesh.get_aabb()
-	var world_aabb: AABB = entity.mesh.global_transform * mesh_aabb
-	var corners: Array[Vector3] = [
-		world_aabb.position,
-		world_aabb.position + Vector3(world_aabb.size.x, 0.0, 0.0),
-		world_aabb.position + Vector3(0.0, world_aabb.size.y, 0.0),
-		world_aabb.position + Vector3(0.0, 0.0, world_aabb.size.z),
-		world_aabb.position + Vector3(world_aabb.size.x, world_aabb.size.y, 0.0),
-		world_aabb.position + Vector3(world_aabb.size.x, 0.0, world_aabb.size.z),
-		world_aabb.position + Vector3(0.0, world_aabb.size.y, world_aabb.size.z),
-		world_aabb.position + world_aabb.size,
-	]
+	var current_aabb: AABB = entity.mesh.global_transform * mesh_aabb
 
-	var mirror_normal: Vector3 = _mirror_quad.global_basis.z.normalized()
-	var mirror_origin: Vector3 = _mirror_quad.global_position
-	var reflected_aabb := AABB()
-	var first: bool = true
-	for corner: Vector3 in corners:
-		var reflected: Vector3 = _reflect_point(corner, mirror_normal, mirror_origin)
-		if first:
-			reflected_aabb = AABB(reflected, Vector3.ZERO)
-			first = false
-		else:
-			reflected_aabb = reflected_aabb.expand(reflected)
-	return reflected_aabb
+	for m: Mirror3D in chain:
+		var corners: Array[Vector3] = [
+			current_aabb.position,
+			current_aabb.position + Vector3(current_aabb.size.x, 0.0, 0.0),
+			current_aabb.position + Vector3(0.0, current_aabb.size.y, 0.0),
+			current_aabb.position + Vector3(0.0, 0.0, current_aabb.size.z),
+			current_aabb.position + Vector3(current_aabb.size.x, current_aabb.size.y, 0.0),
+			current_aabb.position + Vector3(current_aabb.size.x, 0.0, current_aabb.size.z),
+			current_aabb.position + Vector3(0.0, current_aabb.size.y, current_aabb.size.z),
+			current_aabb.position + current_aabb.size,
+		]
+		var mirror_normal: Vector3 = m.get_mirror_normal()
+		var mirror_origin: Vector3 = m.get_mirror_origin()
+		var next_aabb := AABB()
+		var first: bool = true
+		for corner: Vector3 in corners:
+			var reflected: Vector3 = _reflect_point(corner, mirror_normal, mirror_origin)
+			if first:
+				next_aabb = AABB(reflected, Vector3.ZERO)
+				first = false
+			else:
+				next_aabb = next_aabb.expand(reflected)
+		current_aabb = next_aabb
+
+	return current_aabb
 
 
 func _is_aabb_in_camera_frustum(aabb: AABB) -> bool:
@@ -311,6 +381,19 @@ func _build_exclude_rids(entity: PigmentEntity) -> Array:
 	var mirror_body: CollisionObject3D = _find_collision_object(_mirror_quad)
 	if mirror_body:
 		rids.append(mirror_body.get_rid())
+	return rids
+
+
+func _build_chain_exclude_rids(entity: PigmentEntity, chain: Array) -> Array:
+	var rids: Array = _exclude_rids.get(entity, []).duplicate()
+	for m: Mirror3D in chain:
+		if m == null or m == _mirror or m._mirror_quad == null:
+			continue
+		var body: CollisionObject3D = _find_collision_object(m._mirror_quad)
+		if body != null:
+			var rid: RID = body.get_rid()
+			if not rids.has(rid):
+				rids.append(rid)
 	return rids
 
 

@@ -102,13 +102,19 @@ There can be one or multiple entities linked to the player through the same mirr
 
 A linked entity becomes an `affected-entity` when it is eligible for the effect of at least one mirror through which it is linked.
 
+A mirror reveals or dissolves its own compatible entities in its glass. This stays true when the player looks at that mirror directly and when that mirror is seen reflected inside another mirror.
+
+The rest of an outer mirror's reflection uses the outer mirror's pigment and type. A yellow mirror seen inside a blue mirror still reveals yellow objects and does not reveal blue objects. A blue mirror seen inside a yellow mirror still reveals blue objects and does not reveal yellow objects.
+
+When an entity is linked through a chain of nested mirrors (for example, `Mirror A` reflects `Mirror B`, which reflects the entity), the outer mirror evaluates eligibility using its own pigment and mirror type.
+
 All affected entities are linked entities, but not all linked entities are affected entities.
 
 Eligibility depends on:
 
 - The pigment of the entity.
-- The pigment of the mirror.
-- The type of mirror.
+- The pigment of the outer mirror through which the reflected geometry reaches the player.
+- The type of that outer mirror.
 
 ## Pigment compatibility
 

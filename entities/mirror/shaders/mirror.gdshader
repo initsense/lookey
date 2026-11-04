@@ -1,3 +1,5 @@
+// Based on Mirror3D (https://github.com/Norodix/Mirror3D)
+// Copyright (c) 2025 Joyless, Norodix — MIT License (see entities/mirror/LICENSE.md)
 shader_type spatial;
 
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_opaque;
