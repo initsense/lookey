@@ -9,7 +9,7 @@
 [node name="Tutorial" type="Node3D" unique_id=1193302633]
 
 [node name="Player" parent="." unique_id=713571688 instance=ExtResource("1_j872f")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.41185856, 0.26913548, -0.5041652)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 8.200015, 0.26913548, -10.777777)
 
 [node name="Environment" type="Node" parent="." unique_id=821477724]
 
@@ -32,8 +32,8 @@ transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.585005, 3.702)
 player = NodePath("../../Player")
 pigment = 4
-mirror_type = 1
 always_active = false
+cull_mask = 295423
 size = Vector2(4, 3)
 max_fps = 120.0
 
@@ -41,8 +41,8 @@ max_fps = 120.0
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.9587765, 1.585005, 1.6288898)
 player = NodePath("../../Player")
 pigment = 2
-mirror_type = 1
 always_active = false
+cull_mask = 270847
 size = Vector2(4, 3)
 max_fps = 120.0
 
@@ -50,9 +50,9 @@ max_fps = 120.0
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.2023983, 1.5, -8.853809)
 player = NodePath("../../Player")
 pigment = 4
-mirror_type = 2
+mirror_type = 1
 always_active = false
-cull_mask = 1048543
+cull_mask = 223
 size = Vector2(1.89, 3)
 max_fps = 60.0
 
@@ -60,8 +60,8 @@ max_fps = 60.0
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 9.891178, 1.5657158, -6.8617997)
 player = NodePath("../../Player")
 pigment = 4
-mirror_type = 1
 always_active = false
+cull_mask = 295423
 size = Vector2(5, 3)
 max_fps = 60.0
 
