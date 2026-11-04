@@ -1,3 +1,4 @@
+class_name CallableDoubler
 ## The helper class to allow to double Callable
 ## Is just a wrapper to the original callable with the same function signature.
 ##
@@ -8,17 +9,15 @@
 ## which causes conflicts when attempting to stub these methods.
 ## As a result, you cannot create stubs for 'call' and 'call_deferred' methods.
 
-class_name CallableDoubler
-
-
-const doubler_script :Script =  preload("res://addons/gdUnit4/src/doubler/CallableDoubler.gd")
+const DOUBLER_SCRIPT: Script = preload("res://addons/gdUnit4/src/doubler/CallableDoubler.gd")
 
 var _cb: Callable
 
 
 func _init(cb: Callable) -> void:
-	assert(cb!=null, "Invalid argument <cb> must not be null")
+	assert(cb != null, "Invalid argument <cb> must not be null")
 	_cb = cb
+
 
 ## --- helpers -----------------------------------------------------------------------------------------------------------------------------
 static func map_func_name(method_info: Dictionary) -> String:
@@ -31,22 +30,22 @@ static func excluded_functions() -> PackedStringArray:
 	return ClassDB.class_get_method_list("Object")\
 		.map(CallableDoubler.map_func_name)\
 		.filter(func (name: String) -> bool:
-			return !CallableDoubler.callable_functions().has(name))
+			return not CallableDoubler.callable_functions().has(name))
 
 
 static func non_callable_functions(name: String) -> bool:
-	return ![
+	return not [
 		# we allow "_init", is need to construct it,
 		"excluded_functions",
 		"non_callable_functions",
 		"callable_functions",
-		"map_func_name"
+		"map_func_name",
 		].has(name)
 
 
 ## Returns the list of supported Callable functions
 static func callable_functions() -> PackedStringArray:
-	var supported_functions :Array = doubler_script.get_script_method_list()\
+	var supported_functions: Array = DOUBLER_SCRIPT.get_script_method_list()\
 		.map(CallableDoubler.map_func_name)\
 		.filter(CallableDoubler.non_callable_functions)
 	# We manually add these functions that we cannot/may not overwrite in this class
@@ -57,6 +56,7 @@ static func callable_functions() -> PackedStringArray:
 ## -----------------------------------------------------------------------------------------------------------------------------------------
 ## Callable functions stubing
 ## -----------------------------------------------------------------------------------------------------------------------------------------
+
 
 func bind(...varargs: Array) -> Callable:
 	_cb = _cb.bindv(varargs)
@@ -76,7 +76,6 @@ func call(...varargs: Array) -> Variant:
 # Is not supported, see class description
 #func call_deferred(...varargs: Array) -> void:
 #	return _cb.call_deferred(varargs)
-
 
 # Is not supported, see class description
 #func callv(arguments: Array) -> Variant:
@@ -150,6 +149,7 @@ func rpc_id(peer_id: int, ...varargs: Array) -> void:
 		7: _cb.rpc_id(peer_id, varargs[0], varargs[1], varargs[2], varargs[3], varargs[4], varargs[5], varargs[6], varargs[7])
 		8: _cb.rpc_id(peer_id, varargs[0], varargs[1], varargs[2], varargs[3], varargs[4], varargs[5], varargs[6], varargs[7], varargs[8])
 		9: _cb.rpc_id(peer_id, varargs[0], varargs[1], varargs[2], varargs[3], varargs[4], varargs[5], varargs[6], varargs[7], varargs[8], varargs[9])
+
 
 func unbind(argcount: int) -> Callable:
 	_cb = _cb.unbind(argcount)

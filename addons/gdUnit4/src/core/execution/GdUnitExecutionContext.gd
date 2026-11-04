@@ -2,31 +2,12 @@
 ## It contains all the necessary information about the executed stage, such as memory observers, reports, orphan monitor
 class_name GdUnitExecutionContext
 
-enum GC_ORPHANS_CHECK {
+enum GcOrphansCheck {
 	NONE,
 	SUITE_HOOK_AFTER,
 	TEST_HOOK_AFTER,
-	TEST_CASE
+	TEST_CASE,
 }
-
-
-var _parent_context: GdUnitExecutionContext
-var _sub_context: Array[GdUnitExecutionContext] = []
-var _orphan_monitor: GdUnitOrphanNodesMonitor
-var _memory_observer: GdUnitMemoryObserver
-var _report_collector: GdUnitTestReportCollector
-var _timer: LocalTime
-var _test_case_name: StringName
-var _test_case_parameter_set: Array
-var _name: String
-var _test_execution_iteration: int = 0
-var _flaky_test_check := GdUnitSettings.is_test_flaky_check_enabled()
-var _flaky_test_retries := GdUnitSettings.get_flaky_max_retries()
-var _last_error: GdUnitError = null
-
-
-var _settings_snapshot: GdUnitProjectSettingsSnapshot = null
-
 
 var error_monitor: GodotGdErrorMonitor = null:
 	get:
@@ -36,28 +17,44 @@ var error_monitor: GodotGdErrorMonitor = null:
 			error_monitor = GodotGdErrorMonitor.new()
 		return error_monitor
 
-
 var test_suite: GdUnitTestSuite = null:
 	get:
 		if _parent_context != null:
 			return _parent_context.test_suite
 		return test_suite
 
-
-var test_case: _TestCase = null:
+var test_case: GdUnitTestCaseImpl = null:
 	get:
 		if test_case == null and _parent_context != null:
 			return _parent_context.test_case
 		return test_case
 
+var _parent_context: GdUnitExecutionContext
+var _sub_context: Array[GdUnitExecutionContext] = []
+var _orphan_monitor: GdUnitOrphanNodesMonitor
+var _memory_observer: GdUnitMemoryObserver
+var _report_collector: GdUnitTestReportCollector
+var _timer: LocalTime
+var _test_case_name: StringName
+var _name: String
+var _test_execution_iteration: int = 0
+var _flaky_test_check := GdUnitSettings.is_test_flaky_check_enabled()
+var _flaky_test_retries := GdUnitSettings.get_flaky_max_retries()
+var _last_error: GdUnitError = null
+var _settings_snapshot: GdUnitProjectSettingsSnapshot = null
+var _project_settings_auto_save := false
 
-func _init(name: StringName, parent_context: GdUnitExecutionContext = null) -> void:
+
+func _init(name: StringName, parent_context: GdUnitExecutionContext = null, project_settings_auto_save_enabled := false) -> void:
 	_name = name
 	_parent_context = parent_context
 	_timer = LocalTime.now()
 	_orphan_monitor = GdUnitOrphanNodesMonitor.new(name)
+	_project_settings_auto_save = project_settings_auto_save_enabled
 
 	if parent_context != null:
+		_project_settings_auto_save = parent_context._project_settings_auto_save
+		_settings_snapshot = parent_context._settings_snapshot
 		parent_context._orphan_monitor.add_child_monitor(_orphan_monitor)
 		orphan_monitor_start()
 
@@ -68,6 +65,8 @@ func _init(name: StringName, parent_context: GdUnitExecutionContext = null) -> v
 
 
 func dispose() -> void:
+	if _parent_context == null:
+		error_monitor.dispose()
 	if test_suite != null:
 		test_suite.free()
 	_timer = null
@@ -95,6 +94,10 @@ func terminate() -> void:
 		test_case.do_terminate()
 
 
+static func current() -> GdUnitExecutionContext:
+	return GdUnitThreadManager.get_current_context().get_execution_context()
+
+
 static func of(pe: GdUnitExecutionContext) -> GdUnitExecutionContext:
 	var context := GdUnitExecutionContext.new(pe._test_case_name, pe)
 	context._test_case_name = pe._test_case_name
@@ -102,17 +105,11 @@ static func of(pe: GdUnitExecutionContext) -> GdUnitExecutionContext:
 	return context
 
 
-static func of_test_case(pe: GdUnitExecutionContext, p_test_case: _TestCase) -> GdUnitExecutionContext:
+static func of_test_case(pe: GdUnitExecutionContext, p_test_case: GdUnitTestCaseImpl, settings_snapshot: GdUnitProjectSettingsSnapshot = null) -> GdUnitExecutionContext:
 	assert(p_test_case, "test_case is null")
 	var context := GdUnitExecutionContext.new(p_test_case.test_name(), pe)
 	context.test_case = p_test_case
-	return context
-
-
-static func of_parameterized_test(pe: GdUnitExecutionContext, test_case_name: String, test_case_parameter_set: Array) -> GdUnitExecutionContext:
-	var context := GdUnitExecutionContext.new(test_case_name, pe)
-	context._test_case_name = test_case_name
-	context._test_case_parameter_set = test_case_parameter_set
+	context._settings_snapshot = settings_snapshot
 	return context
 
 
@@ -130,16 +127,23 @@ func get_test_case_name() -> StringName:
 	return _test_case_name
 
 
-func save_project_settings() -> void:
-	if _settings_snapshot == null:
+func snapshot_project_settings(force := false) -> void:
+	if _project_settings_auto_save or force:
 		_settings_snapshot = GdUnitProjectSettingsSnapshot.new()
-	_settings_snapshot.save()
+		_settings_snapshot.save()
 
 
 func restore_project_settings() -> void:
-	if _settings_snapshot == null:
-		return
-	_settings_snapshot.restore()
+	if _settings_snapshot != null:
+		_settings_snapshot.restore()
+
+
+func create_settings_snapshot() -> GdUnitProjectSettingsSnapshot:
+	if not _project_settings_auto_save:
+		return null
+	var snapshot := GdUnitProjectSettingsSnapshot.new()
+	snapshot.save()
+	return snapshot
 
 
 func error_monitor_start() -> void:
@@ -179,7 +183,7 @@ func set_error(error: GdUnitError) -> void:
 
 
 func last_error() -> GdUnitError:
-	if  _last_error != null:
+	if _last_error != null:
 		return _last_error
 
 	if _report_collector.reports().is_empty():
@@ -202,17 +206,17 @@ func collect_reports(recursive: bool) -> Array[GdUnitReport]:
 	return current_reports
 
 
-func calculate_statistics(reports_: Array[GdUnitReport]) -> Dictionary:
-	var failed_count := GdUnitTestReportCollector.count_failures(reports_)
-	var error_count := GdUnitTestReportCollector.count_errors(reports_)
-	var warn_count := GdUnitTestReportCollector.count_warnings(reports_)
-	var skip_count := GdUnitTestReportCollector.count_skipped(reports_)
-	var orphan_count := GdUnitTestReportCollector.count_orphans(reports_)
-	var is_failed := !is_success()
+func calculate_statistics(test_reports: Array[GdUnitReport]) -> Dictionary:
+	var failed_count := GdUnitTestReportCollector.count_failures(test_reports)
+	var error_count := GdUnitTestReportCollector.count_errors(test_reports)
+	var warn_count := GdUnitTestReportCollector.count_warnings(test_reports)
+	var skip_count := GdUnitTestReportCollector.count_skipped(test_reports)
+	var orphan_count := GdUnitTestReportCollector.count_orphans(test_reports)
+	var is_failed := not is_success()
 	var elapsed_time := _timer.elapsed_since_ms()
-	var retries :=  1 if _parent_context == null else _sub_context.size()
+	var retries := 1 if _parent_context == null else _sub_context.size()
 	# Mark as flaky if it is successful, but errors were counted
-	var is_flaky := retries > 1  and not is_failed
+	var is_flaky := retries > 1 and not is_failed
 	# In the case of a flakiness test, we do not report an error counter, as an unreliable test is considered successful
 	# after a certain number of repetitions.
 	if is_flaky:
@@ -245,7 +249,7 @@ func is_success() -> bool:
 
 func is_skipped() -> bool:
 	return (
-		_sub_context.any(func(c :GdUnitExecutionContext) -> bool:
+		_sub_context.any(func(c: GdUnitExecutionContext) -> bool:
 			return c.is_skipped())
 		or test_case.is_skipped() if test_case != null else false
 	)
@@ -271,7 +275,7 @@ func register_auto_free(obj: Variant) -> Variant:
 
 
 ## Runs the gdunit garbage collector to free registered object and handle orphan node reporting
-func gc(gc_orphan_check: GC_ORPHANS_CHECK = GC_ORPHANS_CHECK.NONE) -> void:
+func gc(gc_orphan_check: GcOrphansCheck = GcOrphansCheck.NONE) -> void:
 	# unreference last used assert form the test to prevent memory leaks
 	GdUnitThreadManager.get_current_context().clear_assert()
 	await _memory_observer.gc()
@@ -281,7 +285,7 @@ func gc(gc_orphan_check: GC_ORPHANS_CHECK = GC_ORPHANS_CHECK.NONE) -> void:
 		await test_suite.get_tree().process_frame
 
 	match(gc_orphan_check):
-		GC_ORPHANS_CHECK.SUITE_HOOK_AFTER:
+		GcOrphansCheck.SUITE_HOOK_AFTER:
 			report_ophans(-1, """
 		func before() -> void:
 			collect_orphan_node_details())
@@ -289,7 +293,7 @@ func gc(gc_orphan_check: GC_ORPHANS_CHECK = GC_ORPHANS_CHECK.NONE) -> void:
 		func after() -> void:
 			collect_orphan_node_details())""")
 
-		GC_ORPHANS_CHECK.TEST_HOOK_AFTER:
+		GcOrphansCheck.TEST_HOOK_AFTER:
 			report_ophans(-1, """
 		func before_test() -> void:
 			collect_orphan_node_details()
@@ -297,11 +301,10 @@ func gc(gc_orphan_check: GC_ORPHANS_CHECK = GC_ORPHANS_CHECK.NONE) -> void:
 		func after_test() -> void:
 			collect_orphan_node_details()""")
 
-		GC_ORPHANS_CHECK.TEST_CASE:
+		GcOrphansCheck.TEST_CASE:
 			report_ophans(test_case.line_number(),
 			"	collect_orphan_node_details()"
 			)
-
 
 
 func report_ophans(line_number: int, additonal_info := "") -> void:

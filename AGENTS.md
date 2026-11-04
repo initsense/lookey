@@ -40,7 +40,7 @@ Follow the [Godot GDScript style guide](https://docs.godotengine.org/en/4.7/tuto
 
 ## Tests
 
-Suites live in `tests/` and extend `GdUnitTestSuite`. They need a Godot 4.7 executable; gdUnit4 6.2 does not load on Godot older than 4.5.
+Suites live in `tests/` and extend `GdUnitTestSuite`. They need a Godot 4.7 executable; gdUnit4 7.x targets Godot 4.7+.
 
 On a fresh clone, import the project once so gdUnit4's classes are registered:
 
@@ -51,7 +51,7 @@ godot --headless --path . --import
 Run the suites before a commit:
 
 ```
-godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a res://tests -c
+godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c
 ```
 
 ## Commits

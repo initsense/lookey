@@ -2,10 +2,11 @@
 class_name GdUnitFuncValueExtractor
 extends GdUnitValueExtractor
 
-var _func_names :PackedStringArray
-var _args :Array
+var _func_names: PackedStringArray
+var _args: Array
 
-func _init(func_name :String, p_args :Array) -> void:
+
+func _init(func_name: String, p_args: Array) -> void:
 	_func_names = func_name.split(".")
 	_args = p_args
 
@@ -48,7 +49,7 @@ func extract_value(value: Variant) -> Variant:
 	return value
 
 
-func _call_func(value :Variant, func_name :String) -> Variant:
+func _call_func(value: Variant, func_name: String) -> Variant:
 	# for array types we need to call explicit by function name, using funcref is only supported for Objects
 	# TODO extend to all array functions
 	if GdArrayTools.is_array_type(value) and func_name == "empty":
@@ -62,7 +63,7 @@ func _call_func(value :Variant, func_name :String) -> Variant:
 			var extract := Callable(obj_value, func_name)
 			if extract.is_valid():
 				return obj_value.call(func_name) if args().is_empty() else obj_value.callv(func_name, args())
-		else:
+		else:  # gdstyle:ignore=quality/no-else-return
 			# if no function exists than try to extract form parmeters
 			var parameter: Variant = obj_value.get(func_name)
 			if parameter != null:

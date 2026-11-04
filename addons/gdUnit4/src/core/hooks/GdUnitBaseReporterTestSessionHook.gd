@@ -1,7 +1,6 @@
 class_name GdUnitBaseReporterTestSessionHook
 extends GdUnitTestSessionHook
 
-
 var test_session: GdUnitTestSession:
 	get:
 		return test_session
@@ -14,11 +13,11 @@ var test_session: GdUnitTestSession:
 		if test_session != null:
 			test_session.test_event.connect(_on_test_event)
 
-
 var _report_summary: GdUnitReportSummary
 var _reporter: GdUnitTestReporter
 var _report_writer: GdUnitReportWriter
 var _report_converter: Callable
+
 
 func _init(report_writer: GdUnitReportWriter, hook_name: String, hook_description: String, report_converter: Callable) -> void:
 	super(hook_name, hook_description)
@@ -37,7 +36,7 @@ func startup(session: GdUnitTestSession) -> GdUnitResult:
 
 func shutdown(session: GdUnitTestSession) -> GdUnitResult:
 	var report_path := _report_writer.write(session.report_path, _report_summary)
-	session.send_message("Open {0} Report at: file://{1}".format([_report_writer.output_format(), report_path]))
+	session.send_message("Open {0} Report at: {1}".format([_report_writer.output_format(), GdUnitFileAccess.as_file_uri(report_path)]))
 
 	return GdUnitResult.success()
 

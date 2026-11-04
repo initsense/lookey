@@ -1,3 +1,6 @@
+@static_unload
+class_name GdUnit4CSharpApiLoader
+extends RefCounted
 ## GdUnit4CSharpApiLoader
 ##
 ## A bridge class that handles communication between GDScript and C# for the GdUnit4 testing framework.
@@ -9,23 +12,11 @@
 ## - Loading the C# wrapper script
 ## - Checking for the GdUnit4Api assembly
 ## - Providing proxy methods to access GdUnit4 functionality in C#
-@static_unload
-class_name GdUnit4CSharpApiLoader
-extends RefCounted
 
 ## Cached reference to the loaded C# wrapper script
-static var _gdUnit4NetWrapper: Script
-
+static var _gdunit4_net_wrapper: Script
 ## Cached instance of the API (singleton pattern)
 static var _api_instance: RefCounted
-
-
-class TestEventListener extends RefCounted:
-
-	func publish_event(event: Dictionary) -> void:
-		var test_event := GdUnitEvent.new().deserialize(event)
-		GdUnitSignals.instance().gdunit_event.emit(test_event)
-
 static var _test_event_listener := TestEventListener.new()
 
 
@@ -35,7 +26,7 @@ static func instance() -> Script:
 	if not GdUnit4CSharpApiLoader.is_api_loaded():
 		return null
 
-	return _gdUnit4NetWrapper
+	return _gdunit4_net_wrapper
 
 
 ## Returns or creates a single instance of the API [br]
@@ -48,14 +39,14 @@ static func api_instance() -> RefCounted:
 
 
 static func is_engine_version_supported(engine_version: int = Engine.get_version_info().hex) -> bool:
-	return engine_version >= 0x40200
+	return engine_version >= 0x40700
 
 
 ## Checks if the .NET environment is properly configured and available.[br]
 ## @return bool: True if .NET is fully supported and the assembly is found
 static func is_api_loaded() -> bool:
 	# If the wrapper is already loaded we don't need to check again
-	if _gdUnit4NetWrapper != null:
+	if _gdunit4_net_wrapper != null:
 		return true
 
 	# First we check if this is a Godot .NET runtime instance
@@ -67,9 +58,9 @@ static func is_api_loaded() -> bool:
 		return false
 
 	# Finally load the wrapper and check if the GdUnit4 assembly can be found
-	_gdUnit4NetWrapper = load("res://addons/gdUnit4/src/dotnet/GdUnit4CSharpApi.cs")
+	_gdunit4_net_wrapper = load("res://addons/gdUnit4/src/dotnet/GdUnit4CSharpApi.cs")
 	@warning_ignore("unsafe_method_access")
-	return _gdUnit4NetWrapper.call("IsApiLoaded")
+	return _gdunit4_net_wrapper.call("IsApiLoaded")
 
 
 ## Returns the version of the GdUnit4 .NET assembly.[br]
@@ -82,7 +73,7 @@ static func version() -> String:
 
 
 static func discover_tests(source_script: Script) -> Array[GdUnitTestCase]:
-	var tests: Array = _gdUnit4NetWrapper.call("DiscoverTests", source_script)
+	var tests: Array = _gdunit4_net_wrapper.call("DiscoverTests", source_script)
 
 	return Array(tests.map(GdUnitTestCase.from_dict), TYPE_OBJECT, "RefCounted", GdUnitTestCase)
 
@@ -101,14 +92,21 @@ static func execute(tests: Array[GdUnitTestCase]) -> void:
 
 static func create_test_suite(source_path: String, line_number: int, test_suite_path: String) -> GdUnitResult:
 	if not GdUnit4CSharpApiLoader.is_api_loaded():
-		return  GdUnitResult.error("Can't create test suite. No .NET support found.")
+		return GdUnitResult.error("Can't create test suite. No .NET support found.")
 	@warning_ignore("unsafe_method_access")
 	var result: Dictionary = instance().CreateTestSuite(source_path, line_number, test_suite_path)
 	if result.has("error"):
 		return GdUnitResult.error(str(result.get("error")))
-	return  GdUnitResult.success(result)
+	return GdUnitResult.success(result)
 
 
 static func is_csharp_file(resource_path: String) -> bool:
 	var ext := resource_path.get_extension()
 	return ext == "cs" and GdUnit4CSharpApiLoader.is_api_loaded()
+
+
+class TestEventListener extends RefCounted:
+
+	func publish_event(event: Dictionary) -> void:
+		var test_event := GdUnitEvent.new().deserialize(event)
+		GdUnitSignals.instance().gdunit_event.emit(test_event)

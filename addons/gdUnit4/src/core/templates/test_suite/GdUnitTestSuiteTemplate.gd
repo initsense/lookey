@@ -3,7 +3,6 @@ extends RefCounted
 
 const TEMPLATE_ID_GD = 1000
 const TEMPLATE_ID_CS = 2000
-
 const SUPPORTED_TAGS_GD = """
 	GdScript Tags are replaced when the test-suite is created.
 
@@ -35,7 +34,6 @@ const SUPPORTED_TAGS_GD = """
 		# will be result in
 		var my_script := load("res://folder/my_class.gd")
 """
-
 const SUPPORTED_TAGS_CS = """
 	C# Tags are replaced when the test-suite is created.
 
@@ -70,51 +68,50 @@ const SUPPORTED_TAGS_CS = """
 		// will be result in
 		private object myScript = GD.Load("res://folder/MyClass.cs");
 """
-
 const TAG_TEST_SUITE_CLASS = "${suite_class_name}"
 const TAG_SOURCE_CLASS_NAME = "${source_class}"
 const TAG_SOURCE_CLASS_VARNAME = "${source_var}"
 const TAG_SOURCE_RESOURCE_PATH = "${source_resource_path}"
 
 
-static func default_GD_template() -> String:
+static func default_gd_template() -> String:
 	return GdUnitTestSuiteDefaultTemplate.DEFAULT_TEMP_TS_GD.dedent().trim_prefix("\n")
 
 
-static func default_CS_template() -> String:
+static func default_cs_template() -> String:
 	return GdUnitTestSuiteDefaultTemplate.DEFAULT_TEMP_TS_CS.dedent().trim_prefix("\n")
 
 
 static func build_template(source_path: String) -> String:
-	var clazz_name :String = GdObjects.to_pascal_case(GdObjects.extract_class_name(source_path).value_as_string())
-	var template: String = GdUnitSettings.get_setting(GdUnitSettings.TEMPLATE_TS_GD, default_GD_template())
+	var clazz_name: String = GdObjects.to_pascal_case(GdObjects.extract_class_name(source_path).value_as_string())
+	var template: String = GdUnitSettings.get_setting(GdUnitSettings.TEMPLATE_TS_GD, default_gd_template())
 
 	return template\
-		.replace(TAG_TEST_SUITE_CLASS, clazz_name+"Test")\
+		.replace(TAG_TEST_SUITE_CLASS, clazz_name + "Test")\
 		.replace(TAG_SOURCE_RESOURCE_PATH, source_path)\
 		.replace(TAG_SOURCE_CLASS_NAME, clazz_name)\
 		.replace(TAG_SOURCE_CLASS_VARNAME, GdObjects.to_snake_case(clazz_name))
 
 
-static func default_template(template_id :int) -> String:
+static func default_template(template_id: int) -> String:
 	if template_id != TEMPLATE_ID_GD and template_id != TEMPLATE_ID_CS:
 		push_error("Invalid template '%d' id! Cant load testsuite template" % template_id)
 		return ""
 	if template_id == TEMPLATE_ID_GD:
-		return default_GD_template()
-	return default_CS_template()
+		return default_gd_template()
+	return default_cs_template()
 
 
-static func load_template(template_id :int) -> String:
+static func load_template(template_id: int) -> String:
 	if template_id != TEMPLATE_ID_GD and template_id != TEMPLATE_ID_CS:
 		push_error("Invalid template '%d' id! Cant load testsuite template" % template_id)
 		return ""
 	if template_id == TEMPLATE_ID_GD:
-		return GdUnitSettings.get_setting(GdUnitSettings.TEMPLATE_TS_GD, default_GD_template())
-	return GdUnitSettings.get_setting(GdUnitSettings.TEMPLATE_TS_CS, default_CS_template())
+		return GdUnitSettings.get_setting(GdUnitSettings.TEMPLATE_TS_GD, default_gd_template())
+	return GdUnitSettings.get_setting(GdUnitSettings.TEMPLATE_TS_CS, default_cs_template())
 
 
-static func save_template(template_id :int, template :String) -> void:
+static func save_template(template_id: int, template: String) -> void:
 	if template_id != TEMPLATE_ID_GD and template_id != TEMPLATE_ID_CS:
 		push_error("Invalid template '%d' id! Cant load testsuite template" % template_id)
 		return
@@ -124,21 +121,20 @@ static func save_template(template_id :int, template :String) -> void:
 		GdUnitSettings.save_property(GdUnitSettings.TEMPLATE_TS_CS, template.dedent().trim_prefix("\n"))
 
 
-static func reset_to_default(template_id :int) -> void:
+static func reset_to_default(template_id: int) -> void:
 	if template_id != TEMPLATE_ID_GD and template_id != TEMPLATE_ID_CS:
 		push_error("Invalid template '%d' id! Cant load testsuite template" % template_id)
 		return
 	if template_id == TEMPLATE_ID_GD:
-		GdUnitSettings.save_property(GdUnitSettings.TEMPLATE_TS_GD, default_GD_template())
+		GdUnitSettings.save_property(GdUnitSettings.TEMPLATE_TS_GD, default_gd_template())
 	else:
-		GdUnitSettings.save_property(GdUnitSettings.TEMPLATE_TS_CS, default_CS_template())
+		GdUnitSettings.save_property(GdUnitSettings.TEMPLATE_TS_CS, default_cs_template())
 
 
-static func load_tags(template_id :int) -> String:
+static func load_tags(template_id: int) -> String:
 	if template_id != TEMPLATE_ID_GD and template_id != TEMPLATE_ID_CS:
 		push_error("Invalid template '%d' id! Cant load testsuite template" % template_id)
 		return "Error checked loading tags"
 	if template_id == TEMPLATE_ID_GD:
 		return SUPPORTED_TAGS_GD
-	else:
-		return SUPPORTED_TAGS_CS
+	return SUPPORTED_TAGS_CS

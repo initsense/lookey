@@ -1,3 +1,5 @@
+class_name StringFuzzer
+extends Fuzzer
 ## A fuzzer that generates random strings with configurable length and character sets.[br]
 ##
 ## It supports custom character sets defined by patterns or ranges,
@@ -21,8 +23,6 @@
 ##     var password := fuzzer.next_value()
 ##     assert_str(password).has_length(8, Comparator.GREATER_EQUAL).has_length(32, Comparator.LESS_EQUAL)
 ## [/codeblock]
-class_name StringFuzzer
-extends Fuzzer
 
 ## Default character set pattern including word characters, letters, numbers, and common symbols.[br]
 ## Includes: word characters (\\w), Unicode letters (\\p{L}), Unicode numbers (\\p{N}),
@@ -39,7 +39,7 @@ var _charset: PackedInt32Array
 
 func _init(min_length: int, max_length: int, pattern: String = DEFAULT_CHARSET) -> void:
 	_min_length = min_length
-	_max_length = max_length + 1 # +1 for inclusive
+	_max_length = max_length + 1  # +1 for inclusive
 	assert(not null or not pattern.is_empty())
 	assert(_min_length > 0 and _min_length < _max_length)
 	_charset = _extract_charset(pattern)
@@ -86,7 +86,7 @@ static func _extract_charset(pattern: String) -> PackedInt32Array:
 	while index < pattern.length():
 		var char_current := pattern.unicode_at(index)
 		# - range token at first or last pos?
-		if char_current == 45 and (index == 0 or index == pattern.length()-1):
+		if char_current == 45 and (index == 0 or index == pattern.length() - 1):
 			charset.append(char_current)
 			index += 1
 			continue
@@ -107,6 +107,6 @@ static func _extract_charset(pattern: String) -> PackedInt32Array:
 
 static func _build_chars(from: int, to: int) -> PackedInt32Array:
 	var characters := PackedInt32Array()
-	for character in range(from+1, to+1):
+	for character in range(from + 1, to + 1):
 		characters.append(character)
 	return characters

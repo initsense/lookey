@@ -2,8 +2,10 @@
 extends Window
 
 const EAXAMPLE_URL := "https://github.com/MikeSchulze/gdUnit4-examples/archive/refs/heads/master.zip"
-const GdUnitTools := preload ("res://addons/gdUnit4/src/core/GdUnitTools.gd")
-const GdUnitUpdateClient = preload ("res://addons/gdUnit4/src/update/GdUnitUpdateClient.gd")
+const GdUnitTools := preload("res://addons/gdUnit4/src/core/GdUnitTools.gd")
+const GdUnitUpdateClient = preload("res://addons/gdUnit4/src/update/GdUnitUpdateClient.gd")
+
+var _font_size: float
 
 @onready var _update_client: GdUnitUpdateClient = $GdUnitUpdateClient
 @onready var _version_label: RichTextLabel = %version
@@ -11,16 +13,14 @@ const GdUnitUpdateClient = preload ("res://addons/gdUnit4/src/update/GdUnitUpdat
 @onready var _progress_bar: ProgressBar = %ProgressBar
 @onready var _progress_text: Label = %progress_lbl
 @onready var _properties_template: Control = $property_template
-@onready var _properties_common: Control = % "common-content"
-@onready var _properties_ui: Control = % "ui-content"
-@onready var _properties_shortcuts: Control = % "shortcut-content"
-@onready var _properties_report: Control = % "report-content"
+@onready var _properties_common: Control = %"common-content"
+@onready var _properties_ui: Control = %"ui-content"
+@onready var _properties_shortcuts: Control = %"shortcut-content"
+@onready var _properties_report: Control = %"report-content"
 @onready var _input_capture: GdUnitInputCapture = %GdUnitInputCapture
-@onready var _property_error: Window = % "propertyError"
+@onready var _property_error: Window = %"propertyError"
 @onready var _tab_container: TabContainer = %Properties
 @onready var _update_tab: Control = %Update
-
-var _font_size: float
 
 
 func _ready() -> void:
@@ -49,8 +49,8 @@ func setup_properties(properties_parent: Control, property_category: String) -> 
 	var category_properties := GdUnitSettings.list_settings(property_category)
 	# sort by key
 	category_properties.sort_custom(_sort_by_key)
-	var theme_ := Theme.new()
-	theme_.set_constant("h_separation", "GridContainer", 12)
+	var grid_theme := Theme.new()
+	grid_theme.set_constant("h_separation", "GridContainer", 12)
 	var last_category := "!"
 	var min_size_overall := 0.0
 	var labels := []
@@ -58,13 +58,13 @@ func setup_properties(properties_parent: Control, property_category: String) -> 
 	var info_labels := []
 	var grid: GridContainer = null
 	for p in category_properties:
-		var min_size_ := 0.0
+		var min_width := 0.0
 		var property: GdUnitProperty = p
 		var current_category := property.category()
 		if not grid or current_category != last_category:
 			grid = GridContainer.new()
 			grid.columns = 4
-			grid.theme = theme_
+			grid.theme = grid_theme
 
 			var sub_category: Control = _properties_template.get_child(3).duplicate()
 			var category_label: Label = sub_category.get_child(0)
@@ -96,14 +96,14 @@ func setup_properties(properties_parent: Control, property_category: String) -> 
 		info.text = property.help()
 		info_labels.append(info)
 		grid.add_child(info)
-		if min_size_overall < min_size_:
-			min_size_overall = min_size_
+		if min_size_overall < min_width:
+			min_size_overall = min_width
 
 	for controls: Array in [labels, inputs, info_labels]:
-		var _size: float = controls.map(func(c: Control) -> float: return c.size.x).max()
-		min_size_overall += _size
+		var max_width: float = controls.map(func(c: Control) -> float: return c.size.x).max()
+		min_size_overall += max_width
 		for control: Control in controls:
-			control.custom_minimum_size.x = _size
+			control.custom_minimum_size.x = max_width
 	properties_parent.custom_minimum_size.x = min_size_overall
 
 
@@ -131,7 +131,7 @@ func _create_input_element(property: GdUnitProperty, reset_btn: Button) -> Node:
 		return input
 	if property.type() == TYPE_PACKED_INT32_ARRAY:
 		var key_input_button := Button.new()
-		var value:PackedInt32Array = property.value()
+		var value: PackedInt32Array = property.value()
 		key_input_button.text = to_shortcut(value)
 		key_input_button.pressed.connect(_on_shortcut_change.bind(key_input_button, property, reset_btn))
 		return key_input_button
@@ -219,14 +219,14 @@ func reimport(path: String) -> void:
 	await get_tree().process_frame
 	var files := DirAccess.get_files_at(path)
 	EditorInterface.get_resource_filesystem().reimport_files(files)
-	for directory in  DirAccess.get_directories_at(path):
+	for directory in DirAccess.get_directories_at(path):
 		reimport(directory)
 
 
 func check_for_update() -> void:
 	if not GdUnitSettings.is_update_notification_enabled():
 		return
-	var response :GdUnitUpdateClient.HttpResponse = await _update_client.request_latest_version()
+	var response: GdUnitUpdateClient.HttpResponse = await _update_client.request_latest_version()
 	if response.status() != 200:
 		printerr("Latest version information cannot be retrieved from GitHub!")
 		printerr("Error:  %s" % response.response())
@@ -240,12 +240,14 @@ func check_for_update() -> void:
 
 func _on_btn_report_bug_pressed() -> void:
 	@warning_ignore("return_value_discarded")
-	OS.shell_open("https://github.com/MikeSchulze/gdUnit4/issues/new?assignees=MikeSchulze&labels=bug&projects=projects%2F5&template=bug_report.yml&title=GD-XXX%3A+Describe+the+issue+briefly")
+	OS.shell_open("https://github.com/MikeSchulze/gdUnit4/issues/new?assignees=MikeSchulze&labels=bug&projects=projects%2F5"
+		+ "&template=bug_report.yml&title=GD-XXX%3A+Describe+the+issue+briefly")
 
 
 func _on_btn_request_feature_pressed() -> void:
 	@warning_ignore("return_value_discarded")
-	OS.shell_open("https://github.com/MikeSchulze/gdUnit4/issues/new?assignees=MikeSchulze&labels=enhancement&projects=&template=feature_request.md&title=")
+	OS.shell_open("https://github.com/MikeSchulze/gdUnit4/issues/new?assignees=MikeSchulze&labels=enhancement&projects="
+		+ "&template=feature_request.md&title=")
 
 
 func _on_btn_install_examples_pressed() -> void:

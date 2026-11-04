@@ -1,7 +1,6 @@
 class_name GdBuiltinConstants
 extends RefCounted
 
-
 ## Built-in Variant types that expose named constants via static member access (e.g. `Vector2.ONE`,
 ## `Color.RED`). This gate is what keeps resolution silent: only tokens whose type is listed here are
 ## compiled, so arbitrary `Identifier.UPPER` matches (enum refs, text) never reach the parser.
@@ -14,7 +13,6 @@ const CONSTANT_BEARING_TYPES: PackedStringArray = [
 	"Basis", "Quaternion", "Plane",
 	"Transform2D", "Transform3D", "Projection",
 ]
-
 const _RESOLVE_SCRIPT_TEMPLATE := """
 extends RefCounted
 
@@ -56,6 +54,17 @@ static func to_ordinal_value(value: String) -> int:
 		_build_variant_type_mapping()
 
 	return _variant_types.get(value, TYPE_NIL)
+
+
+## Returns the `TYPE_*` constant name of a built-in type name (e.g. `int` to `TYPE_INT`), or an empty string.
+static func to_constant_name(type_name: String) -> String:
+	if _variant_types.is_empty():
+		_build_variant_type_mapping()
+
+	for constant_name: String in _variant_types:
+		if type_string(_variant_types[constant_name]) == type_name:
+			return constant_name
+	return ""
 
 
 static func _build_variant_type_mapping() -> void:

@@ -1,9 +1,8 @@
 class_name GdUnitOrphanNodesMonitor
 extends GdUnitMonitor
 
-
 var _child_monitors: Array[GdUnitOrphanNodesMonitor] = []
-var _orphan_detection_enabled :bool
+var _orphan_detection_enabled: bool
 var _initial_orphans: Array[int] = []
 var _orphan_ids_at_start: Array[int] = []
 var _orphan_ids_at_stop: Array[int] = []
@@ -34,12 +33,13 @@ func stop() -> void:
 	if not _orphan_detection_enabled:
 		return
 	# Collect only new detected orphan id's, we want only to collect orphans between start and stop time
-	_orphan_ids_at_stop = _get_orphan_node_ids().filter(func(element: int) -> bool:
-		# Excluding sub monitores orphans
-		if _collect_child_orphan_ids().has(element):
-			return false
-		# Excluding orphans at start
-		return not _orphan_ids_at_start.has(element) and not _initial_orphans.has(element)
+	_orphan_ids_at_stop = _get_orphan_node_ids().filter(
+		func(element: int) -> bool:
+			# Excluding sub monitores orphans
+			if _collect_child_orphan_ids().has(element):
+				return false
+			# Excluding orphans at start
+			return not _orphan_ids_at_start.has(element) and not _initial_orphans.has(element)
 	)
 
 
@@ -89,7 +89,7 @@ func _collect_orphan_info(orphan_node: Object, script_backtraces: Array[ScriptBa
 		return
 
 	if Engine.has_meta("GdUnitSceneRunner"):
-		var current_scene_runner:GdUnitSceneRunner = Engine.get_meta("GdUnitSceneRunner")
+		var current_scene_runner: GdUnitSceneRunner = Engine.get_meta("GdUnitSceneRunner")
 		if is_instance_valid(current_scene_runner):
 			orphan_info = _find_orphan_at_node(orphan_node, current_scene_runner.scene())
 			if orphan_info:
@@ -177,10 +177,9 @@ func _find_orphan_on_backtraces(orphan_node: Object, script_backtraces: Array[Sc
 							orphan_node.get_class(),
 							GdUnitStackTraceElement.new(source_script, source_line, variable_name)
 							)
-					else:
-						var orphan_info := _find_orphan_at_node(orphan_node, node)
-						if orphan_info:
-							return orphan_info
+					var orphan_info := _find_orphan_at_node(orphan_node, node)
+					if orphan_info:
+						return orphan_info
 
 			# Scan class members
 			for m_index in script_backtrace.get_member_variable_count(frame):
@@ -199,10 +198,9 @@ func _find_orphan_on_backtraces(orphan_node: Object, script_backtraces: Array[Sc
 								script_backtrace.get_frame_file(frame),
 								script_backtrace.get_frame_line(frame),
 								member_name))
-					else:
-						var orphan_info := _find_orphan_at_node(orphan_node, node)
-						if orphan_info:
-							return orphan_info
+					var orphan_info := _find_orphan_at_node(orphan_node, node)
+					if orphan_info:
+						return orphan_info
 	return null
 
 
@@ -212,11 +210,11 @@ func _find_line_for_property(script: Script, func_name: String, property_name: S
 	var lines := script.get_source_code().split("\n")
 	var func_start_index := 0
 	for index in range(0, lines.size()):
-		var line :=  lines[index]
+		var line := lines[index]
 		if not func_name.is_empty():
 			if line.begins_with("func") and line.contains(func_name):
 				func_start_index = index + 1
-				break;
+				break
 
 	for index in range(func_start_index, lines.size()):
 		var line := lines[index]
@@ -230,8 +228,18 @@ func _find_line_for_property(script: Script, func_name: String, property_name: S
 static func _get_orphan_node_ids() -> Array[int]:
 	@warning_ignore("unsafe_property_access", "unsafe_method_access")
 	var ids: Array[int] = Engine.get_main_loop().root.get_orphan_node_ids()
-	# a node already queued for deletion is guaranteed to be freed, it is never a leak
-	return ids.filter(func(node_id: int) -> bool:
-		var node := instance_from_id(node_id) as Node
-		return node == null or not node.is_queued_for_deletion()
+	# a node queued for deletion, or inside a subtree queued for deletion, is guaranteed to be freed, it is never a leak
+	return ids.filter(
+		func(node_id: int) -> bool:
+			var node := instance_from_id(node_id) as Node
+			return node == null or not _is_node_or_ancestor_queued_for_deletion(node)
 	)
+
+
+static func _is_node_or_ancestor_queued_for_deletion(node: Node) -> bool:
+	var current := node
+	while current != null:
+		if current.is_queued_for_deletion():
+			return true
+		current = current.get_parent()
+	return false

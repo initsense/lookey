@@ -1,24 +1,21 @@
-extends RefCounted
 class_name ErrorLogEntry
+extends RefCounted
 
-
-enum TYPE {
+enum Type {
 	SCRIPT_ERROR,
 	PUSH_ERROR,
-	PUSH_WARNING
+	PUSH_WARNING,
 }
-
 
 const GdUnitTools := preload("res://addons/gdUnit4/src/core/GdUnitTools.gd")
 
-
-var _type: TYPE
+var _type: Type
 var _line: int
 var _message: String
 var _stack_trace: GdUnitStackTrace
 
 
-func _init(type: TYPE, line: int, message: String, stack_trace: GdUnitStackTrace) -> void:
+func _init(type: Type, line: int, message: String, stack_trace: GdUnitStackTrace) -> void:
 	_type = type
 	_line = line
 	_message = message
@@ -30,12 +27,12 @@ func _to_string() -> String:
 
 
 static func of_push_warning(line: int, message: String, stack_trace: GdUnitStackTrace) -> ErrorLogEntry:
-	return ErrorLogEntry.new(TYPE.PUSH_WARNING, line, message, stack_trace)
+	return ErrorLogEntry.new(Type.PUSH_WARNING, line, message, stack_trace)
 
 
 static func of_push_error(line: int, message: String, stack_trace: GdUnitStackTrace) -> ErrorLogEntry:
-	return ErrorLogEntry.new(TYPE.PUSH_ERROR, line, message, stack_trace)
+	return ErrorLogEntry.new(Type.PUSH_ERROR, line, message, stack_trace)
 
 
 static func of_script_error(line: int, message: String, stack_trace: GdUnitStackTrace) -> ErrorLogEntry:
-	return ErrorLogEntry.new(TYPE.SCRIPT_ERROR, line, message, stack_trace)
+	return ErrorLogEntry.new(Type.SCRIPT_ERROR, line, message, stack_trace)

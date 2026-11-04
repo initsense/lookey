@@ -1,6 +1,5 @@
-class_name RPC
+class_name RPC  # gdstyle:ignore=naming/class-name-pascal-case
 extends RefCounted
-
 
 var _data: Dictionary = {}
 

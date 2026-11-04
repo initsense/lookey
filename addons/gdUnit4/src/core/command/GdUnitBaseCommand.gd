@@ -1,11 +1,11 @@
 @abstract class_name GdUnitBaseCommand
 extends Node
 
-
 var id: String
 var icon: Texture2D
 var shortcut: Shortcut = null
 var shortcut_type: GdUnitShortcut.ShortCut
+var is_running := false
 
 
 func _init(p_id: String, p_shortcut: GdUnitShortcut.ShortCut = GdUnitShortcut.ShortCut.NONE) -> void:
@@ -15,16 +15,12 @@ func _init(p_id: String, p_shortcut: GdUnitShortcut.ShortCut = GdUnitShortcut.Sh
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if is_running():
+	if is_running:
 		return
 
 	if shortcut and shortcut.matches_event(event):
 		execute()
 		get_viewport().set_input_as_handled()
-
-
-func update_shortcut() -> void:
-	_set_shortcut()
 
 
 func _set_shortcut() -> void:
@@ -36,29 +32,42 @@ func _set_shortcut() -> void:
 	var keys := GdUnitShortcut.default_keys(shortcut_type)
 	if property != null:
 		keys = property.value()
-	var inputEvent := _create_shortcut_input_even(keys)
+	var input_event := _create_shortcut_input_even(keys)
 
 	shortcut = Shortcut.new()
-	shortcut.set_events([inputEvent])
+	shortcut.set_events([input_event])
 
 
 func _create_shortcut_input_even(key_codes: PackedInt32Array) -> InputEventKey:
-	var inputEvent := InputEventKey.new()
-	inputEvent.pressed = true
+	var input_event := InputEventKey.new()
+	input_event.pressed = true
 	for key_code in key_codes:
 		match key_code:
 			KEY_ALT:
-				inputEvent.alt_pressed = true
+				input_event.alt_pressed = true
 			KEY_SHIFT:
-				inputEvent.shift_pressed = true
+				input_event.shift_pressed = true
 			KEY_CTRL:
-				inputEvent.ctrl_pressed = true
+				input_event.ctrl_pressed = true
 			_:
-				inputEvent.keycode = key_code as Key
-				inputEvent.physical_keycode = key_code as Key
-	return inputEvent
+				input_event.keycode = key_code as Key
+				input_event.physical_keycode = key_code as Key
+	return input_event
 
 
-@abstract func is_running() -> bool
+func stop() -> void:
+	if not is_running:
+		return
+	is_running = false
+	@warning_ignore("redundant_await")
+	await _do_stop()
+
+
+func update_shortcut() -> void:
+	_set_shortcut()
+
 
 @abstract func execute(...parameters: Array) -> void
+
+
+@abstract func _do_stop() -> void
