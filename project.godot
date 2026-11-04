@@ -87,6 +87,7 @@ fov_decrease={
 3d_render/layer_6="yellow"
 3d_render/layer_7="violet"
 3d_render/layer_8="orange"
+3d_render/layer_9="white"
 3d_render/layer_10="inside_mirror_check"
 3d_render/layer_11="outside_mirror_check"
 3d_render/layer_13="red_invisible"
@@ -95,6 +96,7 @@ fov_decrease={
 3d_render/layer_16="yellow_invisible"
 3d_render/layer_17="violet_invisible"
 3d_render/layer_18="orange_invisible"
+3d_render/layer_19="white_invisible"
 3d_render/layer_20="mirror_notifier"
 3d_physics/layer_1="objects"
 3d_physics/layer_2="player"
@@ -104,13 +106,16 @@ fov_decrease={
 3d_physics/layer_6="yellow"
 3d_physics/layer_7="violet"
 3d_physics/layer_8="orange"
+3d_physics/layer_9="white"
 3d_physics/layer_10="inside_mirror"
+3d_physics/layer_12="entity_collider"
 3d_physics/layer_13="red_invisible"
 3d_physics/layer_14="blue_invisible"
 3d_physics/layer_15="green_invisible"
 3d_physics/layer_16="yellow_invisible"
 3d_physics/layer_17="violet_invisible"
 3d_physics/layer_18="orange_invisible"
+3d_physics/layer_19="white_invisible"
 
 [physics]
 
