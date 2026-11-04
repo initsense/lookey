@@ -86,7 +86,7 @@ const REFLECTED_BORDER_THICKNESS: float = 0.012
 		_config_dirty = true
 
 ## Distances (in meters) from the player where the mirror lowers its resolution to save performance. Leave empty to disable.
-@export var res_decrease_distances: Array[float] = [10.0, 20.0, 30.0]
+@export var res_decrease_distances: Array[float] = [30.0, 60.0, 90.0]
 
 ## How much to divide the mirror resolution at each distance in res_decrease_distances.
 @export var res_decrease_factors: Array[float] = [2.0, 4.0, 8.0]
@@ -385,6 +385,8 @@ func _configure_mirror_camera(
 	var midpoint: Vector3 = (reflected_pos + observer_position) * 0.5
 	var up_axis: Vector3 = _mirror_quad.global_basis.y.normalized()
 
+	target_camera.projection = Camera3D.PROJECTION_FRUSTUM
+	target_camera.keep_aspect = Camera3D.KEEP_WIDTH
 	target_camera.global_transform = Transform3D(Basis.IDENTITY, reflected_pos).looking_at(
 		midpoint,
 		up_axis

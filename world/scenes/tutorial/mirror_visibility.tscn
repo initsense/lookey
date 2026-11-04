@@ -18,11 +18,12 @@ transform = Transform3D(0.96610487, 0, 0.2581501, 0, 1, 0, -0.2581501, 0, 0.9661
 environment = ExtResource("2_op6jt")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="Environment" unique_id=306359258]
+editor_description = "Sun light. Its shadow reach is tuned so the sharp shadow still covers the whole room inside a mirror, even though the mirror camera sits behind the glass."
 transform = Transform3D(-0.993093, 0.102165, 0.0576972, -0.0384632, -0.748043, 0.662535, 0.110848, 0.655739, 0.746806, 0, 0, 0)
 shadow_enabled = true
 directional_shadow_mode = 1
-directional_shadow_split_1 = 0.15
-directional_shadow_max_distance = 200.0
+directional_shadow_split_1 = 0.75
+directional_shadow_max_distance = 80.0
 
 [node name="Terrain" parent="Environment" unique_id=293814791 instance=ExtResource("3_2gg3i")]
 transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
