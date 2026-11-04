@@ -14,6 +14,9 @@ enum MirrorType { REVEAL, DISSOLVE }
 const DIRECT_MIRROR_LAYER: int = 10
 ## Render layer for the mirror surface seen only by other mirrors.
 const REFLECTED_MIRROR_LAYER: int = 11
+## Frame width on a mirror seen inside another mirror. The player's nested reflection
+## sits on the shared edge, so this stays thinner than that strip.
+const REFLECTED_BORDER_THICKNESS: float = 0.012
 
 ## Optional specific object to track for mirror interactions. All PigmentEntity nodes in the scene are tracked automatically.
 @export var object_to_reflect: Node3D
@@ -553,6 +556,8 @@ func _apply_mirror_config() -> void:
 	if _reflected_viewport != null and _reflected_shader_material != null:
 		var reflected_tex: ViewportTexture = _reflected_viewport.get_texture()
 		_apply_shader_parameters(_reflected_shader_material, reflected_tex)
+		_reflected_shader_material.set_shader_parameter(&"border_thickness", REFLECTED_BORDER_THICKNESS)
+		_reflected_shader_material.set_shader_parameter(&"smoothness", 0.35)
 
 
 func _apply_shader_parameters(material: ShaderMaterial, viewport_texture: ViewportTexture) -> void:
