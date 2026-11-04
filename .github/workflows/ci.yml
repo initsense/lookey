@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [staging, main]
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [staging, main]
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: '4.7'
+  GODOT_STATUS: 'stable'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot binary and desktop export templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin/godot
+            ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}
+          key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}-desktop-v3
+
+      - name: Install Godot and desktop export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          BASE_URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_STATUS}"
+          BIN_NAME="Godot_v${GODOT_VERSION}-${GODOT_STATUS}_linux.x86_64"
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}"
+          mkdir -p "$HOME/.local/bin" "$TEMPLATE_DIR"
+
+          curl -fsSL "${BASE_URL}/${BIN_NAME}.zip" -o /tmp/godot.zip &
+          PID_BIN=$!
+          curl -fsSL "${BASE_URL}/Godot_v${GODOT_VERSION}-${GODOT_STATUS}_export_templates.tpz" -o /tmp/templates.tpz &
+          PID_TPL=$!
+          wait "$PID_BIN" "$PID_TPL"
+
+          unzip -q /tmp/godot.zip -d /tmp
+          mv "/tmp/${BIN_NAME}" "$HOME/.local/bin/godot"
+          chmod +x "$HOME/.local/bin/godot"
+
+          unzip -q -j /tmp/templates.tpz \
+            "templates/version.txt" \
+            "templates/icudt_godot.dat" \
+            "templates/linux_release.x86_64" \
+            "templates/windows_release_x86_64.exe" \
+            "templates/windows_release_x86_64_console.exe" \
+            "templates/macos.zip" \
+            -d "$TEMPLATE_DIR"
+
+          zip -q -d "$TEMPLATE_DIR/macos.zip" \
+            "macos_template.app/Contents/MacOS/godot_macos_debug*" \
+            "macos_template.app/Contents/Frameworks/*"
+
+          ln -sf linux_release.x86_64 "$TEMPLATE_DIR/linux_debug.x86_64"
+          ln -sf windows_release_x86_64.exe "$TEMPLATE_DIR/windows_debug_x86_64.exe"
+          ln -sf windows_release_x86_64_console.exe "$TEMPLATE_DIR/windows_debug_x86_64_console.exe"
+
+          rm -rf /tmp/godot.zip /tmp/templates.tpz
+
+      - name: Cache imported assets (.godot/imported)
+        uses: actions/cache@v4
+        with:
+          path: .godot/imported
+          key: godot-imported-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', '**/*.import') }}
+          restore-keys: |
+            godot-imported-${{ env.GODOT_VERSION }}-
+
+      - name: Import project and run gdUnit4 test suite
+        run: |
+          GODOT_BIN="$HOME/.local/bin/godot"
+          "$GODOT_BIN" --headless --path . --import
+          "$GODOT_BIN" --headless --audio-driver Dummy --path . \
+            -s -d --remote-debug tcp://127.0.0.1:0 \
+            res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c
+
+      - name: Build Linux, Windows, and macOS exports
+        run: |
+          GODOT_BIN="$HOME/.local/bin/godot"
+          mkdir -p build/linux build/windows build/macos
+
+          "$GODOT_BIN" --headless --path . --export-release "Linux" build/linux/Lookey.x86_64
+          "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" build/windows/Lookey.exe
+          "$GODOT_BIN" --headless --path . --export-release "macOS" build/macos/Lookey.app
+
+          test -s build/linux/Lookey.x86_64
+          test -s build/linux/Lookey.pck
+          test -s build/windows/Lookey.exe
+          test -s build/windows/Lookey.pck
+          test -s build/macos/Lookey.app/Contents/MacOS/Lookey
+          test -s build/macos/Lookey.app/Contents/Resources/Lookey.pck
+
+  conventional-commits:
+    name: conventional-commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR title and commit subjects
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PATTERN='^(feat|fix|docs|style|refactor|test|chore)(\([a-z0-9._/-]+\))?: [a-z].*[^.]$'
+          status=0
+
+          echo "Checking PR title: $PR_TITLE"
+          if ! [[ "$PR_TITLE" =~ $PATTERN ]]; then
+            echo "::error::PR title does not follow AGENTS.md Conventional Commits: '$PR_TITLE'"
+            status=1
+          fi
+
+          while IFS=' ' read -r sha subject; do
+            [ -z "$sha" ] && continue
+            echo "Checking commit $sha: $subject"
+            if ! [[ "$subject" =~ $PATTERN ]]; then
+              echo "::error::Commit $sha subject does not follow AGENTS.md Conventional Commits: '$subject'"
+              status=1
+            fi
+          done < <(git log --no-merges --format='%H %s' "${BASE_SHA}..${HEAD_SHA}")
+
+          exit $status

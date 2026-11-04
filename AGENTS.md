@@ -36,7 +36,7 @@ Follow the [Godot GDScript style guide](https://docs.godotengine.org/en/4.7/tuto
 
 ## Branches
 
-`main` receives `develop`. Work happens on `feature/<issue>-short-name` and merges into `develop` through a pull request.
+`main` receives `staging`. Work happens on `feature/<issue>-short-name` and merges into `staging` through a pull request. PRs into `staging` and `main` must pass the `build-and-test` and `conventional-commits` checks from [`.github/workflows/ci.yml`](.github/workflows/ci.yml) before merging.
 
 ## Tests
 
@@ -54,6 +54,8 @@ Run the suites before a commit:
 godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c
 ```
 
+CI runs the same import and gdUnit4 command, then verifies Linux, Windows Desktop, and macOS (`.app`) release exports. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
 ## Commits
 
 [Conventional Commits](https://www.conventionalcommits.org/):
@@ -62,7 +64,7 @@ godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://
 type(scope): subject
 ```
 
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`. The subject is imperative, lowercase, and has no trailing period. The scope is optional. One concern per commit.
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`. The subject is imperative, lowercase, and has no trailing period. The scope is optional. One concern per commit. CI and the branch ruleset enforce this format on PR titles and commit subjects targeting `staging` and `main`.
 
 ## Godot MCP
 
