@@ -1,10 +1,12 @@
+// Based on Mirror3D (https://github.com/Norodix/Mirror3D)
+// Copyright (c) 2025 Joyless, Norodix — MIT License (see entities/mirror/LICENSE.md)
 shader_type spatial;
 
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_opaque;
 
 uniform vec4 color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
-uniform sampler2D mirror_texture_linear : source_color, filter_linear_mipmap;
-uniform sampler2D mirror_texture_nearest : source_color, filter_nearest_mipmap;
+uniform sampler2D mirror_texture_linear : source_color, filter_linear;
+uniform sampler2D mirror_texture_nearest : source_color, filter_nearest;
 uniform bool use_mirror_texture_linear = true;
 
 uniform sampler2D distortion_texture : source_color, filter_linear_mipmap;

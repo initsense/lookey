@@ -1,13 +1,15 @@
 @tool
 class_name PigmentEntity
 extends Node3D
-## Applies the pigment material and the matching render/collision layers to
-## the mesh and static body found under this node. Tracks mirror link/affect
-## state and toggles real-world colliders for reveal and dissolve effects.
+## Turns a 3D object into a colored puzzle object (manifest or hidden).
+## Sets its material color, puts it on the matching render and physics layers,
+## and turns its solid collision on or off when seen through compatible mirrors.
 
 const GROUP_NAME: StringName = &"pigment_entities"
 
+## When enabled, this object starts hidden in the real world and can only be seen and touched through a compatible Reveal mirror.
 @export var is_invisible: bool = false
+## The color of this object. Determines which mirrors can reveal or dissolve it (White works with every mirror color).
 @export var pigment: Pigments.Pigment = Pigments.Pigment.WHITE:
 	set(value):
 		pigment = value

@@ -15,6 +15,7 @@ Mechanic invariants live in `.cursor/rules/` and always apply. They encode the g
 - `mirror-linking.mdc` — linked entities, nested reflections, occlusion
 - `mirror-types-and-effects.mdc` — affected entities, reveal-mirror, dissolve-mirror
 - `interactions-and-transitions.mdc` — collision and dissolve transition edge cases
+- `editor-organization-and-descriptions.mdc` — scene tree visibility, node tooltips, and beginner-friendly descriptions
 
 Use design glossary terms in code, comments, tests, and docs. If gameplay behavior changes, update `docs/design.md` and the matching rule in the same change.
 
