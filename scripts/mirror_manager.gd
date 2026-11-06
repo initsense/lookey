@@ -1,8 +1,8 @@
 extends Node
 ## Coordinates all mirrors in the current scene.
 ## Figures out which mirrors can see each other, sets up nested reflection cameras
-## so each mirror keeps its own reveal/dissolve rules, and schedules viewport updates
-## so reflections never flicker.
+## with additive RYB pigment mixing, and schedules viewport updates so reflections
+## never flicker.
 
 ## Maximum number of mirror bounces supported for rendering and interaction chains.
 const MAX_REFLECTION_BOUNCES: int = 3
@@ -184,12 +184,18 @@ func _schedule_viewports(active_mirrors: Array[Mirror3D]) -> void:
 		return
 
 	# The nested camera uses the outer mirror's viewpoint so the perspective stays correct.
-	# The glass itself keeps this mirror's own reveal/dissolve layers.
+	# The glass combines this mirror's pigment with the outer mirror's pigment (RYB additive mixing)
+	# while keeping this mirror's own reveal/dissolve type.
 	for m: Mirror3D in active_mirrors:
 		if inner_to_outer.has(m):
 			var outer: Mirror3D = inner_to_outer[m]
 			var observer_pos: Vector3 = _get_reflected_observer_for_outer(outer)
-			m.configure_reflected_view(observer_pos, m.cull_mask, false)
+			var mixed_pigment: Pigments.Pigment = Pigments.mix_pigments(m.pigment, outer.pigment)
+			var mixed_mask: int = Pigments.compute_mirror_cull_mask(
+				mixed_pigment,
+				m.mirror_type == Mirror3D.MirrorType.REVEAL
+			)
+			m.configure_reflected_view(observer_pos, mixed_mask, false, mixed_pigment)
 		else:
 			m.freeze_reflected_view(true)
 		m.set_direct_viewport_active(_is_mirror_visible_to_player(m))

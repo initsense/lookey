@@ -10,10 +10,10 @@ Canonical source: `docs/design.md`. Gameplay mirrors are only **reveal-mirror** 
 ## Affected entity
 
 - All **affected-entity** instances are **linked**; not all linked entities are affected.
-- A linked entity is affected by a mirror (whether reflected directly or through a chain of other mirrors) only when:
-  1. Its state matches that outer mirror's type (hidden ↔ reveal, manifest ↔ dissolve).
-  2. Its pigment is compatible with that outer mirror's pigment.
-- Each mirror always reveals or dissolves its own compatible entities in its reflected-world, regardless of whether those entities are reflected directly or bounced through other mirrors.
+- A linked entity is affected by a reflection chain `[M_0, ..., M_{k-1}]` (where `M_0` is the innermost mirror reflecting the entity and `M_{k-1}` is the outer mirror seen by the player) only when:
+  1. Its state matches the innermost mirror `M_0`'s type (hidden ↔ reveal, manifest ↔ dissolve).
+  2. Its pigment is compatible with the RYB additive mix of all mirrors along that chain (`Pigments.mix_mirror_chain_pigment(chain)`).
+- Directly viewed mirrors (1-bounce chain `[M_0]`) use their own pigment and type; nested mirrors combine pigments across the chain (`Yellow + Blue = Green`, `Red + Yellow = Orange`, `Red + Blue = Violet`, all three primaries = `White`) while keeping `M_0`'s type.
 
 ## Reveal-mirror
 

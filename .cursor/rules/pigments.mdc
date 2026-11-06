@@ -18,6 +18,16 @@ Canonical source: `docs/design.md`. Pigments are color properties on entities an
 - A **white mirror** affects every hue entity and every white entity.
 - A **white entity** is compatible with every mirror pigment.
 
+## Additive Mirror Mixing (RYB)
+
+When a mirror is reflected inside another mirror, their pigments combine along the reflection chain using 3-bit RYB primary union (`Red = 0b001`, `Yellow = 0b010`, `Blue = 0b100`):
+
+- `Red + Yellow = Orange` (`0b011`)
+- `Yellow + Blue = Green` (`0b110`)
+- `Red + Blue = Violet` (`0b101`)
+- Same pigment + same pigment = same pigment.
+- Any combination covering all three primaries (e.g. `Red + Green`, `Yellow + Violet`, `Blue + Orange`, two distinct secondary hues, or any pigment + `White`) = `White` (`0b111`).
+
 ## Hard rules
 
 - Do not invent extra hues or treat white as a hue.

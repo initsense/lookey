@@ -64,6 +64,33 @@ func test_pigment_compatibility() -> void:
 		assert_bool(Pigments.is_compatible(pigment, Pigments.Pigment.WHITE)).is_true()
 
 
+func test_pigment_mixing() -> void:
+	# Primary + Primary -> Secondary (commutative)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.RED, Pigments.Pigment.YELLOW)).is_equal(Pigments.Pigment.ORANGE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.YELLOW, Pigments.Pigment.RED)).is_equal(Pigments.Pigment.ORANGE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.YELLOW, Pigments.Pigment.BLUE)).is_equal(Pigments.Pigment.GREEN)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.BLUE, Pigments.Pigment.YELLOW)).is_equal(Pigments.Pigment.GREEN)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.RED, Pigments.Pigment.BLUE)).is_equal(Pigments.Pigment.VIOLET)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.BLUE, Pigments.Pigment.RED)).is_equal(Pigments.Pigment.VIOLET)
+
+	# Same + Same -> Same
+	for pigment: Pigments.Pigment in Pigments.Pigment.values():
+		assert_int(Pigments.mix_pigments(pigment, pigment)).is_equal(pigment)
+
+	# Secondary + constituent Primary -> same Secondary
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.GREEN, Pigments.Pigment.YELLOW)).is_equal(Pigments.Pigment.GREEN)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.GREEN, Pigments.Pigment.BLUE)).is_equal(Pigments.Pigment.GREEN)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.ORANGE, Pigments.Pigment.RED)).is_equal(Pigments.Pigment.ORANGE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.VIOLET, Pigments.Pigment.BLUE)).is_equal(Pigments.Pigment.VIOLET)
+
+	# Complementary / 3-primary combinations -> WHITE
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.RED, Pigments.Pigment.GREEN)).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.YELLOW, Pigments.Pigment.VIOLET)).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.BLUE, Pigments.Pigment.ORANGE)).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.ORANGE, Pigments.Pigment.GREEN)).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.WHITE, Pigments.Pigment.YELLOW)).is_equal(Pigments.Pigment.WHITE)
+
+
 func test_reveal_mirror_cull_mask() -> void:
 	var yellow_reveal: int = Pigments.compute_mirror_cull_mask(Pigments.Pigment.YELLOW, true)
 	assert_bool(_has_layer(yellow_reveal, 1)).is_true()
@@ -414,7 +441,7 @@ func test_nested_reveal_mirror_cull_mask_and_camera() -> void:
 	var root := await _build_nested_mirror_scene(
 		Pigments.Pigment.YELLOW,
 		Mirror3D.MirrorType.REVEAL,
-		Pigments.Pigment.GREEN,
+		Pigments.Pigment.BLUE,
 		Mirror3D.MirrorType.REVEAL
 	)
 	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
@@ -422,27 +449,36 @@ func test_nested_reveal_mirror_cull_mask_and_camera() -> void:
 	MirrorManager.refresh_now()
 
 	var yellow_hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.YELLOW, true)
+	var blue_hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.BLUE, true)
 	var green_hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.GREEN, true)
 
-	# The yellow mirror reveals yellow hidden entities in its own glass,
-	# including the glass other mirrors see. It does not reveal green.
+	# Directly, the yellow inner mirror reveals yellow hidden entities.
+	# Reflected inside the blue outer mirror, Yellow + Blue mixes to Green:
+	# its reflected glass reveals green hidden entities (not yellow or blue) and has a green border.
 	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, yellow_hidden_layer)).is_true()
-	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, yellow_hidden_layer)).is_true()
-	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, green_hidden_layer)).is_false()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, yellow_hidden_layer)).is_false()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, blue_hidden_layer)).is_false()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, green_hidden_layer)).is_true()
+	assert_that(
+		inner_mirror._reflected_shader_material.get_shader_parameter(&"border_color")
+	).is_equal(Pigments.COLORS[Pigments.Pigment.GREEN])
 
 	var expected_pos: Vector3 = inner_mirror.reflect_point(outer_mirror._mirror_camera.global_position)
 	assert_bool(inner_mirror._reflected_camera.global_position.distance_to(expected_pos) < 0.01).is_true()
 
-	# A green mirror keeps green rules when a yellow mirror reflects it.
-	inner_mirror.pigment = Pigments.Pigment.GREEN
+	# Red + Yellow mixes to Orange.
+	inner_mirror.pigment = Pigments.Pigment.RED
 	outer_mirror.pigment = Pigments.Pigment.YELLOW
 	inner_mirror._apply_pigment()
 	outer_mirror._apply_pigment()
 	MirrorManager.refresh_now()
 
-	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, yellow_hidden_layer)).is_false()
+	var orange_hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.ORANGE, true)
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, orange_hidden_layer)).is_true()
 	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, yellow_hidden_layer)).is_false()
-	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, green_hidden_layer)).is_true()
+	assert_that(
+		inner_mirror._reflected_shader_material.get_shader_parameter(&"border_color")
+	).is_equal(Pigments.COLORS[Pigments.Pigment.ORANGE])
 
 	root.queue_free()
 
@@ -459,13 +495,19 @@ func test_nested_dissolve_mirror_cull_mask_and_camera() -> void:
 	MirrorManager.refresh_now()
 
 	var red_manifest_layer: int = Pigments.get_entity_layer(Pigments.Pigment.RED, false)
+	var violet_manifest_layer: int = Pigments.get_entity_layer(Pigments.Pigment.VIOLET, false)
 
-	# A red dissolve mirror hides red manifest entities in its own glass,
-	# including the glass other mirrors see.
+	# Directly, the red dissolve mirror hides red manifest entities.
+	# Reflected inside the blue reveal mirror, Red + Blue mixes to Violet while keeping the inner mirror's DISSOLVE type.
 	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, red_manifest_layer)).is_false()
-	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, red_manifest_layer)).is_false()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, red_manifest_layer)).is_true()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, violet_manifest_layer)).is_false()
+	assert_that(
+		inner_mirror._reflected_shader_material.get_shader_parameter(&"border_color")
+	).is_equal(Pigments.COLORS[Pigments.Pigment.VIOLET])
 
-	# A blue reveal mirror keeps showing red manifest entities when a red dissolve mirror reflects it.
+	# When the inner mirror is a Blue Reveal mirror reflected inside a Red Dissolve mirror,
+	# the nested mirror keeps the inner mirror's REVEAL type (Violet Reveal) so manifest entities stay visible.
 	inner_mirror.pigment = Pigments.Pigment.BLUE
 	inner_mirror.mirror_type = Mirror3D.MirrorType.REVEAL
 	outer_mirror.pigment = Pigments.Pigment.RED
@@ -474,8 +516,9 @@ func test_nested_dissolve_mirror_cull_mask_and_camera() -> void:
 	outer_mirror._apply_pigment()
 	MirrorManager.refresh_now()
 
-	assert_bool(_has_layer(inner_mirror._mirror_camera.cull_mask, red_manifest_layer)).is_true()
-	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, red_manifest_layer)).is_true()
+	var violet_hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.VIOLET, true)
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, violet_manifest_layer)).is_true()
+	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, violet_hidden_layer)).is_true()
 
 	root.queue_free()
 
@@ -484,7 +527,7 @@ func test_nested_reveal_linking_and_collider_across_two_mirrors() -> void:
 	var root := await _build_nested_mirror_scene(
 		Pigments.Pigment.YELLOW,
 		Mirror3D.MirrorType.REVEAL,
-		Pigments.Pigment.GREEN,
+		Pigments.Pigment.BLUE,
 		Mirror3D.MirrorType.REVEAL
 	)
 	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
@@ -492,9 +535,9 @@ func test_nested_reveal_linking_and_collider_across_two_mirrors() -> void:
 	var inner_interaction: Node = inner_mirror.get_node("Interaction")
 	var outer_interaction: Node = outer_mirror.get_node("Interaction")
 
-	# Position the hidden yellow object so 1-bounce misses OuterMirror,
+	# Position the hidden object so 1-bounce misses OuterMirror,
 	# and only the 2-bounce path (Object -> InnerMirror -> OuterMirror -> Player) reaches the camera.
-	var hidden_yellow: PigmentEntity = _spawn_object(
+	var hidden_obj: PigmentEntity = _spawn_object(
 		root,
 		Pigments.Pigment.YELLOW,
 		true,
@@ -508,25 +551,24 @@ func test_nested_reveal_linking_and_collider_across_two_mirrors() -> void:
 
 	await _wait_for_link_eval(outer_interaction)
 
-	# Example 1: Outer mirror is Green Reveal, Inner mirror is Yellow Reveal (not directly seen by player).
-	# The yellow object is linked through the 2-bounce chain, but NOT affected because OuterMirror is Green.
-	assert_bool(hidden_yellow.is_linked()).is_true()
-	assert_bool(hidden_yellow.is_affected()).is_false()
-	assert_bool(hidden_yellow.is_collidable()).is_false()
+	# Yellow InnerMirror + Blue OuterMirror mixes to Green Reveal:
+	# A yellow hidden object on the 2-bounce path is linked, but NOT affected.
+	assert_bool(hidden_obj.is_linked()).is_true()
+	assert_bool(hidden_obj.is_affected()).is_false()
+	assert_bool(hidden_obj.is_collidable()).is_false()
 
-	# Inverse: Outer mirror is Yellow Reveal, Inner mirror is Green Reveal.
-	# OuterMirror reveals and enables collision on the yellow object even though it bounced off the green mirror.
-	inner_mirror.pigment = Pigments.Pigment.GREEN
-	outer_mirror.pigment = Pigments.Pigment.YELLOW
-	inner_mirror._apply_pigment()
-	outer_mirror._apply_pigment()
+	# Change the hidden object to Green: now it matches the mixed Green pigment of the 2-bounce chain
+	# and becomes affected and collidable in the real-world.
+	hidden_obj.pigment = Pigments.Pigment.GREEN
+	hidden_obj._apply_layers_and_material()
+	hidden_obj._update_real_world_collider()
 	MirrorManager.refresh_now()
 
 	await _wait_for_link_eval(outer_interaction)
 
-	assert_bool(hidden_yellow.is_linked()).is_true()
-	assert_bool(hidden_yellow.is_affected()).is_true()
-	assert_bool(hidden_yellow.is_collidable()).is_true()
+	assert_bool(hidden_obj.is_linked()).is_true()
+	assert_bool(hidden_obj.is_affected()).is_true()
+	assert_bool(hidden_obj.is_collidable()).is_true()
 
 	root.queue_free()
 
@@ -543,7 +585,7 @@ func test_nested_dissolve_linking_and_collider_across_two_mirrors() -> void:
 	var inner_interaction: Node = inner_mirror.get_node("Interaction")
 	var outer_interaction: Node = outer_mirror.get_node("Interaction")
 
-	var manifest_red: PigmentEntity = _spawn_object(
+	var manifest_obj: PigmentEntity = _spawn_object(
 		root,
 		Pigments.Pigment.RED,
 		false,
@@ -557,27 +599,23 @@ func test_nested_dissolve_linking_and_collider_across_two_mirrors() -> void:
 
 	await _wait_for_link_eval(outer_interaction)
 
-	# Example 2: Outer mirror is Blue, Inner mirror is Red Dissolve (not directly seen by player).
-	# The red object is linked through OuterMirror, but remains solid because Blue cannot dissolve Red.
-	assert_bool(manifest_red.is_linked()).is_true()
-	assert_bool(manifest_red.is_affected()).is_false()
-	assert_bool(manifest_red.is_collidable()).is_true()
+	# Red Dissolve InnerMirror + Blue Reveal OuterMirror mixes to Violet Dissolve:
+	# A red manifest object on the 2-bounce path is linked, but remains solid because the mixed pigment is Violet.
+	assert_bool(manifest_obj.is_linked()).is_true()
+	assert_bool(manifest_obj.is_affected()).is_false()
+	assert_bool(manifest_obj.is_collidable()).is_true()
 
-	# Inverse: Outer mirror is Red Dissolve, Inner mirror is Blue.
-	# OuterMirror dissolves the red object reflected via the blue inner mirror.
-	inner_mirror.pigment = Pigments.Pigment.BLUE
-	inner_mirror.mirror_type = Mirror3D.MirrorType.REVEAL
-	outer_mirror.pigment = Pigments.Pigment.RED
-	outer_mirror.mirror_type = Mirror3D.MirrorType.DISSOLVE
-	inner_mirror._apply_pigment()
-	outer_mirror._apply_pigment()
+	# Change the manifest object to Violet: now the mixed Violet Dissolve chain dissolves it and disables its collider.
+	manifest_obj.pigment = Pigments.Pigment.VIOLET
+	manifest_obj._apply_layers_and_material()
+	manifest_obj._update_real_world_collider()
 	MirrorManager.refresh_now()
 
 	await _wait_for_link_eval(outer_interaction)
 
-	assert_bool(manifest_red.is_linked()).is_true()
-	assert_bool(manifest_red.is_affected()).is_true()
-	assert_bool(manifest_red.is_collidable()).is_false()
+	assert_bool(manifest_obj.is_linked()).is_true()
+	assert_bool(manifest_obj.is_affected()).is_true()
+	assert_bool(manifest_obj.is_collidable()).is_false()
 
 	root.queue_free()
 

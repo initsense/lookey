@@ -100,21 +100,27 @@ There can be one or multiple entities linked to the player through the same mirr
 
 ## Affected entity
 
-A linked entity becomes an `affected-entity` when it is eligible for the effect of at least one mirror through which it is linked.
+A linked entity becomes an `affected-entity` when it is eligible for the effect of at least one mirror reflection chain through which it is linked.
 
-A mirror reveals or dissolves its own compatible entities in its glass. This stays true when the player looks at that mirror directly and when that mirror is seen reflected inside another mirror.
+When the player looks directly at a mirror (a 1-bounce reflection), that mirror reveals or dissolves entities compatible with its own pigment and mirror type.
 
-The rest of an outer mirror's reflection uses the outer mirror's pigment and type. A yellow mirror seen inside a blue mirror still reveals yellow objects and does not reveal blue objects. A blue mirror seen inside a yellow mirror still reveals blue objects and does not reveal yellow objects.
+When a mirror is seen reflected inside another mirror (a nested reflection chain `[InnerMirror, ..., OuterMirror]`), the nested mirror's effective pigment becomes the **RYB additive mix** of all mirrors along that reflection chain, while keeping the **innermost mirror's type** (`Reveal-mirror` or `Dissolve-mirror`):
 
-When an entity is linked through a chain of nested mirrors (for example, `Mirror A` reflects `Mirror B`, which reflects the entity), the outer mirror evaluates eligibility using its own pigment and mirror type.
+- `Red + Yellow = Orange`
+- `Yellow + Blue = Green`
+- `Red + Blue = Violet`
+- Mixing identical pigments preserves that pigment (`Yellow + Yellow = Yellow`).
+- Mixing pigments that span all three primaries (`Red`, `Yellow`, and `Blue` — such as `Red + Green`, `Yellow + Violet`, `Blue + Orange`, two different secondary hues, or any pigment mixed with `White`) produces `White`.
+
+> **Example.** When a yellow reveal-mirror is seen reflected inside a blue reveal-mirror, the nested mirror inside the blue mirror becomes a **green reveal-mirror** (with a green frame). Its glass reveals green (and white) hidden objects instead of yellow or blue ones, and any green hidden object linked through that nested reflection becomes collidable and interactable in the real-world.
 
 All affected entities are linked entities, but not all linked entities are affected entities.
 
-Eligibility depends on:
+Eligibility along a reflection chain depends on:
 
 - The pigment of the entity.
-- The pigment of the outer mirror through which the reflected geometry reaches the player.
-- The type of that outer mirror.
+- The mixed pigment of the mirrors along the reflection chain through which the reflected geometry reaches the player.
+- The type of the innermost mirror in that reflection chain.
 
 ## Pigment compatibility
 
