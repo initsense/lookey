@@ -20,6 +20,10 @@ const REFLECTED_BORDER_THICKNESS: float = 0.012
 ## Minimum perpendicular distance (in meters) from an observer to the mirror plane
 ## required to build a non-degenerate off-axis frustum.
 const MIN_PLANE_DISTANCE: float = 0.05
+## How many outer mirrors can show this mirror's reflected glass at once, each from its own viewpoint.
+const MAX_REFLECTED_VIEWS: int = 3
+## Viewpoint stored for an unused reflected view, so far away that no mirror camera ever matches it.
+const UNUSED_REFLECTED_OBSERVER: Vector3 = Vector3(1e9, 1e9, 1e9)
 
 ## Optional specific object to track for mirror interactions. All PigmentEntity nodes in the scene are tracked automatically.
 @export var object_to_reflect: Node3D
@@ -117,7 +121,10 @@ var layer_to_affect: int = 1
 
 var _pigment_dirty: bool = true
 var _config_dirty: bool = true
-var _reflected_pigment: Pigments.Pigment = Pigments.Pigment.WHITE
+var _reflected_pigments: Array[Pigments.Pigment] = [
+	Pigments.Pigment.WHITE, Pigments.Pigment.WHITE, Pigments.Pigment.WHITE
+]
+var _reflected_slot_outers: Array[Mirror3D] = [null, null, null]
 var _current_resolution_scale: float = -1.0
 var _target_viewport_size: Vector2i = Vector2i(400, 400)
 var _reflected_viewport_size: Vector2i = Vector2i(400, 400)
@@ -131,6 +138,8 @@ var _has_rendered_reflected: bool = false
 @onready var _mirror_camera: Camera3D = get_node_or_null("Viewport/Camera") as Camera3D
 @onready var _reflected_viewport: SubViewport = get_node_or_null("ReflectedViewport") as SubViewport
 @onready var _reflected_camera: Camera3D = get_node_or_null("ReflectedViewport/Camera") as Camera3D
+var _reflected_viewports: Array[SubViewport] = []
+var _reflected_cameras: Array[Camera3D] = []
 @onready var _mirror_quad: MeshInstance3D = get_node_or_null("Quad") as MeshInstance3D
 @onready var _reflected_quad: MeshInstance3D = get_node_or_null("ReflectedQuad") as MeshInstance3D
 @onready var _mirror_notifier: VisibleOnScreenNotifier3D = get_node_or_null("MirrorNotifier") as VisibleOnScreenNotifier3D
@@ -156,11 +165,13 @@ func _ready() -> void:
 		_make_runtime_resources_unique()
 	elif _reflected_quad != null:
 		_reflected_quad.visible = false
+	_collect_reflected_views()
 
 	if _mirror_viewport != null:
 		_mirror_viewport.use_occlusion_culling = true
-	if _reflected_viewport != null:
-		_reflected_viewport.use_occlusion_culling = true
+	for viewport: SubViewport in _reflected_viewports:
+		if viewport != null:
+			viewport.use_occlusion_culling = true
 
 	_apply_pigment()
 
@@ -286,46 +297,89 @@ func prepare_frame(delta: float) -> bool:
 	return true
 
 
-## Configures the secondary reflection viewport so another mirror can see this glass.
-## The viewpoint comes from that outer mirror, and the glass uses the additive pigment mix of both mirrors.
+## Configures one reflected view so another mirror can see this glass.
+## The viewpoint comes from that outer mirror (observer_position is the outer mirror's camera),
+## and the glass uses the additive pigment mix of both mirrors.
+## Each outer mirror gets its own slot (see assign_reflected_slots), so several outer mirrors
+## can show this glass at once without sharing the wrong viewpoint or pigment.
 func configure_reflected_view(
 	observer_position: Vector3,
 	cull_mask_override: int,
 	allow_nested_layer: bool = false,
-	reflected_pigment: int = -1
+	reflected_pigment: int = -1,
+	slot: int = 0
 ) -> void:
+	if slot < 0 or slot >= _reflected_viewports.size():
+		return
 	if _pigment_dirty:
 		_apply_pigment()
-	_reflected_pigment = (reflected_pigment as Pigments.Pigment) if reflected_pigment >= 0 else pigment
+	_reflected_pigments[slot] = (reflected_pigment as Pigments.Pigment) if reflected_pigment >= 0 else pigment
 	if _config_dirty:
 		_config_dirty = false
 		_apply_mirror_config()
 
+	_apply_reflected_slot_border(slot)
 	if _reflected_shader_material != null:
-		_reflected_shader_material.set_shader_parameter(
-			&"border_color",
-			Pigments.COLORS[_reflected_pigment]
-		)
+		_reflected_shader_material.set_shader_parameter(_reflected_observer_param(slot), observer_position)
 
-	if _reflected_camera == null or _reflected_viewport == null:
+	var viewport: SubViewport = _reflected_viewports[slot]
+	var camera: Camera3D = _reflected_cameras[slot]
+	if camera == null or viewport == null:
 		return
 
-	if _reflected_viewport.size != _reflected_viewport_size:
-		_reflected_viewport.size = _reflected_viewport_size
+	if viewport.size != _reflected_viewport_size:
+		viewport.size = _reflected_viewport_size
 
-	if not _configure_mirror_camera(_reflected_camera, observer_position, cull_mask_override, allow_nested_layer):
-		_reflected_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	if not _configure_mirror_camera(camera, observer_position, cull_mask_override, allow_nested_layer):
+		viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		return
 	if _reflected_quad != null:
 		_reflected_quad.visible = true
-	_reflected_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_has_rendered_reflected = true
 
 
-## Pauses rendering of the secondary reflection viewport while optionally keeping its last image visible.
+## Gives every outer mirror that shows this glass its own reflected view slot.
+## An outer mirror keeps its slot for as long as it shows this glass, so views never swap.
+## Returns the slot for each outer mirror in the same order, or -1 when all slots are taken.
+func assign_reflected_slots(outers: Array[Mirror3D]) -> PackedInt32Array:
+	for slot: int in MAX_REFLECTED_VIEWS:
+		var current: Mirror3D = _reflected_slot_outers[slot]
+		if current != null and (not is_instance_valid(current) or not outers.has(current)):
+			_reflected_slot_outers[slot] = null
+
+	var slots := PackedInt32Array()
+	slots.resize(outers.size())
+	slots.fill(-1)
+	for i: int in outers.size():
+		slots[i] = _reflected_slot_outers.find(outers[i])
+	for i: int in outers.size():
+		if slots[i] >= 0:
+			continue
+		var free_slot: int = _reflected_slot_outers.find(null)
+		if free_slot < 0 or free_slot >= _reflected_viewports.size():
+			continue
+		_reflected_slot_outers[free_slot] = outers[i]
+		slots[i] = free_slot
+	return slots
+
+
+## Pauses one reflected view slot that no outer mirror uses anymore.
+func release_reflected_slot(slot: int) -> void:
+	if slot < 0 or slot >= _reflected_viewports.size():
+		return
+	_reflected_slot_outers[slot] = null
+	if _reflected_shader_material != null:
+		_reflected_shader_material.set_shader_parameter(_reflected_observer_param(slot), UNUSED_REFLECTED_OBSERVER)
+	var viewport: SubViewport = _reflected_viewports[slot]
+	if viewport != null and is_instance_valid(viewport):
+		viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+
+## Pauses rendering of every reflected view while optionally keeping their last images visible.
 func freeze_reflected_view(keep_quad_visible: bool) -> void:
-	if _reflected_viewport != null and is_instance_valid(_reflected_viewport):
-		_reflected_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	for slot: int in _reflected_viewports.size():
+		release_reflected_slot(slot)
 	if _reflected_quad != null and is_instance_valid(_reflected_quad):
 		_reflected_quad.visible = keep_quad_visible and _has_rendered_reflected
 
@@ -503,10 +557,35 @@ func _make_runtime_resources_unique() -> void:
 		_reflected_quad.set_surface_override_material(0, _reflected_shader_material)
 
 
+func _collect_reflected_views() -> void:
+	_reflected_viewports.clear()
+	_reflected_cameras.clear()
+	for slot: int in MAX_REFLECTED_VIEWS:
+		var node_name: String = "ReflectedViewport" if slot == 0 else "ReflectedViewport%d" % (slot + 1)
+		var viewport: SubViewport = get_node_or_null(node_name) as SubViewport
+		if viewport == null and not Engine.is_editor_hint() and _reflected_viewport != null:
+			viewport = _reflected_viewport.duplicate() as SubViewport
+			viewport.name = node_name
+			add_child(viewport)
+		_reflected_viewports.append(viewport)
+		_reflected_cameras.append(viewport.get_node_or_null("Camera") as Camera3D if viewport != null else null)
+
+
+func _reflected_observer_param(slot: int) -> StringName:
+	return StringName("reflected_observer_%d" % slot)
+
+
+func _apply_reflected_slot_border(slot: int) -> void:
+	if _reflected_shader_material == null:
+		return
+	var param: StringName = &"border_color" if slot == 0 else StringName("reflected_border_color_%d" % slot)
+	_reflected_shader_material.set_shader_parameter(param, Pigments.COLORS[_reflected_pigments[slot]])
+
+
 ## Updates the mirror's target layer, camera cull mask, and frame color to match its pigment and type.
 func _apply_pigment() -> void:
 	_pigment_dirty = false
-	_reflected_pigment = pigment
+	_reflected_pigments.fill(pigment)
 	layer_to_affect = Pigments.get_entity_layer(
 		pigment,
 		mirror_type == MirrorType.REVEAL
@@ -519,8 +598,8 @@ func _apply_pigment() -> void:
 
 	if _shader_material != null:
 		_shader_material.set_shader_parameter(&"border_color", Pigments.COLORS[pigment])
-	if _reflected_shader_material != null:
-		_reflected_shader_material.set_shader_parameter(&"border_color", Pigments.COLORS[_reflected_pigment])
+	for slot: int in MAX_REFLECTED_VIEWS:
+		_apply_reflected_slot_border(slot)
 
 
 func _update_resolution_scale(distance_from_camera: float) -> void:
@@ -555,9 +634,10 @@ func _apply_mirror_config() -> void:
 		_mirror_camera.set_cull_mask_value(REFLECTED_MIRROR_LAYER, true)
 		_mirror_camera.set_cull_mask_value(DIRECT_MIRROR_LAYER, false)
 
-	if _reflected_camera != null:
-		_reflected_camera.keep_aspect = Camera3D.KEEP_WIDTH
-		_reflected_camera.projection = Camera3D.PROJECTION_FRUSTUM
+	for camera: Camera3D in _reflected_cameras:
+		if camera != null:
+			camera.keep_aspect = Camera3D.KEEP_WIDTH
+			camera.projection = Camera3D.PROJECTION_FRUSTUM
 
 	if _mirror_quad != null and _mirror_quad.mesh is QuadMesh:
 		(_mirror_quad.mesh as QuadMesh).size = size
@@ -573,8 +653,10 @@ func _apply_mirror_config() -> void:
 
 	if _mirror_viewport != null and not _has_rendered_direct:
 		_mirror_viewport.size = _target_viewport_size
-	if _reflected_viewport != null and not _has_rendered_reflected:
-		_reflected_viewport.size = _reflected_viewport_size
+	if not _has_rendered_reflected:
+		for viewport: SubViewport in _reflected_viewports:
+			if viewport != null:
+				viewport.size = _reflected_viewport_size
 
 	if _mirror_viewport != null:
 		var direct_tex: ViewportTexture = _mirror_viewport.get_texture()
@@ -583,10 +665,22 @@ func _apply_mirror_config() -> void:
 	if _reflected_viewport != null and _reflected_shader_material != null:
 		var reflected_tex: ViewportTexture = _reflected_viewport.get_texture()
 		_apply_shader_parameters(_reflected_shader_material, reflected_tex)
-		_reflected_shader_material.set_shader_parameter(
-			&"border_color",
-			Pigments.COLORS[_reflected_pigment]
-		)
+		_reflected_shader_material.set_shader_parameter(&"use_reflected_views", true)
+		for slot: int in range(1, _reflected_viewports.size()):
+			var viewport: SubViewport = _reflected_viewports[slot]
+			var slot_tex: ViewportTexture = viewport.get_texture() if viewport != null else null
+			_reflected_shader_material.set_shader_parameter(
+				StringName("reflected_texture_linear_%d" % slot), slot_tex if use_linear_filter else null
+			)
+			_reflected_shader_material.set_shader_parameter(
+				StringName("reflected_texture_nearest_%d" % slot), slot_tex if not use_linear_filter else null
+			)
+		for slot: int in MAX_REFLECTED_VIEWS:
+			_apply_reflected_slot_border(slot)
+			if _reflected_slot_outers[slot] == null:
+				_reflected_shader_material.set_shader_parameter(
+					_reflected_observer_param(slot), UNUSED_REFLECTED_OBSERVER
+				)
 		_reflected_shader_material.set_shader_parameter(&"border_thickness", REFLECTED_BORDER_THICKNESS)
 		_reflected_shader_material.set_shader_parameter(&"smoothness", 0.35)
 

@@ -89,6 +89,36 @@ frustum_offset = Vector2(-1.392988, -0.69233525)
 near = 1.2308743
 far = 51.953
 
+[node name="ReflectedViewport2" type="SubViewport" parent="." unique_id=1642709111]
+editor_description = "Second view of this mirror as seen from inside another mirror. Used when two outer mirrors show this mirror at the same time, so each one gets its own viewpoint and pigment mix."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport2" unique_id=2134310571]
+editor_description = "Virtual camera for the second outer mirror that shows this mirror."
+process_priority = 1
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+
+[node name="ReflectedViewport3" type="SubViewport" parent="." unique_id=1642709112]
+editor_description = "Third view of this mirror as seen from inside another mirror. Used when three outer mirrors show this mirror at the same time."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport3" unique_id=2134310572]
+editor_description = "Virtual camera for the third outer mirror that shows this mirror."
+process_priority = 1
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+
 [node name="Quad" type="MeshInstance3D" parent="." unique_id=801796927]
 editor_description = "The mirror surface seen directly by the player (Render Layer 10)."
 layers = 512

@@ -192,23 +192,28 @@ func _rebuild_reflection_chains(active_mirrors: Array[Mirror3D]) -> void:
 
 func _schedule_viewports(active_mirrors: Array[Mirror3D]) -> void:
 	var outer_mirrors_with_nesting: Array[Mirror3D] = []
-	var inner_to_outer: Dictionary[Mirror3D, Mirror3D] = {}
-	var inner_best_score: Dictionary[Mirror3D, float] = {}
+	var outers_by_inner: Dictionary[Mirror3D, Array] = {}
 
+	# Most centered outer mirrors first, so they keep a reflected view when an inner mirror runs out of slots.
+	var visible_outers: Array[Mirror3D] = []
 	for outer: Mirror3D in active_mirrors:
-		if not _is_mirror_visible_to_player(outer):
-			continue
+		if _is_mirror_visible_to_player(outer):
+			visible_outers.append(outer)
+	visible_outers.sort_custom(func(a: Mirror3D, b: Mirror3D) -> bool:
+		return _get_outer_mirror_view_alignment(a) > _get_outer_mirror_view_alignment(b)
+	)
+
+	for outer: Mirror3D in visible_outers:
 		var chains: Array = _chains_by_outer.get(outer, [])
 		var outer_has_nested: bool = false
-		var score: float = _get_outer_mirror_view_alignment(outer)
 		for chain: Array in chains:
 			if chain.size() != 2:
 				continue
 			var inner_m: Mirror3D = chain[0]
 			outer_has_nested = true
-			if not inner_to_outer.has(inner_m) or score > inner_best_score.get(inner_m, -INF):
-				inner_to_outer[inner_m] = outer
-				inner_best_score[inner_m] = score
+			if not outers_by_inner.has(inner_m):
+				outers_by_inner[inner_m] = [] as Array[Mirror3D]
+			outers_by_inner[inner_m].append(outer)
 		if outer_has_nested:
 			outer_mirrors_with_nesting.append(outer)
 
@@ -219,22 +224,37 @@ func _schedule_viewports(active_mirrors: Array[Mirror3D]) -> void:
 			m.set_direct_viewport_active(_is_mirror_visible_to_player(m))
 		return
 
-	# The nested camera uses the outer mirror's viewpoint so the perspective stays correct.
-	# The glass combines this mirror's pigment with the outer mirror's pigment (RYB additive mixing)
-	# while keeping this mirror's own reveal/dissolve type.
+	# Every outer mirror that shows this mirror gets its own reflected view. Each view uses that
+	# outer mirror's viewpoint so the perspective stays correct, and combines both pigments
+	# (RYB additive mixing) while keeping this mirror's own reveal/dissolve type.
 	for m: Mirror3D in active_mirrors:
-		if inner_to_outer.has(m):
-			var outer: Mirror3D = inner_to_outer[m]
-			var observer_pos: Vector3 = _get_reflected_observer_for_outer(outer)
-			var mixed_pigment: Pigments.Pigment = Pigments.mix_pigments(m.pigment, outer.pigment)
-			var mixed_mask: int = Pigments.compute_mirror_cull_mask(
-				mixed_pigment,
-				m.mirror_type == Mirror3D.MirrorType.REVEAL
-			)
-			m.configure_reflected_view(observer_pos, mixed_mask, false, mixed_pigment)
+		if outers_by_inner.has(m):
+			var outers: Array[Mirror3D] = []
+			outers.assign(outers_by_inner[m])
+			var slots: PackedInt32Array = m.assign_reflected_slots(outers)
+			var used_slots: Array[bool] = []
+			used_slots.resize(Mirror3D.MAX_REFLECTED_VIEWS)
+			used_slots.fill(false)
+			for i: int in outers.size():
+				var slot: int = slots[i]
+				if slot < 0:
+					continue
+				var outer: Mirror3D = outers[i]
+				var observer_pos: Vector3 = _get_reflected_observer_for_outer(outer)
+				var mixed_pigment: Pigments.Pigment = Pigments.mix_pigments(m.pigment, outer.pigment)
+				var mixed_mask: int = Pigments.compute_mirror_cull_mask(
+					mixed_pigment,
+					m.mirror_type == Mirror3D.MirrorType.REVEAL
+				)
+				m.configure_reflected_view(observer_pos, mixed_mask, false, mixed_pigment, slot)
+				used_slots[slot] = true
+			for slot: int in Mirror3D.MAX_REFLECTED_VIEWS:
+				if not used_slots[slot]:
+					m.release_reflected_slot(slot)
 		else:
 			m.freeze_reflected_view(true)
 		m.set_direct_viewport_active(_is_mirror_visible_to_player(m))
+
 
 
 func _is_mirror_visible_to_player(mirror: Mirror3D) -> bool:
@@ -505,3 +525,4 @@ func _projected_polygon_overlaps_quad(
 		and max_y >= -half.y
 		and min_y <= half.y
 	)
+

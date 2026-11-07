@@ -27,7 +27,7 @@ directional_shadow_split_1 = 0.75
 directional_shadow_max_distance = 80.0
 
 [node name="platform" parent="Environment" unique_id=546221425 instance=ExtResource("6_2gg3i")]
-transform = Transform3D(1, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, 0.0029405355, -0.02006054, -0.0020005703)
+transform = Transform3D(1, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, -1.1584331, -0.060195565, 0.34648633)
 
 [node name="Level_01" type="Node3D" parent="." unique_id=385093112]
 
@@ -52,11 +52,33 @@ size = Vector2(4.2, 3)
 max_fps = 120.0
 res_decrease_distances = Array[float]([3.0, 6.0, 9.0])
 
+[node name="Mirror4" parent="Level_01" unique_id=1301903781 node_paths=PackedStringArray("player") instance=ExtResource("6_op6jt")]
+editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door3 and Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
+transform = Transform3D(0.12728092, 0, -0.9918668, 0, 1, 0, 0.9918668, 0, 0.12728092, 2.5901515, 1.585005, 1.4912853)
+player = NodePath("../../Player")
+pigment = 1
+always_active = false
+cull_mask = 266751
+size = Vector2(4.2, 3)
+max_fps = 120.0
+res_decrease_distances = Array[float]([3.0, 6.0, 9.0])
+
+[node name="Mirror6" parent="Level_01" unique_id=1659309852 node_paths=PackedStringArray("player") instance=ExtResource("6_op6jt")]
+editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door3 and Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
+transform = Transform3D(-0.97448885, 0, -0.22443622, 0, 1, 0, 0.22443622, 0, -0.97448885, -1.5208557, 1.585005, -7.638601)
+player = NodePath("../../Player")
+always_active = false
+cull_mask = 520703
+size = Vector2(4.2, 3)
+max_fps = 120.0
+res_decrease_distances = Array[float]([3.0, 6.0, 9.0])
+
 [node name="Cube2" type="CSGBox3D" parent="Level_01" unique_id=2007261374]
 transform = Transform3D(0.91718876, 0, 0, 0, 0.91718876, 0, 0, 0, 0.91718876, 1.3763291, 0.39626962, 2.5661683)
 use_collision = true
 script = ExtResource("5_2gg3i")
-pigment = 3
+hidden_entity = true
+pigment = 1
 
 [node name="Door3" parent="Level_01" unique_id=900244337 instance=ExtResource("5_d8at3")]
 editor_description = "Hidden blue block in Room 1. Appears in the blue reveal mirror (Mirror3), but not in the yellow reveal mirror (Mirror)."

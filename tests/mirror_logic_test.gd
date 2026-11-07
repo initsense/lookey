@@ -611,6 +611,74 @@ func test_nested_reveal_mirror_cull_mask_and_camera() -> void:
 	root.queue_free()
 
 
+func test_inner_mirror_seen_by_two_outer_mirrors_gets_one_reflected_view_each() -> void:
+	# A blue mirror shown inside a yellow and a red mirror at the same time must render one view per
+	# outer mirror (green from the yellow one, violet from the red one), each from that outer mirror's
+	# viewpoint. A single shared view shows the wrong pigment and a distorted image in one of them.
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.BLUE,
+		Mirror3D.MirrorType.REVEAL,
+		Pigments.Pigment.YELLOW,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
+	var yellow_outer: Mirror3D = root.get_node("OuterMirror")
+	# Two narrow outer mirrors side by side, each showing part of the inner mirror.
+	yellow_outer.size = Vector2(1.0, 3.0)
+	yellow_outer.global_position = Vector3(0.4, 1.5, 3.0)
+	var red_outer: Mirror3D = MIRROR_SCENE.instantiate()
+	red_outer.name = "RedOuterMirror"
+	red_outer.player = yellow_outer.player
+	red_outer.pigment = Pigments.Pigment.RED
+	red_outer.mirror_type = Mirror3D.MirrorType.REVEAL
+	red_outer.always_active = true
+	red_outer.size = Vector2(1.0, 3.0)
+	root.add_child(red_outer)
+	red_outer.global_position = Vector3(1.6, 1.5, 3.0)
+	red_outer.rotation = Vector3(0.0, PI, 0.0)
+	red_outer.player_cam = yellow_outer.player_cam
+	red_outer._apply_pigment()
+	await get_tree().physics_frame
+	MirrorManager.refresh_now()
+
+	var yellow_slot: int = inner_mirror._reflected_slot_outers.find(yellow_outer)
+	var red_slot: int = inner_mirror._reflected_slot_outers.find(red_outer)
+	assert_int(yellow_slot).is_greater_equal(0)
+	assert_int(red_slot).is_greater_equal(0)
+	assert_int(red_slot).is_not_equal(yellow_slot)
+	if yellow_slot < 0 or red_slot < 0 or yellow_slot == red_slot:
+		root.free()
+		return
+
+	var expected := {
+		yellow_slot: [yellow_outer, Pigments.Pigment.GREEN],
+		red_slot: [red_outer, Pigments.Pigment.VIOLET],
+	}
+	for slot: int in expected:
+		var outer: Mirror3D = expected[slot][0]
+		var mixed: Pigments.Pigment = expected[slot][1]
+		var camera: Camera3D = inner_mirror._reflected_cameras[slot]
+		assert_bool(_has_layer(camera.cull_mask, Pigments.get_entity_layer(mixed, true))).is_true()
+		assert_bool(_has_layer(camera.cull_mask, Pigments.get_entity_layer(Pigments.Pigment.BLUE, true))).is_false()
+		var expected_pos: Vector3 = inner_mirror.reflect_point(outer._mirror_camera.global_position)
+		assert_bool(camera.global_position.distance_to(expected_pos) < 0.01).is_true()
+		assert_int(inner_mirror._reflected_viewports[slot].render_target_update_mode).is_equal(SubViewport.UPDATE_ALWAYS)
+
+		# The glass shader picks the view whose stored viewpoint matches the outer mirror camera drawing it.
+		var material: ShaderMaterial = inner_mirror._reflected_shader_material
+		var observer: Vector3 = material.get_shader_parameter(StringName("reflected_observer_%d" % slot))
+		assert_bool(observer.distance_to(outer._mirror_camera.global_position) < 0.001).is_true()
+		var border_param: StringName = &"border_color" if slot == 0 else StringName("reflected_border_color_%d" % slot)
+		assert_that(material.get_shader_parameter(border_param)).is_equal(Pigments.COLORS[mixed])
+
+	# Slots stay put across frames so the views never swap between outer mirrors.
+	MirrorManager.refresh_now()
+	assert_int(inner_mirror._reflected_slot_outers.find(yellow_outer)).is_equal(yellow_slot)
+	assert_int(inner_mirror._reflected_slot_outers.find(red_outer)).is_equal(red_slot)
+
+	root.queue_free()
+
+
 func test_nested_dissolve_mirror_cull_mask_and_camera() -> void:
 	var root := await _build_nested_mirror_scene(
 		Pigments.Pigment.RED,
