@@ -91,6 +91,28 @@ func test_pigment_mixing() -> void:
 	assert_int(Pigments.mix_pigments(Pigments.Pigment.WHITE, Pigments.Pigment.YELLOW)).is_equal(Pigments.Pigment.WHITE)
 
 
+func test_mirror_chain_pigment_mixing() -> void:
+	var red := Mirror3D.new()
+	var yellow := Mirror3D.new()
+	var blue := Mirror3D.new()
+	red.pigment = Pigments.Pigment.RED
+	yellow.pigment = Pigments.Pigment.YELLOW
+	blue.pigment = Pigments.Pigment.BLUE
+
+	assert_int(Pigments.mix_mirror_chain_pigment([])).is_equal(Pigments.Pigment.WHITE)
+	# A directly viewed mirror keeps its own pigment.
+	assert_int(Pigments.mix_mirror_chain_pigment([yellow])).is_equal(Pigments.Pigment.YELLOW)
+	assert_int(Pigments.mix_mirror_chain_pigment([yellow, blue])).is_equal(Pigments.Pigment.GREEN)
+	assert_int(Pigments.mix_mirror_chain_pigment([red, yellow])).is_equal(Pigments.Pigment.ORANGE)
+	assert_int(Pigments.mix_mirror_chain_pigment([yellow, yellow])).is_equal(Pigments.Pigment.YELLOW)
+	# All three primaries along a 3-bounce chain mix to white.
+	assert_int(Pigments.mix_mirror_chain_pigment([red, yellow, blue])).is_equal(Pigments.Pigment.WHITE)
+
+	red.free()
+	yellow.free()
+	blue.free()
+
+
 func test_reveal_mirror_cull_mask() -> void:
 	var yellow_reveal: int = Pigments.compute_mirror_cull_mask(Pigments.Pigment.YELLOW, true)
 	assert_bool(_has_layer(yellow_reveal, 1)).is_true()
@@ -433,6 +455,104 @@ func test_mirror_dual_viewport_and_layer_isolation() -> void:
 	assert_int(mirror._reflected_camera.keep_aspect).is_equal(Camera3D.KEEP_WIDTH)
 	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_true()
 	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.DIRECT_MIRROR_LAYER)).is_false()
+
+	root.queue_free()
+
+
+func test_mirror_glass_never_casts_shadows() -> void:
+	# A shadow-casting ReflectedQuad drops a huge rectangular shadow onto the floor
+	# inside the outer mirror's reflected-world whenever nested reflection is active.
+	var packed_mirror: Mirror3D = MIRROR_SCENE.instantiate()
+	var packed_quad: MeshInstance3D = packed_mirror.get_node("Quad")
+	var packed_reflected_quad: MeshInstance3D = packed_mirror.get_node("ReflectedQuad")
+	assert_int(packed_quad.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	assert_int(packed_reflected_quad.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	packed_mirror.free()
+
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.YELLOW,
+		Mirror3D.MirrorType.REVEAL,
+		Pigments.Pigment.BLUE,
+		Mirror3D.MirrorType.REVEAL
+	)
+	for mirror_name: String in ["InnerMirror", "OuterMirror"]:
+		var mirror: Mirror3D = root.get_node(mirror_name)
+		assert_int(mirror._mirror_quad.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		assert_int(mirror._reflected_quad.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+	root.queue_free()
+
+
+func test_shadow_casters_survive_off_axis_mirror_culling() -> void:
+	# Godot culls directional shadow casters with a centered frustum that ignores the mirror
+	# camera's frustum offset, so casters need an extra cull margin to keep their shadows in the glass.
+	assert_bool(
+		ProjectSettings.get_setting("rendering/lights_and_shadows/tighter_shadow_caster_culling", true)
+	).is_false()
+
+	var root := await _build_link_scene()
+	var front: PigmentEntity = root.get_node("Front")
+	var casters: Array[Node] = front.find_children("*", "GeometryInstance3D", true, false)
+	var checked: int = 0
+	for node: Node in casters:
+		var geom: GeometryInstance3D = node as GeometryInstance3D
+		if geom.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			continue
+		assert_float(geom.extra_cull_margin).is_greater_equal(MirrorManager.OFF_AXIS_SHADOW_CASTER_MARGIN)
+		checked += 1
+	assert_int(checked).is_greater(0)
+
+	root.queue_free()
+
+
+func test_mirror_keeps_full_resolution_up_close() -> void:
+	# Tight resolution thresholds make the mirror shrink its viewport (blurry glass) and
+	# resize it on every threshold crossing (black-frame flicker) while the player walks around.
+	var mirror: Mirror3D = MIRROR_SCENE.instantiate()
+	mirror.res_decrease_distances = [3.0, 6.0, 9.0]
+	add_child(mirror)
+
+	assert_float(mirror.res_decrease_distances[0]).is_greater_equal(30.0)
+	mirror._update_resolution_scale(10.0)
+	assert_float(mirror._current_resolution_scale).is_equal(1.0)
+	mirror._update_resolution_scale(29.0)
+	assert_float(mirror._current_resolution_scale).is_equal(1.0)
+
+	mirror.queue_free()
+
+
+func test_observer_on_mirror_plane_pauses_reflection() -> void:
+	# An observer a couple of centimeters from the mirror plane makes the off-axis frustum degenerate,
+	# which triggers create_frustum_points errors in Godot's light culler.
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var origin: Vector3 = mirror.get_mirror_origin()
+	var normal: Vector3 = mirror.get_mirror_normal()
+	var on_plane: Vector3 = origin + normal * 0.02
+	var in_front: Vector3 = origin + normal * 2.0
+
+	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, on_plane, mirror.cull_mask, true)).is_false()
+	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, in_front, mirror.cull_mask, true)).is_true()
+
+	mirror.configure_reflected_view(on_plane, mirror.cull_mask)
+	assert_int(mirror._reflected_viewport.render_target_update_mode).is_equal(SubViewport.UPDATE_DISABLED)
+	mirror.configure_reflected_view(in_front, mirror.cull_mask)
+	assert_int(mirror._reflected_viewport.render_target_update_mode).is_equal(SubViewport.UPDATE_ALWAYS)
+
+	root.queue_free()
+
+
+func test_inactive_direct_viewport_stays_paused() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+
+	# Even before its first render, a mirror the player cannot see must not render.
+	mirror._has_rendered_direct = false
+	mirror.set_direct_viewport_active(false)
+	assert_int(mirror._mirror_viewport.render_target_update_mode).is_equal(SubViewport.UPDATE_DISABLED)
+
+	mirror.set_direct_viewport_active(true)
+	assert_int(mirror._mirror_viewport.render_target_update_mode).is_equal(SubViewport.UPDATE_ALWAYS)
 
 	root.queue_free()
 
