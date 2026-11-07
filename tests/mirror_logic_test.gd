@@ -9,6 +9,11 @@ const PLAYER_SCENE := preload("res://entities/player/player.tscn")
 const PIGMENT_ENTITY_SCRIPT := preload("res://scripts/pigment_entity.gd")
 
 
+func after_test() -> void:
+	# Tests change the render depth on the MirrorManager autoload, so put it back.
+	MirrorManager.render_depth = MirrorManager.DEFAULT_RENDER_DEPTH
+
+
 func test_tables() -> void:
 	for pigment: Pigments.Pigment in Pigments.Pigment.values():
 		assert_bool(Pigments.LAYERS.has(pigment)).is_true()
@@ -96,6 +101,8 @@ func test_pigment_mixing() -> void:
 	assert_int(Pigments.mix_pigments(Pigments.Pigment.YELLOW, Pigments.Pigment.VIOLET)).is_equal(Pigments.Pigment.WHITE)
 	assert_int(Pigments.mix_pigments(Pigments.Pigment.BLUE, Pigments.Pigment.ORANGE)).is_equal(Pigments.Pigment.WHITE)
 	assert_int(Pigments.mix_pigments(Pigments.Pigment.ORANGE, Pigments.Pigment.GREEN)).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.GREEN, Pigments.Pigment.VIOLET)).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_pigments(Pigments.Pigment.ORANGE, Pigments.Pigment.VIOLET)).is_equal(Pigments.Pigment.WHITE)
 	assert_int(Pigments.mix_pigments(Pigments.Pigment.WHITE, Pigments.Pigment.YELLOW)).is_equal(Pigments.Pigment.WHITE)
 
 
@@ -115,10 +122,19 @@ func test_mirror_chain_pigment_mixing() -> void:
 	assert_int(Pigments.mix_mirror_chain_pigment([yellow, yellow])).is_equal(Pigments.Pigment.YELLOW)
 	# All three primaries along a 3-bounce chain mix to white.
 	assert_int(Pigments.mix_mirror_chain_pigment([red, yellow, blue])).is_equal(Pigments.Pigment.WHITE)
+	# Two distinct secondary hues along a chain also cover all three primaries.
+	var green := Mirror3D.new()
+	var violet := Mirror3D.new()
+	var orange := Mirror3D.new()
+	green.pigment = Pigments.Pigment.GREEN
+	violet.pigment = Pigments.Pigment.VIOLET
+	orange.pigment = Pigments.Pigment.ORANGE
+	assert_int(Pigments.mix_mirror_chain_pigment([green, violet])).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_mirror_chain_pigment([orange, violet])).is_equal(Pigments.Pigment.WHITE)
+	assert_int(Pigments.mix_mirror_chain_pigment([blue, yellow, blue])).is_equal(Pigments.Pigment.GREEN)
 
-	red.free()
-	yellow.free()
-	blue.free()
+	for mirror: Mirror3D in [red, yellow, blue, green, violet, orange]:
+		mirror.free()
 
 
 func test_reveal_mirror_cull_mask() -> void:
@@ -588,7 +604,7 @@ func test_nested_reveal_mirror_cull_mask_and_camera() -> void:
 	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, blue_hidden_layer)).is_false()
 	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, green_hidden_layer)).is_true()
 	assert_that(
-		inner_mirror._reflected_shader_material.get_shader_parameter(&"border_color")
+		_reflected_border_color(inner_mirror, 0)
 	).is_equal(Pigments.COLORS[Pigments.Pigment.GREEN])
 
 	var expected_pos: Vector3 = inner_mirror.reflect_point(outer_mirror._mirror_camera.global_position)
@@ -605,7 +621,7 @@ func test_nested_reveal_mirror_cull_mask_and_camera() -> void:
 	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, orange_hidden_layer)).is_true()
 	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, yellow_hidden_layer)).is_false()
 	assert_that(
-		inner_mirror._reflected_shader_material.get_shader_parameter(&"border_color")
+		_reflected_border_color(inner_mirror, 0)
 	).is_equal(Pigments.COLORS[Pigments.Pigment.ORANGE])
 
 	root.queue_free()
@@ -626,23 +642,14 @@ func test_inner_mirror_seen_by_two_outer_mirrors_gets_one_reflected_view_each() 
 	# Two narrow outer mirrors side by side, each showing part of the inner mirror.
 	yellow_outer.size = Vector2(1.0, 3.0)
 	yellow_outer.global_position = Vector3(0.4, 1.5, 3.0)
-	var red_outer: Mirror3D = MIRROR_SCENE.instantiate()
-	red_outer.name = "RedOuterMirror"
-	red_outer.player = yellow_outer.player
-	red_outer.pigment = Pigments.Pigment.RED
-	red_outer.mirror_type = Mirror3D.MirrorType.REVEAL
-	red_outer.always_active = true
-	red_outer.size = Vector2(1.0, 3.0)
-	root.add_child(red_outer)
-	red_outer.global_position = Vector3(1.6, 1.5, 3.0)
-	red_outer.rotation = Vector3(0.0, PI, 0.0)
-	red_outer.player_cam = yellow_outer.player_cam
-	red_outer._apply_pigment()
+	var red_outer: Mirror3D = _add_mirror(
+		root, "RedOuterMirror", Pigments.Pigment.RED, Mirror3D.MirrorType.REVEAL, Vector3(1.6, 1.5, 3.0)
+	)
 	await get_tree().physics_frame
 	MirrorManager.refresh_now()
 
-	var yellow_slot: int = inner_mirror._reflected_slot_outers.find(yellow_outer)
-	var red_slot: int = inner_mirror._reflected_slot_outers.find(red_outer)
+	var yellow_slot: int = inner_mirror.get_reflected_slot(Mirror3D.reflected_view_key([yellow_outer]))
+	var red_slot: int = inner_mirror.get_reflected_slot(Mirror3D.reflected_view_key([red_outer]))
 	assert_int(yellow_slot).is_greater_equal(0)
 	assert_int(red_slot).is_greater_equal(0)
 	assert_int(red_slot).is_not_equal(yellow_slot)
@@ -665,16 +672,147 @@ func test_inner_mirror_seen_by_two_outer_mirrors_gets_one_reflected_view_each() 
 		assert_int(inner_mirror._reflected_viewports[slot].render_target_update_mode).is_equal(SubViewport.UPDATE_ALWAYS)
 
 		# The glass shader picks the view whose stored viewpoint matches the outer mirror camera drawing it.
-		var material: ShaderMaterial = inner_mirror._reflected_shader_material
-		var observer: Vector3 = material.get_shader_parameter(StringName("reflected_observer_%d" % slot))
+		var observer: Vector3 = _reflected_observer(inner_mirror, slot)
 		assert_bool(observer.distance_to(outer._mirror_camera.global_position) < 0.001).is_true()
-		var border_param: StringName = &"border_color" if slot == 0 else StringName("reflected_border_color_%d" % slot)
-		assert_that(material.get_shader_parameter(border_param)).is_equal(Pigments.COLORS[mixed])
+		assert_that(_reflected_border_color(inner_mirror, slot)).is_equal(Pigments.COLORS[mixed])
 
 	# Slots stay put across frames so the views never swap between outer mirrors.
 	MirrorManager.refresh_now()
-	assert_int(inner_mirror._reflected_slot_outers.find(yellow_outer)).is_equal(yellow_slot)
-	assert_int(inner_mirror._reflected_slot_outers.find(red_outer)).is_equal(red_slot)
+	assert_int(inner_mirror.get_reflected_slot(Mirror3D.reflected_view_key([yellow_outer]))).is_equal(yellow_slot)
+	assert_int(inner_mirror.get_reflected_slot(Mirror3D.reflected_view_key([red_outer]))).is_equal(red_slot)
+
+	root.queue_free()
+
+
+func test_mirror_inside_nested_glass_gets_three_mirror_view() -> void:
+	# A red dissolve-mirror seen inside a blue mirror, itself seen inside a yellow mirror, must be drawn
+	# inside the blue mirror's (green) glass. Its view is rendered from the blue mirror's reflected camera,
+	# with the three-way mix (red + blue + yellow = white) and the red mirror's own DISSOLVE type.
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.BLUE,
+		Mirror3D.MirrorType.REVEAL,
+		Pigments.Pigment.YELLOW,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var middle: Mirror3D = root.get_node("InnerMirror")
+	var outer: Mirror3D = root.get_node("OuterMirror")
+	var innermost: Mirror3D = _add_mirror(
+		root, "InnermostMirror", Pigments.Pigment.RED, Mirror3D.MirrorType.DISSOLVE, Vector3(2.5, 1.5, 1.0)
+	)
+	await get_tree().physics_frame
+	MirrorManager.refresh_now()
+
+	var has_chain: bool = false
+	for chain: Array in MirrorManager.get_chains_for_outer_mirror(outer):
+		if chain.size() == 3 and chain[0] == innermost and chain[1] == middle:
+			has_chain = true
+	assert_bool(has_chain).is_true()
+	var middle_slot: int = middle.get_reflected_slot(Mirror3D.reflected_view_key([outer]))
+	var slot: int = innermost.get_reflected_slot(Mirror3D.reflected_view_key([outer, middle]))
+	assert_int(middle_slot).is_greater_equal(0)
+	assert_int(slot).is_greater_equal(0)
+	if not has_chain or middle_slot < 0 or slot < 0:
+		root.free()
+		return
+
+	# The blue mirror's view for the yellow mirror draws other mirrors' glass, so the red mirror shows up in it.
+	var middle_camera: Camera3D = middle._reflected_cameras[middle_slot]
+	assert_bool(_has_layer(middle_camera.cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_true()
+
+	var camera: Camera3D = innermost._reflected_cameras[slot]
+	assert_bool(_reflected_observer(innermost, slot).distance_to(middle_camera.global_position) < 0.001).is_true()
+	var expected_pos: Vector3 = innermost.reflect_point(middle_camera.global_position)
+	assert_bool(camera.global_position.distance_to(expected_pos) < 0.01).is_true()
+	assert_int(innermost._reflected_viewports[slot].render_target_update_mode).is_equal(SubViewport.UPDATE_ALWAYS)
+	assert_that(_reflected_border_color(innermost, slot)).is_equal(Pigments.COLORS[Pigments.Pigment.WHITE])
+	# A white dissolve-mirror hides every manifest hue entity. Reflections stop at three mirrors deep.
+	for hue: Pigments.Pigment in Pigments.Pigment.values():
+		assert_bool(_has_layer(camera.cull_mask, Pigments.get_entity_layer(hue, false))).is_false()
+	assert_bool(_has_layer(camera.cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_false()
+
+	# Slots stay put across frames.
+	MirrorManager.refresh_now()
+	assert_int(innermost.get_reflected_slot(Mirror3D.reflected_view_key([outer, middle]))).is_equal(slot)
+	assert_int(middle.get_reflected_slot(Mirror3D.reflected_view_key([outer]))).is_equal(middle_slot)
+
+	# Once the red mirror leaves the blue mirror's glass, its view stops and the blue mirror's view
+	# no longer draws other mirrors' glass.
+	innermost.global_position = Vector3(40.0, 1.5, 1.0)
+	await get_tree().physics_frame
+	MirrorManager.refresh_now()
+	assert_int(innermost.get_reflected_slot(Mirror3D.reflected_view_key([outer, middle]))).is_equal(-1)
+	assert_bool(_has_layer(middle_camera.cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_false()
+
+	root.queue_free()
+
+
+func test_render_depth_setting_is_clamped_and_registered() -> void:
+	assert_bool(ProjectSettings.has_setting(MirrorManager.RENDER_DEPTH_SETTING)).is_true()
+	assert_int(int(ProjectSettings.get_setting(MirrorManager.RENDER_DEPTH_SETTING))).is_equal(
+		MirrorManager.DEFAULT_RENDER_DEPTH
+	)
+	MirrorManager.render_depth = 0
+	assert_int(MirrorManager.render_depth).is_equal(1)
+	MirrorManager.render_depth = 99
+	assert_int(MirrorManager.render_depth).is_equal(MirrorManager.MAX_RENDER_DEPTH)
+
+
+func test_render_depth_limits_how_deep_mirrors_are_drawn() -> void:
+	# Blue mirror seen in a yellow one, and a red mirror seen in the blue glass. The two parallel mirrors
+	# (blue and red) also reflect each other, which gives a 4-mirror chain [blue, red, blue, yellow].
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.BLUE,
+		Mirror3D.MirrorType.REVEAL,
+		Pigments.Pigment.YELLOW,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var blue: Mirror3D = root.get_node("InnerMirror")
+	var yellow: Mirror3D = root.get_node("OuterMirror")
+	var red: Mirror3D = _add_mirror(
+		root, "RedMirror", Pigments.Pigment.RED, Mirror3D.MirrorType.DISSOLVE, Vector3(2.5, 1.5, 1.0)
+	)
+	await get_tree().physics_frame
+
+	var two_deep: String = Mirror3D.reflected_view_key([yellow])
+	var three_deep: String = Mirror3D.reflected_view_key([yellow, blue])
+	var four_deep: String = Mirror3D.reflected_view_key([yellow, blue, red])
+
+	# Depth 1: only the mirror the player looks at is drawn, no mirror shows up inside another.
+	MirrorManager.render_depth = 1
+	MirrorManager.refresh_now()
+	assert_int(blue.get_reflected_slot(two_deep)).is_equal(-1)
+	assert_int(red.get_reflected_slot(three_deep)).is_equal(-1)
+
+	# Depth 2: a mirror inside a mirror. Linking still builds 3-mirror chains, independent of what is drawn.
+	MirrorManager.render_depth = 2
+	MirrorManager.refresh_now()
+	assert_int(blue.get_reflected_slot(two_deep)).is_greater_equal(0)
+	assert_int(red.get_reflected_slot(three_deep)).is_equal(-1)
+	assert_bool(_has_chain(yellow, [red, blue, yellow])).is_true()
+	assert_bool(_has_layer(blue._reflected_cameras[blue.get_reflected_slot(two_deep)].cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_false()
+
+	# Depth 3: one more level, and the blue view now draws the red mirror's glass.
+	MirrorManager.render_depth = 3
+	MirrorManager.refresh_now()
+	assert_int(red.get_reflected_slot(three_deep)).is_greater_equal(0)
+	assert_int(blue.get_reflected_slot(Mirror3D.reflected_view_key([yellow, blue, red]))).is_equal(-1)
+	assert_bool(_has_chain(yellow, [blue, red, blue, yellow])).is_false()
+	assert_bool(_has_layer(blue._reflected_cameras[blue.get_reflected_slot(two_deep)].cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_true()
+
+	# Depth 4: the blue mirror appears again inside the red glass, drawn from the red mirror's view.
+	MirrorManager.render_depth = 4
+	MirrorManager.refresh_now()
+	assert_bool(_has_chain(yellow, [blue, red, blue, yellow])).is_true()
+	var slot: int = blue.get_reflected_slot(four_deep)
+	var red_slot: int = red.get_reflected_slot(three_deep)
+	assert_int(slot).is_greater_equal(0)
+	assert_int(red_slot).is_greater_equal(0)
+	if slot >= 0 and red_slot >= 0:
+		var red_camera: Camera3D = red._reflected_cameras[red_slot]
+		assert_bool(_has_layer(red_camera.cull_mask, Mirror3D.REFLECTED_MIRROR_LAYER)).is_true()
+		assert_bool(_reflected_observer(blue, slot).distance_to(red_camera.global_position) < 0.001).is_true()
+		assert_that(_reflected_border_color(blue, slot)).is_equal(Pigments.COLORS[Pigments.Pigment.WHITE])
+		assert_int(blue._reflected_viewports[slot].render_target_update_mode).is_equal(SubViewport.UPDATE_ALWAYS)
 
 	root.queue_free()
 
@@ -699,7 +837,7 @@ func test_nested_dissolve_mirror_cull_mask_and_camera() -> void:
 	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, red_manifest_layer)).is_true()
 	assert_bool(_has_layer(inner_mirror._reflected_camera.cull_mask, violet_manifest_layer)).is_false()
 	assert_that(
-		inner_mirror._reflected_shader_material.get_shader_parameter(&"border_color")
+		_reflected_border_color(inner_mirror, 0)
 	).is_equal(Pigments.COLORS[Pigments.Pigment.VIOLET])
 
 	# When the inner mirror is a Blue Reveal mirror reflected inside a Red Dissolve mirror,
@@ -1170,6 +1308,48 @@ func _build_nested_mirror_scene(
 	await get_tree().physics_frame
 	MirrorManager.refresh_now()
 	return root
+
+
+## Adds a mirror facing -z (toward the scene's inner mirror) that the scene's player can see.
+func _add_mirror(
+	root: Node3D,
+	mirror_name: String,
+	pigment: Pigments.Pigment,
+	type: Mirror3D.MirrorType,
+	position: Vector3
+) -> Mirror3D:
+	var player: CharacterBody3D = root.get_node("Player")
+	var mirror: Mirror3D = MIRROR_SCENE.instantiate()
+	mirror.name = mirror_name
+	mirror.player = player
+	mirror.pigment = pigment
+	mirror.mirror_type = type
+	mirror.always_active = true
+	mirror.size = Vector2(1.0, 3.0)
+	root.add_child(mirror)
+	mirror.global_position = position
+	mirror.rotation = Vector3(0.0, PI, 0.0)
+	mirror.player_cam = player.get_node("Head/Camera3D") as Camera3D
+	mirror._apply_pigment()
+	return mirror
+
+
+## Returns true when the outer mirror has a reflection chain made of exactly these mirrors (innermost first).
+func _has_chain(outer: Mirror3D, expected: Array) -> bool:
+	for chain: Array in MirrorManager.get_chains_for_outer_mirror(outer):
+		if chain == expected:
+			return true
+	return false
+
+
+func _reflected_border_color(mirror: Mirror3D, slot: int) -> Color:
+	var colors: PackedColorArray = mirror._reflected_shader_material.get_shader_parameter(&"reflected_border_colors")
+	return colors[slot]
+
+
+func _reflected_observer(mirror: Mirror3D, slot: int) -> Vector3:
+	var observers: PackedVector3Array = mirror._reflected_shader_material.get_shader_parameter(&"reflected_observers")
+	return observers[slot]
 
 
 func _wait_for_link_eval(interaction: Node) -> void:

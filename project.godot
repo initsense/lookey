@@ -121,6 +121,10 @@ fov_decrease={
 3d_physics/layer_18="orange_invisible"
 3d_physics/layer_19="white_invisible"
 
+[lookey]
+
+mirrors/max_render_depth=3
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

@@ -114,6 +114,12 @@ When a mirror is seen reflected inside another mirror (a nested reflection chain
 
 > **Example.** When a yellow reveal-mirror is seen reflected inside a blue reveal-mirror, the nested mirror inside the blue mirror becomes a **green reveal-mirror** (with a green frame). Its glass reveals green (and white) hidden objects instead of yellow or blue ones, and any green hidden object linked through that nested reflection becomes collidable and interactable in the real-world.
 
+Nested mirrors are drawn up to a configurable **render depth** (Project Settings, `lookey/mirrors/max_render_depth`, from 1 to 5, default 3). Depth 1 draws no mirror inside another mirror, depth 2 draws a mirror inside a mirror, and every extra level draws a mirror inside the glass of a mirror that is itself reflected inside the mirror the player looks at. Each extra level adds more views to render, so a higher depth costs more GPU time. The render depth only changes what is drawn: linking always follows reflection chains at least three mirrors deep, so a graphics setting never changes which entities are linked.
+
+Glass drawn deeper mixes the pigments of every mirror in its chain with the same rule, so a chain covering `Red`, `Yellow` and `Blue` (or two different secondary hues) shows a **white** frame and behaves as a white mirror of the innermost mirror's type. Each mirror shows its own correct view in every mirror it appears in, even when several mirrors show it at the same time.
+
+> **Example.** A red dissolve-mirror is seen inside a blue mirror, which is seen inside a yellow mirror. Inside the yellow mirror, the blue mirror's glass is green, and inside that green glass the red mirror's glass is a **white dissolve-mirror**: it dissolves every manifest hue object.
+
 All affected entities are linked entities, but not all linked entities are affected entities.
 
 Eligibility along a reflection chain depends on:

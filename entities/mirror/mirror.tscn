@@ -119,6 +119,81 @@ cull_mask = 1024
 projection = 2
 current = true
 
+[node name="ReflectedViewport4" type="SubViewport" parent="." unique_id=1642709113]
+editor_description = "Fourth view of this mirror as seen from inside another mirror. Also used when this mirror shows up inside a mirror that is itself reflected in another mirror (deeper nesting, see the mirror render depth project setting)."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport4" unique_id=2134310573]
+editor_description = "Virtual camera for the fourth view of this mirror inside other mirrors."
+process_priority = 1
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+
+[node name="ReflectedViewport5" type="SubViewport" parent="." unique_id=1642709114]
+editor_description = "Fifth view of this mirror as seen from inside another mirror, including views of deeper nesting (see the mirror render depth project setting)."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport5" unique_id=2134310574]
+editor_description = "Virtual camera for the fifth view of this mirror inside other mirrors."
+process_priority = 1
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+
+[node name="ReflectedViewport6" type="SubViewport" parent="." unique_id=1642709115]
+editor_description = "Sixth view of this mirror as seen from inside another mirror, including views of deeper nesting (see the mirror render depth project setting)."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport6" unique_id=2134310575]
+editor_description = "Virtual camera for the sixth view of this mirror inside other mirrors."
+process_priority = 1
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+
+[node name="ReflectedViewport7" type="SubViewport" parent="." unique_id=1642709116]
+editor_description = "Seventh view of this mirror as seen from inside other mirrors. Only used when several mirrors show this one at the same time, or when mirrors are drawn many levels deep."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport7" unique_id=2134310576]
+editor_description = "Virtual camera for the seventh view of this mirror inside other mirrors."
+process_priority = 1
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+
+[node name="ReflectedViewport8" type="SubViewport" parent="." unique_id=1642709117]
+editor_description = "Eighth view of this mirror as seen from inside other mirrors. Only used when several mirrors show this one at the same time, or when mirrors are drawn many levels deep."
+use_occlusion_culling = true
+canvas_cull_mask = 4294442495
+size = Vector2i(400, 400)
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera3D" parent="ReflectedViewport8" unique_id=2134310577]
+editor_description = "Virtual camera for the eighth view of this mirror inside other mirrors."
+process_priority = 1
+keep_aspect = 0
+cull_mask = 1024
+projection = 2
+current = true
+
 [node name="Quad" type="MeshInstance3D" parent="." unique_id=801796927]
 editor_description = "The mirror surface seen directly by the player (Render Layer 10)."
 layers = 512

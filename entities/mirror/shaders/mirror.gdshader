@@ -18,32 +18,45 @@ uniform float border_thickness : hint_range(0.0, 1.0) = 0.2; // size of border
 uniform float smoothness : hint_range(0.001, 3.0) = 1.5; // fade softness
 
 // --- Reflected views (glass seen inside other mirrors) ---
-// One view per outer mirror. Slot 0 uses mirror_texture_* and border_color.
-// Each slot remembers the outer mirror camera it was rendered for, and the glass
-// shows the slot whose camera matches the one drawing it.
+// Must match Mirror3D.MAX_REFLECTED_VIEWS.
+const int MAX_REFLECTED_VIEWS = 8;
+// A slot is shown only by the camera it was rendered for, so the camera must sit within this distance.
+const float REFLECTED_MATCH_DISTANCE = 0.001;
+// Each slot remembers the camera that draws it (an outer mirror's camera, or a middle mirror's
+// reflected camera), and the glass shows the slot whose camera matches the one drawing it.
+// Glass drawn by any other camera has no valid view and is hidden.
 uniform bool use_reflected_views = false;
-uniform vec3 reflected_observer_0 = vec3(1e9);
-uniform vec3 reflected_observer_1 = vec3(1e9);
-uniform vec3 reflected_observer_2 = vec3(1e9);
-uniform sampler2D reflected_texture_linear_1 : source_color, filter_linear;
-uniform sampler2D reflected_texture_nearest_1 : source_color, filter_nearest;
-uniform sampler2D reflected_texture_linear_2 : source_color, filter_linear;
-uniform sampler2D reflected_texture_nearest_2 : source_color, filter_nearest;
-uniform vec4 reflected_border_color_1 : source_color = vec4(1.0);
-uniform vec4 reflected_border_color_2 : source_color = vec4(1.0);
+uniform vec3 reflected_observers[MAX_REFLECTED_VIEWS];
+uniform sampler2D reflected_textures[MAX_REFLECTED_VIEWS] : source_color, filter_linear;
+uniform vec4 reflected_border_colors[MAX_REFLECTED_VIEWS] : source_color;
 
-int pick_reflected_view(vec3 camera_position) {
-    int slot = 0;
-    float best = distance(camera_position, reflected_observer_0);
-    float d1 = distance(camera_position, reflected_observer_1);
-    if (d1 < best) {
-        best = d1;
-        slot = 1;
+int find_reflected_view(vec3 camera_position) {
+    for (int i = 0; i < MAX_REFLECTED_VIEWS; i++) {
+        if (distance(camera_position, reflected_observers[i]) <= REFLECTED_MATCH_DISTANCE) {
+            return i;
+        }
     }
-    if (distance(camera_position, reflected_observer_2) < best) {
-        slot = 2;
+    return -1;
+}
+
+vec4 sample_view(sampler2D view, vec2 uv) {
+    if (use_mirror_texture_linear) {
+        return texture(view, uv);
     }
-    return slot;
+    ivec2 view_size = textureSize(view, 0);
+    ivec2 texel = clamp(ivec2(uv * vec2(view_size)), ivec2(0), view_size - ivec2(1));
+    return texelFetch(view, texel, 0);
+}
+
+vec4 sample_reflected_view(int slot, vec2 uv) {
+    if (slot == 0) return sample_view(reflected_textures[0], uv);
+    if (slot == 1) return sample_view(reflected_textures[1], uv);
+    if (slot == 2) return sample_view(reflected_textures[2], uv);
+    if (slot == 3) return sample_view(reflected_textures[3], uv);
+    if (slot == 4) return sample_view(reflected_textures[4], uv);
+    if (slot == 5) return sample_view(reflected_textures[5], uv);
+    if (slot == 6) return sample_view(reflected_textures[6], uv);
+    return sample_view(reflected_textures[7], uv);
 }
 
 void vertex() {
@@ -60,19 +73,15 @@ void fragment() {
     distortion_offset = (distortion_offset * 2.0) - 1.0;
     vec2 distorted_uv = uv + (distortion_offset * distortion_strength / VIEWPORT_SIZE);
 
-    int slot = use_reflected_views ? pick_reflected_view(CAMERA_POSITION_WORLD) : 0;
     vec4 mirror_sample;
     vec4 frame_color = border_color;
-    if (slot == 1) {
-        mirror_sample = use_mirror_texture_linear
-            ? texture(reflected_texture_linear_1, distorted_uv)
-            : texture(reflected_texture_nearest_1, distorted_uv);
-        frame_color = reflected_border_color_1;
-    } else if (slot == 2) {
-        mirror_sample = use_mirror_texture_linear
-            ? texture(reflected_texture_linear_2, distorted_uv)
-            : texture(reflected_texture_nearest_2, distorted_uv);
-        frame_color = reflected_border_color_2;
+    if (use_reflected_views) {
+        int slot = find_reflected_view(CAMERA_POSITION_WORLD);
+        if (slot < 0) {
+            discard;
+        }
+        mirror_sample = sample_reflected_view(slot, distorted_uv);
+        frame_color = reflected_border_colors[slot];
     } else {
         mirror_sample = use_mirror_texture_linear
             ? texture(mirror_texture_linear, distorted_uv)
