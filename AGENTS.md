@@ -23,6 +23,7 @@ Use design glossary terms in code, comments, tests, and docs. If gameplay behavi
 
 - `docs/` — the design document. Godot ignores this folder.
 - `entities/` — gameplay scenes with their own scripts and assets (`mirror`, `player`).
+- `materials/` — materials shared by more than one scene (`pigments/` holds one material per pigment).
 - `prefabs/` — generic scenes without their own scripts.
 - `scripts/` — scripts used by more than one scene.
 - `tests/` — gdUnit4 suites.

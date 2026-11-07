@@ -177,19 +177,19 @@ pigment = 4
 [node name="Door3" parent="Level_01" unique_id=1816540012 instance=ExtResource("5_lm8li")]
 editor_description = "Hidden yellow block in Room 1. Appears in the yellow reveal mirror (Mirror), but not in the blue reveal mirror (Mirror3)."
 transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -0.33931518, 0.49357176, 2.3336284)
-is_invisible = true
+hidden_entity = true
 pigment = 4
 
 [node name="Door4" parent="Level_01" unique_id=1819968735 instance=ExtResource("5_lm8li")]
 editor_description = "Hidden blue block in Room 1. Appears in the blue reveal mirror (Mirror3), but not in the yellow reveal mirror (Mirror)."
 transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -1.45, 0.49357176, 2.3336284)
-is_invisible = true
+hidden_entity = true
 pigment = 2
 
 [node name="Door5" parent="Level_01" unique_id=1823436510 instance=ExtResource("5_lm8li")]
 editor_description = "Hidden green block in Room 1. Invisible in the real world and in single yellow or blue mirrors, and only appears (and becomes solid) inside the mixed green reflection where Mirror and Mirror3 reflect each other."
 transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -0.9, 0.49357176, 1.15)
-is_invisible = true
+hidden_entity = true
 pigment = 3
 
 [node name="Door2" parent="Level_01" unique_id=979869992 instance=ExtResource("5_lm8li")]
@@ -200,7 +200,7 @@ pigment = 4
 [node name="Slope" parent="Level_01" unique_id=368536315 instance=ExtResource("5_lm8li")]
 editor_description = "Hidden yellow ramp in Room 2. Becomes solid so you can walk up it while visible in Mirror4."
 transform = Transform3D(-1.1793111e-08, 4.6006403e-07, -1.8400003, 0.08941895, 3.3800523, -1.438374e-07, 0.044768903, -6.7511306, -1.9740334e-07, 9.901582, 1.4487948, -14.336652)
-is_invisible = true
+hidden_entity = true
 pigment = 4
 
 [node name="Slope2" parent="Level_01" unique_id=441250804 instance=ExtResource("5_lm8li")]

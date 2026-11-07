@@ -153,7 +153,7 @@ func _passes_outer_mirror_gates(entity: PigmentEntity) -> bool:
 	if camera_to_mirror >= _mirror.freeze_distance:
 		return false
 
-	if entity.mesh == null or entity.mesh.mesh == null:
+	if not entity.has_geometry():
 		return false
 
 	return true
@@ -167,7 +167,7 @@ func _passes_chain_gates(entity: PigmentEntity, chain: Array) -> bool:
 	if innermost == null or not is_instance_valid(innermost):
 		return false
 
-	var object_to_inner: float = entity.mesh.global_position.distance_to(
+	var object_to_inner: float = entity.get_world_center().distance_to(
 		innermost.get_mirror_origin()
 	)
 	if object_to_inner > innermost.cull_far:
@@ -185,25 +185,15 @@ func _any_vertex_reflection_visible_along_chain(
 	chain: Array,
 	exclude: Array
 ) -> bool:
-	if entity.mesh == null or entity.mesh.mesh == null:
-		return false
-
 	var target_point: Vector3 = _mirror.player_cam.global_position
-	var mesh: Mesh = entity.mesh.mesh
-	var mesh_transform: Transform3D = entity.mesh.global_transform
-
-	for s: int in range(mesh.get_surface_count()):
-		var arrays: Array = mesh.surface_get_arrays(s)
-		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		for local_vertex: Vector3 in vertices:
-			var world_vertex: Vector3 = mesh_transform * local_vertex
-			if _is_vertex_reflection_visible_along_chain(
-				world_vertex,
-				chain,
-				target_point,
-				exclude
-			):
-				return true
+	for world_vertex: Vector3 in entity.get_link_sample_points():
+		if _is_vertex_reflection_visible_along_chain(
+			world_vertex,
+			chain,
+			target_point,
+			exclude
+		):
+			return true
 	return false
 
 
@@ -333,8 +323,7 @@ func _mirror_quad_aabb() -> AABB:
 
 
 func _reflected_entity_aabb_for_chain(entity: PigmentEntity, chain: Array) -> AABB:
-	var mesh_aabb: AABB = entity.mesh.get_aabb()
-	var current_aabb: AABB = entity.mesh.global_transform * mesh_aabb
+	var current_aabb: AABB = entity.get_world_aabb()
 
 	for m: Mirror3D in chain:
 		var corners: Array[Vector3] = [
@@ -407,14 +396,16 @@ func _track_entity(entity: PigmentEntity, seen: Dictionary) -> void:
 		_stagger_index[entity] = _next_stagger_index
 		_next_stagger_index = (_next_stagger_index + 1) % STAGGER_GROUP_SIZE
 	_exclude_rids[entity] = _build_exclude_rids(entity)
+	var on_colliders_rebuilt: Callable = _on_entity_colliders_rebuilt.bind(entity)
+	if not entity.colliders_rebuilt.is_connected(on_colliders_rebuilt):
+		entity.colliders_rebuilt.connect(on_colliders_rebuilt)
 	_linked_cache[entity] = false
 	_linked_chains_cache[entity] = []
 
 
 func _build_exclude_rids(entity: PigmentEntity) -> Array:
 	var rids: Array = []
-	if entity.static_body:
-		rids.append(entity.static_body.get_rid())
+	rids.append_array(entity.get_collision_rids())
 	if _mirror.player:
 		rids.append(_mirror.player.get_rid())
 	var mirror_body: CollisionObject3D = _find_collision_object(_mirror_quad)
@@ -458,8 +449,13 @@ func _find_collision_object(from_node: Node) -> CollisionObject3D:
 func _on_tree_node_added(node: Node) -> void:
 	if node is PigmentEntity:
 		# Defer until after PigmentEntity._ready() adds the node to the group
-		# and resolves mesh / static_body references.
+		# and resolves its geometry and collider bodies.
 		call_deferred("_refresh_tracked_entities")
+
+
+func _on_entity_colliders_rebuilt(entity: PigmentEntity) -> void:
+	if is_instance_valid(entity) and _exclude_rids.has(entity):
+		_exclude_rids[entity] = _build_exclude_rids(entity)
 
 
 func _on_tree_node_removed(node: Node) -> void:
