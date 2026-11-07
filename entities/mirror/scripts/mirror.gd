@@ -17,6 +17,9 @@ const REFLECTED_MIRROR_LAYER: int = 11
 ## Frame width on a mirror seen inside another mirror. The player's nested reflection
 ## sits on the shared edge, so this stays thinner than that strip.
 const REFLECTED_BORDER_THICKNESS: float = 0.012
+## Minimum perpendicular distance (in meters) from an observer to the mirror plane
+## required to build a non-degenerate off-axis frustum.
+const MIN_PLANE_DISTANCE: float = 0.05
 
 ## Optional specific object to track for mirror interactions. All PigmentEntity nodes in the scene are tracked automatically.
 @export var object_to_reflect: Node3D
@@ -140,8 +143,15 @@ var _reflected_shader_material: ShaderMaterial = null
 func _ready() -> void:
 	if _mirror_quad != null:
 		_mirror_quad.layers = 1 << (DIRECT_MIRROR_LAYER - 1)
+		_mirror_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if _reflected_quad != null:
+		_reflected_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	if not Engine.is_editor_hint():
+		# Scene instances may override res_decrease_distances with tight debug values (e.g. [3, 6, 9]).
+		# Clamp any first threshold below 30 m back to the default [30, 60, 90] so mirrors stay sharp.
+		if not res_decrease_distances.is_empty() and res_decrease_distances[0] < 30.0:
+			res_decrease_distances = [30.0, 60.0, 90.0]
 		_resolve_player_and_camera()
 		_make_runtime_resources_unique()
 	elif _reflected_quad != null:
@@ -271,7 +281,8 @@ func prepare_frame(delta: float) -> bool:
 	else:
 		_direct_update_allowed = true
 
-	_configure_mirror_camera(_mirror_camera, active_camera.global_position, cull_mask, true)
+	if not _configure_mirror_camera(_mirror_camera, active_camera.global_position, cull_mask, true):
+		_direct_update_allowed = false
 	return true
 
 
@@ -302,7 +313,9 @@ func configure_reflected_view(
 	if _reflected_viewport.size != _reflected_viewport_size:
 		_reflected_viewport.size = _reflected_viewport_size
 
-	_configure_mirror_camera(_reflected_camera, observer_position, cull_mask_override, allow_nested_layer)
+	if not _configure_mirror_camera(_reflected_camera, observer_position, cull_mask_override, allow_nested_layer):
+		_reflected_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		return
 	if _reflected_quad != null:
 		_reflected_quad.visible = true
 	_reflected_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -322,7 +335,7 @@ func freeze_reflected_view(keep_quad_visible: bool) -> void:
 func set_direct_viewport_active(active: bool, force_ignore_max_fps: bool = false) -> void:
 	if _mirror_viewport == null or not is_instance_valid(_mirror_viewport):
 		return
-	var should_render: bool = (active and (_direct_update_allowed or force_ignore_max_fps)) or not _has_rendered_direct
+	var should_render: bool = active and (_direct_update_allowed or force_ignore_max_fps or not _has_rendered_direct)
 	if should_render:
 		if _mirror_viewport.size != _target_viewport_size:
 			_mirror_viewport.size = _target_viewport_size
@@ -375,9 +388,9 @@ func _configure_mirror_camera(
 	observer_position: Vector3,
 	mask: int,
 	allow_nested_layer: bool
-) -> void:
+) -> bool:
 	if target_camera == null or _mirror_quad == null:
-		return
+		return false
 
 	target_camera.cull_mask = mask
 	target_camera.set_cull_mask_value(REFLECTED_MIRROR_LAYER, allow_nested_layer)
@@ -386,8 +399,8 @@ func _configure_mirror_camera(
 	var quad_pos: Vector3 = _mirror_quad.global_position
 	var mirror_normal: Vector3 = _mirror_quad.global_basis.z.normalized()
 	var signed_distance: float = (observer_position - quad_pos).dot(mirror_normal)
-	if absf(signed_distance) <= 0.001:
-		return
+	if absf(signed_distance) <= MIN_PLANE_DISTANCE:
+		return false
 
 	var mirror_transform: Transform3D = get_mirror_transform(mirror_normal, quad_pos)
 	var reflected_pos: Vector3 = mirror_transform * observer_position
@@ -403,8 +416,8 @@ func _configure_mirror_camera(
 
 	var camera_to_mirror_offset: Vector3 = quad_pos - target_camera.global_position
 	var proj_distance: float = absf(camera_to_mirror_offset.dot(mirror_normal))
-	if proj_distance <= 0.001:
-		return
+	if proj_distance <= MIN_PLANE_DISTANCE:
+		return false
 	var near: float = maxf(proj_distance + cull_near, 0.05)
 	var far: float = camera_to_mirror_offset.length() + cull_far
 	if far <= near:
@@ -416,6 +429,7 @@ func _configure_mirror_camera(
 	var world_size: Vector2 = get_world_size()
 	# Keep-width frustum: size is the near-plane width. Height follows the viewport aspect.
 	target_camera.set_frustum(world_size.x * frustum_scale, frustum_offset, near, far)
+	return true
 
 
 func _resolve_player_and_camera() -> void:
@@ -477,6 +491,7 @@ func _make_runtime_resources_unique() -> void:
 
 	_reflected_quad.transform = _mirror_quad.transform
 	_reflected_quad.layers = 1 << (REFLECTED_MIRROR_LAYER - 1)
+	_reflected_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_reflected_quad.visible = false
 	if _reflected_quad.mesh != null and _reflected_quad.mesh != _mirror_quad.mesh:
 		_reflected_quad.mesh = _reflected_quad.mesh.duplicate()

@@ -7,13 +7,49 @@ extends Node
 ## Maximum number of mirror bounces supported for rendering and interaction chains.
 const MAX_REFLECTION_BOUNCES: int = 3
 const PLANE_EPSILON: float = 0.001
+## Extra visibility margin (in meters) applied to shadow casters so off-axis mirror cameras
+## never cull shadow casters whose shadows fall onto the mirror glass.
+const OFF_AXIS_SHADOW_CASTER_MARGIN: float = 25.0
 
 var _mirrors: Array[Mirror3D] = []
 var _chains_by_outer: Dictionary[Mirror3D, Array] = {}
 var _last_process_frame: int = -1
 var _last_graph_physics_frame: int = -1
-var _turn_outer_index: int = 0
-var _turn_phase: int = 0
+var _tree_connected: bool = false
+
+
+func _ready() -> void:
+	if Engine.is_editor_hint():
+		return
+	var tree := get_tree()
+	if tree != null and not _tree_connected:
+		tree.node_added.connect(_on_scene_node_added)
+		_tree_connected = true
+	call_deferred("_configure_scene_shadow_casters")
+
+
+func _on_scene_node_added(node: Node) -> void:
+	if node is GeometryInstance3D:
+		_apply_shadow_caster_margin(node as GeometryInstance3D)
+
+
+func _configure_scene_shadow_casters() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	for node: Node in tree.root.find_children("*", "GeometryInstance3D", true, false):
+		_apply_shadow_caster_margin(node as GeometryInstance3D)
+
+
+func _apply_shadow_caster_margin(geom: GeometryInstance3D) -> void:
+	if geom == null or not is_instance_valid(geom):
+		return
+	if geom.name == &"Quad" or geom.name == &"ReflectedQuad":
+		return
+	if geom.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+		return
+	if geom.extra_cull_margin < OFF_AXIS_SHADOW_CASTER_MARGIN:
+		geom.extra_cull_margin = OFF_AXIS_SHADOW_CASTER_MARGIN
 
 
 func _process(delta: float) -> void:

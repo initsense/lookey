@@ -98,7 +98,6 @@ func _evaluate_entity(entity: PigmentEntity) -> void:
 	if should_raycast:
 		is_linked = false
 		linked_chains = []
-		var has_eligible_linked: bool = false
 		for chain: Array in valid_chains:
 			var chain_eligible: bool = _is_entity_eligible_for_chain(entity, chain)
 			if is_linked and not chain_eligible:
@@ -108,7 +107,6 @@ func _evaluate_entity(entity: PigmentEntity) -> void:
 				is_linked = true
 				linked_chains.append(chain)
 				if chain_eligible:
-					has_eligible_linked = true
 					break
 
 	_report_link_state(entity, is_linked, linked_chains)

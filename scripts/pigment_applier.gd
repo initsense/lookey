@@ -202,14 +202,14 @@ func _intersect_shape(collision_mask: int) -> Array[Dictionary]:
 	query.collide_with_bodies = true
 
 	var source_shape: Shape3D = collision_shape.shape
-	var global_basis: Basis = collision_shape.global_basis
-	var scale: Vector3 = global_basis.get_scale()
-	query.transform = Transform3D(global_basis.orthonormalized(), collision_shape.global_position)
+	var shape_basis: Basis = collision_shape.global_basis
+	var shape_scale: Vector3 = shape_basis.get_scale()
+	query.transform = Transform3D(shape_basis.orthonormalized(), collision_shape.global_position)
 
 	if source_shape is BoxShape3D:
 		if _query_shape == null:
 			_query_shape = BoxShape3D.new()
-		_query_shape.size = (source_shape as BoxShape3D).size * scale.abs()
+		_query_shape.size = (source_shape as BoxShape3D).size * shape_scale.abs()
 		query.shape = _query_shape
 	else:
 		query.shape = source_shape
@@ -224,8 +224,8 @@ func _push_player_out(player: CharacterBody3D) -> void:
 		return
 
 	var box: BoxShape3D = collision_shape.shape as BoxShape3D
-	var scale: Vector3 = collision_shape.global_basis.get_scale().abs()
-	var half_extents: Vector3 = box.size * scale * 0.5
+	var shape_scale: Vector3 = collision_shape.global_basis.get_scale().abs()
+	var half_extents: Vector3 = box.size * shape_scale * 0.5
 	var local_player: Vector3 = (
 		collision_shape.global_transform.affine_inverse() * player.global_position
 	)
