@@ -71,14 +71,14 @@ near = 1.2308743
 far = 51.953
 
 [node name="ReflectedViewport" type="SubViewport" parent="." unique_id=1642709110]
-editor_description = "Renders the reflection of this mirror as seen from inside another mirror, using the outer mirror's reveal or dissolve rules."
+editor_description = "Renders the reflection of this mirror as seen from inside another mirror, combining both mirrors' pigments with RYB additive mixing."
 use_occlusion_culling = true
 canvas_cull_mask = 4294442495
 size = Vector2i(400, 400)
 render_target_update_mode = 0
 
 [node name="Camera" type="Camera3D" parent="ReflectedViewport" unique_id=2134310570]
-editor_description = "Virtual camera used when another mirror reflects this mirror, matching the outer mirror's viewpoint and visibility layers."
+editor_description = "Virtual camera used when another mirror reflects this mirror, using the outer mirror's viewpoint and the mixed pigment's visibility layers."
 process_priority = 1
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.392988, 0.69233525, -1.1808743)
 keep_aspect = 0

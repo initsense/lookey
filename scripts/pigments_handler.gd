@@ -57,6 +57,49 @@ const COLORS: Dictionary[Pigment, Color] = {
 }
 
 
+## 3-bit RYB primary color mask for each pigment (Red = 1, Yellow = 2, Blue = 4).
+const PRIMARY_BITS: Dictionary[Pigment, int] = {
+	Pigment.RED: 0b001,
+	Pigment.YELLOW: 0b010,
+	Pigment.BLUE: 0b100,
+	Pigment.ORANGE: 0b011,
+	Pigment.GREEN: 0b110,
+	Pigment.VIOLET: 0b101,
+	Pigment.WHITE: 0b111,
+}
+
+
+## Maps a 3-bit RYB primary color mask back to its matching Pigment.
+const BITS_TO_PIGMENT: Dictionary[int, Pigment] = {
+	0b001: Pigment.RED,
+	0b010: Pigment.YELLOW,
+	0b100: Pigment.BLUE,
+	0b011: Pigment.ORANGE,
+	0b110: Pigment.GREEN,
+	0b101: Pigment.VIOLET,
+	0b111: Pigment.WHITE,
+}
+
+
+## Combines two pigments using RYB additive color mixing (for example, Yellow + Blue = Green).
+static func mix_pigments(a: Pigment, b: Pigment) -> Pigment:
+	var combined_bits: int = PRIMARY_BITS.get(a, 0b111) | PRIMARY_BITS.get(b, 0b111)
+	return BITS_TO_PIGMENT.get(combined_bits, Pigment.WHITE)
+
+
+## Combines the pigments of all mirrors along a reflection chain [innermost, ..., outer].
+static func mix_mirror_chain_pigment(chain: Array) -> Pigment:
+	if chain.is_empty():
+		return Pigment.WHITE
+	var first_mirror: Object = chain[0]
+	var mixed: Pigment = first_mirror.get(&"pigment") as Pigment if first_mirror != null else Pigment.WHITE
+	for i: int in range(1, chain.size()):
+		var next_mirror: Object = chain[i]
+		if next_mirror != null:
+			mixed = mix_pigments(mixed, next_mirror.get(&"pigment") as Pigment)
+	return mixed
+
+
 ## Returns true when the mirror pigment can affect the entity pigment.
 static func is_compatible(mirror_pigment: Pigment, entity_pigment: Pigment) -> bool:
 	return (

@@ -11,7 +11,7 @@ editor_description = "Main tutorial level demonstrating reveal mirrors, dissolve
 
 [node name="Player" parent="." unique_id=713571688 instance=ExtResource("1_j872f")]
 editor_description = "First-person player character starting in Room 1 in front of the tutorial mirrors."
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.41185856, 0.26913548, -0.5041652)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 1.6403465, 0.26913548, 0.015626907)
 
 [node name="Environment" type="Node" parent="." unique_id=821477724]
 
@@ -32,7 +32,7 @@ transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
 [node name="Level_01" type="Node3D" parent="." unique_id=385093112]
 
 [node name="Mirror" parent="Level_01" unique_id=715169890 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
-editor_description = "Yellow Reveal mirror on the North wall of Room 1. Reveals hidden yellow objects (like Door3) directly and when reflecting other mirrors."
+editor_description = "Yellow Reveal mirror on the North wall of Room 1. Reveals hidden yellow objects (like Door3) directly, and mixes with the blue mirror (Mirror3) to become a green reveal mirror in nested reflections."
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.585005, 3.702)
 player = NodePath("../../Player")
 pigment = 4
@@ -42,7 +42,7 @@ size = Vector2(6, 3)
 max_fps = 120.0
 
 [node name="Mirror3" parent="Level_01" unique_id=521782427 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
-editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door4) directly and when reflecting other mirrors."
+editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.9587765, 1.585005, 1.6288898)
 player = NodePath("../../Player")
 pigment = 2
@@ -185,6 +185,12 @@ editor_description = "Hidden blue block in Room 1. Appears in the blue reveal mi
 transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -1.45, 0.49357176, 2.3336284)
 is_invisible = true
 pigment = 2
+
+[node name="Door5" parent="Level_01" unique_id=1823436510 instance=ExtResource("5_lm8li")]
+editor_description = "Hidden green block in Room 1. Invisible in the real world and in single yellow or blue mirrors, and only appears (and becomes solid) inside the mixed green reflection where Mirror and Mirror3 reflect each other."
+transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -0.9, 0.49357176, 1.15)
+is_invisible = true
+pigment = 3
 
 [node name="Door2" parent="Level_01" unique_id=979869992 instance=ExtResource("5_lm8li")]
 editor_description = "Visible yellow door between the corridor and Room 2. Dissolves when seen in Mirror2."

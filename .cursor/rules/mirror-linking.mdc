@@ -15,9 +15,9 @@ An entity is **linked** to the player when some portion of its reflected geometr
 
 - **Render-independent target**: evaluate linking independently of whether the mirror renders that entity (a dissolved entity can stay linked).
 - **Nested reflections**: linking works across any chain of visible mirrors (`Mirror A` reflects `Mirror B` reflects entity). Depth does not invalidate the link.
-- **Each mirror's glass**: a mirror reveals or dissolves its own compatible entities in its glass, including when that glass is seen inside another mirror. The viewpoint is the outer mirror's optical multi-bounce camera.
-- **Outer-mirror room**: the rest of what appears inside `Mirror A`, and what occludes or becomes affected through `Mirror A`, is governed by `Mirror A`'s own pigment and mirror type.
-- **Render-dependent occlusion**: along the reflection path, a link is blocked only by entities currently visible (rendered) in the reflected-world of the outer mirror being evaluated.
+- **Additive mirror mixing in nested glass**: when `Mirror B` is seen inside `Mirror A`, `Mirror B`'s reflected glass uses the RYB additive mix of `Mirror B` and `Mirror A`'s pigments (`Pigments.mix_pigments`) while keeping `Mirror B`'s own mirror type (`REVEAL` or `DISSOLVE`), and its reflected frame displays that mixed pigment color. The viewpoint is the outer mirror's optical multi-bounce camera.
+- **Outer-mirror room**: the direct 1-bounce room inside `Mirror A` uses `Mirror A`'s own pigment and mirror type.
+- **Render-dependent occlusion**: along each segment of a reflection path, a link is blocked only by entities currently visible (rendered) in the reflected-world of the sub-chain governing that segment (using that sub-chain's mixed pigment and innermost mirror type).
 - An entity not rendered in a mirror must not occlude others in that mirror's reflected-world (e.g. dissolved manifest in front of a hidden object does not block the hidden link).
 - One or many entities can be linked through the same mirror at once.
 - Do not treat "on screen notifier alone" or "rendered in mirror" as the definition of linked; the design requires reflected geometry reaching the player without rendered occlusion.

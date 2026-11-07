@@ -114,6 +114,7 @@ var layer_to_affect: int = 1
 
 var _pigment_dirty: bool = true
 var _config_dirty: bool = true
+var _reflected_pigment: Pigments.Pigment = Pigments.Pigment.WHITE
 var _current_resolution_scale: float = -1.0
 var _target_viewport_size: Vector2i = Vector2i(400, 400)
 var _reflected_viewport_size: Vector2i = Vector2i(400, 400)
@@ -275,17 +276,25 @@ func prepare_frame(delta: float) -> bool:
 
 
 ## Configures the secondary reflection viewport so another mirror can see this glass.
-## The viewpoint comes from that outer mirror. The layers stay this mirror's own reveal/dissolve rules.
+## The viewpoint comes from that outer mirror, and the glass uses the additive pigment mix of both mirrors.
 func configure_reflected_view(
 	observer_position: Vector3,
 	cull_mask_override: int,
-	allow_nested_layer: bool = false
+	allow_nested_layer: bool = false,
+	reflected_pigment: int = -1
 ) -> void:
 	if _pigment_dirty:
 		_apply_pigment()
+	_reflected_pigment = (reflected_pigment as Pigments.Pigment) if reflected_pigment >= 0 else pigment
 	if _config_dirty:
 		_config_dirty = false
 		_apply_mirror_config()
+
+	if _reflected_shader_material != null:
+		_reflected_shader_material.set_shader_parameter(
+			&"border_color",
+			Pigments.COLORS[_reflected_pigment]
+		)
 
 	if _reflected_camera == null or _reflected_viewport == null:
 		return
@@ -482,6 +491,7 @@ func _make_runtime_resources_unique() -> void:
 ## Updates the mirror's target layer, camera cull mask, and frame color to match its pigment and type.
 func _apply_pigment() -> void:
 	_pigment_dirty = false
+	_reflected_pigment = pigment
 	layer_to_affect = Pigments.get_entity_layer(
 		pigment,
 		mirror_type == MirrorType.REVEAL
@@ -495,7 +505,7 @@ func _apply_pigment() -> void:
 	if _shader_material != null:
 		_shader_material.set_shader_parameter(&"border_color", Pigments.COLORS[pigment])
 	if _reflected_shader_material != null:
-		_reflected_shader_material.set_shader_parameter(&"border_color", Pigments.COLORS[pigment])
+		_reflected_shader_material.set_shader_parameter(&"border_color", Pigments.COLORS[_reflected_pigment])
 
 
 func _update_resolution_scale(distance_from_camera: float) -> void:
@@ -558,6 +568,10 @@ func _apply_mirror_config() -> void:
 	if _reflected_viewport != null and _reflected_shader_material != null:
 		var reflected_tex: ViewportTexture = _reflected_viewport.get_texture()
 		_apply_shader_parameters(_reflected_shader_material, reflected_tex)
+		_reflected_shader_material.set_shader_parameter(
+			&"border_color",
+			Pigments.COLORS[_reflected_pigment]
+		)
 		_reflected_shader_material.set_shader_parameter(&"border_thickness", REFLECTED_BORDER_THICKNESS)
 		_reflected_shader_material.set_shader_parameter(&"smoothness", 0.35)
 

@@ -16,6 +16,7 @@ var is_mirror_visible: bool = false
 
 var _tracked_entities: Array[PigmentEntity] = []
 var _linked_cache: Dictionary[PigmentEntity, bool] = {}
+var _linked_chains_cache: Dictionary[PigmentEntity, Array] = {}
 var _stagger_index: Dictionary[PigmentEntity, int] = {}
 var _exclude_rids: Dictionary[PigmentEntity, Array] = {}
 var _tree_connected: bool = false
@@ -36,6 +37,7 @@ func _exit_tree() -> void:
 			entity.clear_mirror_link_state(_mirror)
 	_tracked_entities.clear()
 	_linked_cache.clear()
+	_linked_chains_cache.clear()
 	_stagger_index.clear()
 	_exclude_rids.clear()
 
@@ -67,7 +69,7 @@ func _physics_process(_delta: float) -> void:
 
 func _evaluate_entity(entity: PigmentEntity) -> void:
 	if not _passes_outer_mirror_gates(entity):
-		_report_link_state(entity, false)
+		_report_link_state(entity, false, [])
 		return
 
 	var candidate_chains: Array = MirrorManager.get_chains_for_outer_mirror(_mirror)
@@ -80,7 +82,7 @@ func _evaluate_entity(entity: PigmentEntity) -> void:
 			valid_chains.append(chain)
 
 	if valid_chains.is_empty():
-		_report_link_state(entity, false)
+		_report_link_state(entity, false, [])
 		return
 
 	var previously_linked: bool = _linked_cache.get(entity, false)
@@ -92,28 +94,52 @@ func _evaluate_entity(entity: PigmentEntity) -> void:
 	)
 
 	var is_linked: bool = previously_linked
+	var linked_chains: Array = _linked_chains_cache.get(entity, [])
 	if should_raycast:
 		is_linked = false
+		linked_chains = []
+		var has_eligible_linked: bool = false
 		for chain: Array in valid_chains:
+			var chain_eligible: bool = _is_entity_eligible_for_chain(entity, chain)
+			if is_linked and not chain_eligible:
+				continue
 			var chain_exclude: Array = _build_chain_exclude_rids(entity, chain)
 			if _any_vertex_reflection_visible_along_chain(entity, chain, chain_exclude):
 				is_linked = true
-				break
+				linked_chains.append(chain)
+				if chain_eligible:
+					has_eligible_linked = true
+					break
 
-	_report_link_state(entity, is_linked)
+	_report_link_state(entity, is_linked, linked_chains)
 
 
-func _report_link_state(entity: PigmentEntity, is_linked: bool) -> void:
+func _report_link_state(entity: PigmentEntity, is_linked: bool, linked_chains: Array) -> void:
 	_linked_cache[entity] = is_linked
+	_linked_chains_cache[entity] = linked_chains if is_linked else []
 	var is_affected: bool = false
 	if is_linked:
-		is_affected = Pigments.is_entity_eligible(
-			_mirror.pigment,
-			_mirror.mirror_type == Mirror3D.MirrorType.REVEAL,
-			entity.pigment,
-			entity.is_hidden_entity()
-		)
+		for chain: Array in linked_chains:
+			if _is_entity_eligible_for_chain(entity, chain):
+				is_affected = true
+				break
 	entity.set_mirror_link_state(_mirror, is_linked, is_affected)
+
+
+func _is_entity_eligible_for_chain(entity: PigmentEntity, chain: Array) -> bool:
+	if chain.is_empty():
+		return false
+	var innermost: Mirror3D = chain[0] as Mirror3D
+	if innermost == null or not is_instance_valid(innermost):
+		return false
+	var chain_pigment: Pigments.Pigment = Pigments.mix_mirror_chain_pigment(chain)
+	var is_reveal: bool = innermost.mirror_type == Mirror3D.MirrorType.REVEAL
+	return Pigments.is_entity_eligible(
+		chain_pigment,
+		is_reveal,
+		entity.pigment,
+		entity.is_hidden_entity()
+	)
 
 
 func _passes_outer_mirror_gates(entity: PigmentEntity) -> bool:
@@ -233,20 +259,34 @@ func _is_vertex_reflection_visible_along_chain(
 		receiver_point = q
 		idx -= 1
 
-	# 3. Check occlusion along all reflected segments using the outer mirror's reflected-world mask,
-	# and along the final mirror-to-player segment using the real-world mask.
-	var reflected_mask: int = _mirror.cull_mask & Pigments.REFLECTED_OCCLUSION_MASK
-	if _raycast_blocked(world_vertex, bounce_points[0], reflected_mask, exclude):
+	# 3. Check occlusion along each reflected segment using that sub-chain's mixed pigment
+	# and innermost mirror type, and along the final mirror-to-player segment using the real-world mask.
+	var first_segment_mask: int = _compute_segment_occlusion_mask(chain, 0)
+	if _raycast_blocked(world_vertex, bounce_points[0], first_segment_mask, exclude):
 		return false
 
 	for i: int in range(count - 1):
-		if _raycast_blocked(bounce_points[i], bounce_points[i + 1], reflected_mask, exclude):
+		var segment_mask: int = _compute_segment_occlusion_mask(chain, i + 1)
+		if _raycast_blocked(bounce_points[i], bounce_points[i + 1], segment_mask, exclude):
 			return false
 
 	if _raycast_blocked(bounce_points[count - 1], target_point, Pigments.REAL_WORLD_OCCLUSION_MASK, exclude):
 		return false
 
 	return true
+
+
+func _compute_segment_occlusion_mask(chain: Array, start_index: int) -> int:
+	var sub_chain: Array = chain.slice(start_index)
+	if sub_chain.is_empty():
+		return _mirror.cull_mask & Pigments.REFLECTED_OCCLUSION_MASK
+	var segment_mirror: Mirror3D = sub_chain[0] as Mirror3D
+	if segment_mirror == null or not is_instance_valid(segment_mirror):
+		return _mirror.cull_mask & Pigments.REFLECTED_OCCLUSION_MASK
+	var mixed_pigment: Pigments.Pigment = Pigments.mix_mirror_chain_pigment(sub_chain)
+	var is_reveal: bool = segment_mirror.mirror_type == Mirror3D.MirrorType.REVEAL
+	var mask: int = Pigments.compute_mirror_cull_mask(mixed_pigment, is_reveal)
+	return mask & Pigments.REFLECTED_OCCLUSION_MASK
 
 
 func _is_point_within_mirror_bounds(world_point: Vector3, mirror: Mirror3D) -> bool:
@@ -370,6 +410,7 @@ func _track_entity(entity: PigmentEntity, seen: Dictionary) -> void:
 		_next_stagger_index = (_next_stagger_index + 1) % STAGGER_GROUP_SIZE
 	_exclude_rids[entity] = _build_exclude_rids(entity)
 	_linked_cache[entity] = false
+	_linked_chains_cache[entity] = []
 
 
 func _build_exclude_rids(entity: PigmentEntity) -> Array:
@@ -428,6 +469,7 @@ func _on_tree_node_removed(node: Node) -> void:
 		var entity := node as PigmentEntity
 		_tracked_entities.erase(entity)
 		_linked_cache.erase(entity)
+		_linked_chains_cache.erase(entity)
 		_stagger_index.erase(entity)
 		_exclude_rids.erase(entity)
 
