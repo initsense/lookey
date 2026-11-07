@@ -27,7 +27,7 @@ directional_shadow_split_1 = 0.75
 directional_shadow_max_distance = 80.0
 
 [node name="platform" parent="Environment" unique_id=546221425 instance=ExtResource("6_2gg3i")]
-transform = Transform3D(1, 0, 0, 0, 0.9990669, 0.04318914, 0, -0.04318914, 0.9990669, 0.003972411, -0.0058517456, -0.0014698505)
+transform = Transform3D(1, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, 0.0029405355, -0.02006054, -0.0020005703)
 
 [node name="Level_01" type="Node3D" parent="." unique_id=385093112]
 
