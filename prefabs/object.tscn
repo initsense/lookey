@@ -1,10 +1,8 @@
 [gd_scene format=3 uid="uid://byvywowoqfw7e"]
 
-[ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://scripts/pigment_applier.gd" id="1_lp5j1"]
+[ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://scripts/pigment_entity.gd" id="1_lp5j1"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_07h2l"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_niaei"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_jcxak"]
 
@@ -15,7 +13,6 @@ script = ExtResource("1_lp5j1")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=241916071]
 editor_description = "Displays the 3D shape and pigment color of this object on the matching render layer."
 mesh = SubResource("BoxMesh_07h2l")
-surface_material_override/0 = SubResource("StandardMaterial3D_niaei")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="MeshInstance3D" unique_id=99576839]
 editor_description = "Physics body that blocks the player when this object is solid and active."

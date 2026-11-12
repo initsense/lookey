@@ -121,6 +121,10 @@ fov_decrease={
 3d_physics/layer_18="orange_invisible"
 3d_physics/layer_19="white_invisible"
 
+[lookey]
+
+mirrors/max_render_depth=3
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
@@ -128,4 +132,6 @@ fov_decrease={
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true
+lights_and_shadows/directional_shadow/size=8192
+lights_and_shadows/tighter_shadow_caster_culling=false
 occlusion_culling/use_occlusion_culling=true

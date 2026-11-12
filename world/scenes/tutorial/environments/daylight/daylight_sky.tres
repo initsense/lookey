@@ -1,6 +1,9 @@
 [gd_resource type="Sky" format=3 uid="uid://b3thto2xbx7vl"]
 
-[ext_resource type="Material" uid="uid://crc2authst76d" path="res://world/scenes/tutorial/environments/daylight/daylight_material.tres" id="1_rf2b7"]
+[ext_resource type="Texture2D" uid="uid://c1gdam7xgnt0n" path="res://textures/AdobeStock_111672131_dark.jpg" id="1_ymet5"]
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_6sdc1"]
+panorama = ExtResource("1_ymet5")
 
 [resource]
-sky_material = ExtResource("1_rf2b7")
+sky_material = SubResource("PanoramaSkyMaterial_6sdc1")

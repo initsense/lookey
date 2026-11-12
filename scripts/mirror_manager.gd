@@ -4,16 +4,69 @@ extends Node
 ## with additive RYB pigment mixing, and schedules viewport updates so reflections
 ## never flicker.
 
-## Maximum number of mirror bounces supported for rendering and interaction chains.
-const MAX_REFLECTION_BOUNCES: int = 3
+## Project setting (Project Settings > Lookey > Mirrors) that picks how many mirrors deep nested
+## mirrors are drawn. 1 draws no nested mirrors, 2 draws a mirror inside a mirror, 3 draws one more level, and so on.
+const RENDER_DEPTH_SETTING: String = "lookey/mirrors/max_render_depth"
+## Render depth used when the project setting is missing.
+const DEFAULT_RENDER_DEPTH: int = 3
+## Deepest render depth that can be picked. Each mirror has Mirror3D.MAX_REFLECTED_VIEWS reflected views to share,
+## and every extra level adds more views to render, so deeper settings cost a lot of GPU time.
+const MAX_RENDER_DEPTH: int = 5
+## Chains of mirrors this deep are always built for linking, even when fewer levels are drawn,
+## so a graphics setting never changes which entities are linked.
+const MIN_LINK_DEPTH: int = 3
 const PLANE_EPSILON: float = 0.001
+## Extra visibility margin (in meters) applied to shadow casters so off-axis mirror cameras
+## never cull shadow casters whose shadows fall onto the mirror glass.
+const OFF_AXIS_SHADOW_CASTER_MARGIN: float = 25.0
+
+## How many mirrors deep nested mirrors are drawn (1 to MAX_RENDER_DEPTH). Starts from the
+## project setting and can be changed while the game runs.
+var render_depth: int = DEFAULT_RENDER_DEPTH:
+	set(value):
+		render_depth = clampi(value, 1, MAX_RENDER_DEPTH)
+		_invalidate_frame_cache()
 
 var _mirrors: Array[Mirror3D] = []
 var _chains_by_outer: Dictionary[Mirror3D, Array] = {}
 var _last_process_frame: int = -1
 var _last_graph_physics_frame: int = -1
-var _turn_outer_index: int = 0
-var _turn_phase: int = 0
+var _tree_connected: bool = false
+
+
+func _ready() -> void:
+	if Engine.is_editor_hint():
+		return
+	render_depth = int(ProjectSettings.get_setting(RENDER_DEPTH_SETTING, DEFAULT_RENDER_DEPTH))
+	var tree := get_tree()
+	if tree != null and not _tree_connected:
+		tree.node_added.connect(_on_scene_node_added)
+		_tree_connected = true
+	call_deferred("_configure_scene_shadow_casters")
+
+
+func _on_scene_node_added(node: Node) -> void:
+	if node is GeometryInstance3D:
+		_apply_shadow_caster_margin(node as GeometryInstance3D)
+
+
+func _configure_scene_shadow_casters() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	for node: Node in tree.root.find_children("*", "GeometryInstance3D", true, false):
+		_apply_shadow_caster_margin(node as GeometryInstance3D)
+
+
+func _apply_shadow_caster_margin(geom: GeometryInstance3D) -> void:
+	if geom == null or not is_instance_valid(geom):
+		return
+	if geom.name == &"Quad" or geom.name == &"ReflectedQuad":
+		return
+	if geom.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+		return
+	if geom.extra_cull_margin < OFF_AXIS_SHADOW_CASTER_MARGIN:
+		geom.extra_cull_margin = OFF_AXIS_SHADOW_CASTER_MARGIN
 
 
 func _process(delta: float) -> void:
@@ -62,7 +115,7 @@ func refresh_now() -> void:
 	_update_all_mirrors(0.0)
 
 
-## Returns all valid reflection chains ending at outer_mirror (from 1-bounce up to MAX_REFLECTION_BOUNCES).
+## Returns all valid reflection chains ending at outer_mirror (from 1-bounce up to the chain depth).
 ## Each chain is ordered from innermost mirror to outer_mirror: [M_1, ..., outer_mirror].
 func get_chains_for_outer_mirror(outer_mirror: Mirror3D) -> Array:
 	if outer_mirror == null or not is_instance_valid(outer_mirror):
@@ -128,77 +181,141 @@ func _rebuild_reflection_chains(active_mirrors: Array[Mirror3D]) -> void:
 
 		var cam_pos: Vector3 = cam.global_position
 
-		# 2-mirror chains: [inner, outer]
-		if MAX_REFLECTION_BOUNCES >= 2:
-			for inner: Mirror3D in active_mirrors:
-				if inner == outer:
-					continue
-				var chain_2: Array[Mirror3D] = [inner, outer]
-				if _is_chain_geometrically_valid(chain_2, cam_pos):
-					chains.append(chain_2)
-
-		# 3-mirror chains: [innermost, middle, outer]
-		if MAX_REFLECTION_BOUNCES >= 3:
-			var two_bounce_chains: Array = chains.duplicate()
-			for existing: Array in two_bounce_chains:
-				if existing.size() != 2:
-					continue
-				var middle: Mirror3D = existing[0]
+		# Longer chains: [inner, ..., outer]. Each chain extends a valid chain one size shorter
+		# by putting one more mirror in front of its innermost mirror.
+		var shorter_chains: Array = [chains[0]]
+		for chain_size: int in range(2, _get_chain_depth() + 1):
+			var longer_chains: Array = []
+			for existing: Array in shorter_chains:
 				for innermost: Mirror3D in active_mirrors:
-					if innermost == middle:
+					if innermost == existing[0]:
 						continue
-					var chain_3: Array[Mirror3D] = [innermost, middle, outer]
-					if _is_chain_geometrically_valid(chain_3, cam_pos):
-						chains.append(chain_3)
+					var chain: Array[Mirror3D] = [innermost]
+					chain.append_array(existing)
+					if _is_chain_geometrically_valid(chain, cam_pos):
+						longer_chains.append(chain)
+			chains.append_array(longer_chains)
+			shorter_chains = longer_chains
 
 		_chains_by_outer[outer] = chains
 
 
-func _schedule_viewports(active_mirrors: Array[Mirror3D]) -> void:
-	var outer_mirrors_with_nesting: Array[Mirror3D] = []
-	var inner_to_outer: Dictionary[Mirror3D, Mirror3D] = {}
-	var inner_best_score: Dictionary[Mirror3D, float] = {}
+## Longest chain of mirrors built for linking and drawing.
+func _get_chain_depth() -> int:
+	return maxi(render_depth, MIN_LINK_DEPTH)
 
+
+func _schedule_viewports(active_mirrors: Array[Mirror3D]) -> void:
+	# Most centered outer mirrors first, so their views win when a mirror runs out of slots.
+	var visible_outers: Array[Mirror3D] = []
 	for outer: Mirror3D in active_mirrors:
-		if not _is_mirror_visible_to_player(outer):
-			continue
-		var chains: Array = _chains_by_outer.get(outer, [])
-		var outer_has_nested: bool = false
-		var score: float = _get_outer_mirror_view_alignment(outer)
-		for chain: Array in chains:
-			if chain.size() != 2:
-				continue
-			var inner_m: Mirror3D = chain[0]
-			outer_has_nested = true
-			if not inner_to_outer.has(inner_m) or score > inner_best_score.get(inner_m, -INF):
-				inner_to_outer[inner_m] = outer
-				inner_best_score[inner_m] = score
-		if outer_has_nested:
-			outer_mirrors_with_nesting.append(outer)
+		if _is_mirror_visible_to_player(outer):
+			visible_outers.append(outer)
+	visible_outers.sort_custom(func(a: Mirror3D, b: Mirror3D) -> bool:
+		return _get_outer_mirror_view_alignment(a) > _get_outer_mirror_view_alignment(b)
+	)
+
+	# One reflected view per chain [inner, ..., outer] that reaches the player through a visible outer mirror,
+	# up to render_depth mirrors deep. Shorter chains are listed first so they win slots over longer ones.
+	var keys_by_mirror: Dictionary[Mirror3D, PackedStringArray] = {}
+	var chains_by_mirror: Dictionary[Mirror3D, Array] = {}
+	# Views that must also draw other mirrors' glass, because a longer chain is seen through them.
+	var nested_keys_by_mirror: Dictionary[Mirror3D, PackedStringArray] = {}
+	for chain_size: int in range(2, render_depth + 1):
+		for outer: Mirror3D in visible_outers:
+			for chain: Array in _chains_by_outer.get(outer, []):
+				if chain.size() != chain_size:
+					continue
+				var inner_m: Mirror3D = chain[0]
+				if not keys_by_mirror.has(inner_m):
+					keys_by_mirror[inner_m] = PackedStringArray()
+					chains_by_mirror[inner_m] = []
+				keys_by_mirror[inner_m].append(Mirror3D.reflected_view_key(_get_view_path(chain)))
+				chains_by_mirror[inner_m].append(chain)
+				if chain_size >= 3:
+					var seen_through: Mirror3D = chain[1]
+					if not nested_keys_by_mirror.has(seen_through):
+						nested_keys_by_mirror[seen_through] = PackedStringArray()
+					nested_keys_by_mirror[seen_through].append(
+						Mirror3D.reflected_view_key(_get_view_path(chain.slice(1)))
+					)
 
 	# Fast path 0: No visible outer mirror reflects another mirror right now.
-	if outer_mirrors_with_nesting.is_empty():
+	if keys_by_mirror.is_empty():
 		for m: Mirror3D in active_mirrors:
 			m.freeze_reflected_view(true)
 			m.set_direct_viewport_active(_is_mirror_visible_to_player(m))
 		return
 
-	# The nested camera uses the outer mirror's viewpoint so the perspective stays correct.
-	# The glass combines this mirror's pigment with the outer mirror's pigment (RYB additive mixing)
-	# while keeping this mirror's own reveal/dissolve type.
+	var slots_by_mirror: Dictionary[Mirror3D, PackedInt32Array] = {}
+	var used_slots_by_mirror: Dictionary[Mirror3D, Array] = {}
+	for m: Mirror3D in keys_by_mirror:
+		slots_by_mirror[m] = m.assign_reflected_slots(keys_by_mirror[m])
+		var used: Array[bool] = []
+		used.resize(Mirror3D.MAX_REFLECTED_VIEWS)
+		used.fill(false)
+		used_slots_by_mirror[m] = used
+
+	# Shorter chains first: a view of chain [A, B, ..., outer] is drawn from the camera of B's view for
+	# [B, ..., outer], so that view must be placed before A's view can use its camera as the viewpoint.
+	for chain_size: int in range(2, render_depth + 1):
+		for m: Mirror3D in keys_by_mirror:
+			var keys: PackedStringArray = keys_by_mirror[m]
+			var chains: Array = chains_by_mirror[m]
+			var slots: PackedInt32Array = slots_by_mirror[m]
+			for i: int in keys.size():
+				var chain: Array = chains[i]
+				if chain.size() != chain_size or slots[i] < 0:
+					continue
+				if _configure_chain_view(m, chain, slots[i], nested_keys_by_mirror.get(m, PackedStringArray()), keys[i]):
+					used_slots_by_mirror[m][slots[i]] = true
+
 	for m: Mirror3D in active_mirrors:
-		if inner_to_outer.has(m):
-			var outer: Mirror3D = inner_to_outer[m]
-			var observer_pos: Vector3 = _get_reflected_observer_for_outer(outer)
-			var mixed_pigment: Pigments.Pigment = Pigments.mix_pigments(m.pigment, outer.pigment)
-			var mixed_mask: int = Pigments.compute_mirror_cull_mask(
-				mixed_pigment,
-				m.mirror_type == Mirror3D.MirrorType.REVEAL
-			)
-			m.configure_reflected_view(observer_pos, mixed_mask, false, mixed_pigment)
+		if used_slots_by_mirror.has(m):
+			for slot: int in Mirror3D.MAX_REFLECTED_VIEWS:
+				if not used_slots_by_mirror[m][slot]:
+					m.release_reflected_slot(slot)
 		else:
 			m.freeze_reflected_view(true)
 		m.set_direct_viewport_active(_is_mirror_visible_to_player(m))
+
+
+## Returns the mirrors a reflected view of chain[0] is drawn through, outer mirror first:
+## [outer] for [inner, outer], [outer, middle] for [inner, middle, outer], and so on.
+func _get_view_path(chain: Array) -> Array:
+	var path: Array = chain.slice(1)
+	path.reverse()
+	return path
+
+
+# Renders one reflected view of chain[0] for the chain [inner, ..., outer].
+# The view uses the viewpoint of the camera that draws this glass, combines the pigments of every
+# mirror in the chain (RYB additive mixing), and keeps the inner mirror's own reveal/dissolve type.
+func _configure_chain_view(
+	inner_m: Mirror3D,
+	chain: Array,
+	slot: int,
+	nested_keys: PackedStringArray,
+	key: String
+) -> bool:
+	var observer_pos: Vector3
+	if chain.size() == 2:
+		observer_pos = _get_reflected_observer_for_outer(chain[1])
+	else:
+		# The glass is drawn inside the next mirror's own reflected view, so use that view's camera.
+		var seen_through: Mirror3D = chain[1]
+		var parent_key: String = Mirror3D.reflected_view_key(_get_view_path(chain.slice(1)))
+		var parent_camera: Camera3D = seen_through.get_rendering_reflected_camera(parent_key)
+		if parent_camera == null:
+			return false
+		observer_pos = parent_camera.global_position
+	var mixed_pigment: Pigments.Pigment = Pigments.mix_mirror_chain_pigment(chain)
+	var mixed_mask: int = Pigments.compute_mirror_cull_mask(
+		mixed_pigment,
+		inner_m.mirror_type == Mirror3D.MirrorType.REVEAL
+	)
+	inner_m.configure_reflected_view(observer_pos, mixed_mask, nested_keys.has(key), mixed_pigment, slot)
+	return true
 
 
 func _is_mirror_visible_to_player(mirror: Mirror3D) -> bool:
@@ -469,3 +586,4 @@ func _projected_polygon_overlaps_quad(
 		and max_y >= -half.y
 		and min_y <= half.y
 	)
+
