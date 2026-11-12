@@ -33,7 +33,7 @@ const UNUSED_REFLECTED_OBSERVER: Vector3 = Vector3(1e9, 1e9, 1e9)
 @export var player: CharacterBody3D
 ## Reference to the player's 3D camera.
 @onready var player_cam: Camera3D = (
-	player.get_node_or_null("Head/Camera3D") as Camera3D if player != null else null
+	player.get_node_or_null("CamHolder/Camera3D") as Camera3D if player != null else null
 )
 
 @export_category("Mirror type")
@@ -514,7 +514,7 @@ func _configure_mirror_camera(
 
 func _resolve_player_and_camera() -> void:
 	if player != null and not is_instance_valid(player_cam):
-		player_cam = player.get_node_or_null("Head/Camera3D") as Camera3D
+		player_cam = player.get_node_or_null("CamHolder/Camera3D") as Camera3D
 
 	if not is_instance_valid(player_cam) and is_inside_tree():
 		var group_cam: Node = get_tree().get_first_node_in_group(&"camera_player")

@@ -1246,8 +1246,8 @@ func _build_link_scene() -> Node3D:
 	mirror.global_position = Vector3(0, 1.5, 3)
 	# Face the player (QuadMesh normal is +Z in local space).
 	mirror.rotation = Vector3(0.0, PI, 0.0)
-	mirror.player_cam = player.get_node("Head/Camera3D") as Camera3D
-	# Player Head is pre-rotated 180 deg, so the camera looks toward +Z / the mirror.
+	mirror.player_cam = player.get_node("CamHolder/Camera3D") as Camera3D
+	# CamHolder is pre-rotated 180 deg, so the camera looks toward +Z / the mirror.
 	mirror.player_cam.make_current()
 	mirror._apply_pigment()
 
@@ -1275,7 +1275,7 @@ func _build_nested_mirror_scene(
 	player.global_position = Vector3(0, 0, -2)
 	player.rotation = Vector3.ZERO
 
-	var player_cam: Camera3D = player.get_node("Head/Camera3D") as Camera3D
+	var player_cam: Camera3D = player.get_node("CamHolder/Camera3D") as Camera3D
 	player_cam.make_current()
 
 	var inner_mirror: Mirror3D = MIRROR_SCENE.instantiate()
@@ -1329,7 +1329,7 @@ func _add_mirror(
 	root.add_child(mirror)
 	mirror.global_position = position
 	mirror.rotation = Vector3(0.0, PI, 0.0)
-	mirror.player_cam = player.get_node("Head/Camera3D") as Camera3D
+	mirror.player_cam = player.get_node("CamHolder/Camera3D") as Camera3D
 	mirror._apply_pigment()
 	return mirror
 

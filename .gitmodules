@@ -1,0 +1,4 @@
+[submodule "vendor/golem"]
+	path = vendor/golem
+	url = /Users/bottolo/projects/games/golem
+	branch = main
