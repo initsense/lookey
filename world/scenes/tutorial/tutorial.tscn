@@ -6,6 +6,9 @@
 [ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="4_ygolh"]
 [ext_resource type="PackedScene" uid="uid://byvywowoqfw7e" path="res://prefabs/object.tscn" id="5_lm8li"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stairs"]
+albedo_color = Color(0.74, 0.64, 0.5, 1)
+
 [node name="Tutorial" type="Node3D" unique_id=1193302633]
 editor_description = "Main tutorial level demonstrating reveal mirrors, dissolve mirrors, and nested mirror reflections."
 
@@ -168,6 +171,37 @@ use_collision = true
 [node name="Cube3" type="CSGBox3D" parent="Level_01" unique_id=1258733001]
 transform = Transform3D(0.91718876, 0, 0, 0, 4.398633, 0, 0, 0, 0.91718876, -0.2145747, 1.9093378, 6.4269505)
 use_collision = true
+
+[node name="Stairs" type="Node3D" parent="Level_01"]
+editor_description = "Stone steps behind the starting spot. Each riser is short enough to walk up, so you can check stair climbing without jumping."
+
+[node name="Step1" type="CSGBox3D" parent="Level_01/Stairs"]
+editor_description = "First step. Turn around from the start and walk onto it."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.355, -0.95)
+material = SubResource("StandardMaterial3D_stairs")
+use_collision = true
+size = Vector3(1.8, 0.25, 0.6)
+
+[node name="Step2" type="CSGBox3D" parent="Level_01/Stairs"]
+editor_description = "Second step, one riser higher than the first."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.48, -1.55)
+material = SubResource("StandardMaterial3D_stairs")
+use_collision = true
+size = Vector3(1.8, 0.5, 0.6)
+
+[node name="Step3" type="CSGBox3D" parent="Level_01/Stairs"]
+editor_description = "Third step, one riser higher than the second."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.605, -2.15)
+material = SubResource("StandardMaterial3D_stairs")
+use_collision = true
+size = Vector3(1.8, 0.75, 0.6)
+
+[node name="Landing" type="CSGBox3D" parent="Level_01/Stairs"]
+editor_description = "Flat top of the stairs. Walk back down the same steps to leave it."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.73, -2.875)
+material = SubResource("StandardMaterial3D_stairs")
+use_collision = true
+size = Vector3(1.8, 1, 0.85)
 
 [node name="Door1" parent="Level_01" unique_id=900244337 instance=ExtResource("5_lm8li")]
 editor_description = "Visible yellow door blocking the exit of Room 1. Look at it in a yellow dissolve mirror (like Mirror5) to walk through."
