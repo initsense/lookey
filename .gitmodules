@@ -1,0 +1,4 @@
+[submodule "vendor/golem"]
+	path = vendor/golem
+	url = https://github.com/initsense/golem.git
+	branch = main
