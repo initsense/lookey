@@ -25,6 +25,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Sparse-checkout the Golem addon
+        run: sh addons/golem/update.sh --pin
 
       - name: Cache Godot binary and desktop export templates
         id: cache-godot
