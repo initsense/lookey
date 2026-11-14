@@ -10,3 +10,5 @@ collision_mask = 2049
 collision_mask = 2
 
 [node name="Camera3D" parent="CamHolder" index="0" groups=["camera_player"]]
+editor_description = "The player's view of the room. Hidden objects are left off this camera, so they can be seen only inside a reveal mirror."
+cull_mask = 528383

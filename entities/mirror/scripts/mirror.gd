@@ -249,6 +249,8 @@ func prepare_frame(delta: float) -> bool:
 	if not is_instance_valid(active_camera):
 		return false
 
+	# Hidden blocks stay on their own layers. The real-world camera must not draw those layers.
+	Pigments.hide_hidden_entities_from_camera(active_camera)
 	if not Engine.is_editor_hint():
 		active_camera.set_cull_mask_value(DIRECT_MIRROR_LAYER, true)
 		active_camera.set_cull_mask_value(REFLECTED_MIRROR_LAYER, false)

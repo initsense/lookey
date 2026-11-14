@@ -24,6 +24,10 @@ const HIDDEN_PIGMENT_MASK: int = (
 	(1 << 12) | (1 << 13) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 17) | (1 << 18)
 )
 
+## Layers 1–20 with the hidden-entity layers removed. Real-world cameras use this
+## so a hidden block is invisible in the room and shows up only inside a reveal mirror.
+const REAL_WORLD_CAMERA_CULL_MASK: int = 0xFFFFF & ~HIDDEN_PIGMENT_MASK
+
 ## Real-world occlusion: world geometry + manifest pigment layers.
 const REAL_WORLD_OCCLUSION_MASK: int = (1 << (WORLD_GEOMETRY_LAYER - 1)) | MANIFEST_PIGMENT_MASK
 
@@ -107,6 +111,13 @@ static func is_compatible(mirror_pigment: Pigment, entity_pigment: Pigment) -> b
 		or entity_pigment == Pigment.WHITE
 		or mirror_pigment == entity_pigment
 	)
+
+
+## Hides every hidden-entity layer from a camera that draws the real world.
+static func hide_hidden_entities_from_camera(camera: Camera3D) -> void:
+	if camera == null:
+		return
+	camera.cull_mask &= ~HIDDEN_PIGMENT_MASK
 
 
 ## Returns the 1-based render/collision layer for a pigment entity state.

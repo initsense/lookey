@@ -13,6 +13,18 @@
 
 [node name="Player" parent="." unique_id=713571688 instance=ExtResource("1_d8at3")]
 transform = Transform3D(0.96610487, 0, 0.2581501, 0, 1, 0, -0.2581501, 0, 0.96610487, -6.4044657, 0.26913452, 2.311274)
+headbob_walk_rate = 10.0
+tilt_value = 0.005
+turn_lean_max = 0.03490658503988659
+turn_lean_return = 4.0
+shake_strength = 0.12
+shake_duration = 0.2
+walk_speed = 3.0
+walk_accel = 6.0
+run_speed = 8.0
+run_accel = 4.5
+jump_height = 3.0
+jump_time_to_descent = 0.7
 
 [node name="Environment" type="Node" parent="." unique_id=821477724]
 
@@ -95,13 +107,11 @@ pigment = 4
 [node name="Door4" parent="Level_01" unique_id=126791908 instance=ExtResource("5_d8at3")]
 editor_description = "Hidden blue block in Room 1. Appears in the blue reveal mirror (Mirror3), but not in the yellow reveal mirror (Mirror)."
 transform = Transform3D(-4.4933458e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279578, 0, -4.4289973e-08, -1.45, 0.49357176, 2.3336284)
-hidden_entity = true
 pigment = 2
 
 [node name="Door5" parent="Level_01" unique_id=959186298 instance=ExtResource("5_d8at3")]
 editor_description = "Hidden green block in Room 1. Invisible in the real world and in single yellow or blue mirrors, and only appears (and becomes solid) inside the mixed green reflection where Mirror and Mirror3 reflect each other."
 transform = Transform3D(-4.4933458e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279578, 0, -4.4289973e-08, -0.9, 0.49357176, 1.15)
-hidden_entity = true
 pigment = 3
 
 [node name="columns" type="Node3D" parent="." unique_id=2033088070]
