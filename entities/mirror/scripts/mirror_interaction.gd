@@ -379,13 +379,6 @@ func _refresh_tracked_entities() -> void:
 		if node is PigmentEntity:
 			_track_entity(node as PigmentEntity, seen)
 
-	if _mirror.object_to_reflect is PigmentEntity:
-		_track_entity(_mirror.object_to_reflect as PigmentEntity, seen)
-	elif _mirror.object_to_reflect != null:
-		var nested: PigmentEntity = _find_pigment_entity(_mirror.object_to_reflect)
-		if nested:
-			_track_entity(nested, seen)
-
 
 func _track_entity(entity: PigmentEntity, seen: Dictionary) -> void:
 	if seen.has(entity):
@@ -425,16 +418,6 @@ func _build_chain_exclude_rids(entity: PigmentEntity, chain: Array) -> Array:
 			if not rids.has(rid):
 				rids.append(rid)
 	return rids
-
-
-func _find_pigment_entity(from_node: Node) -> PigmentEntity:
-	if from_node is PigmentEntity:
-		return from_node as PigmentEntity
-	for child in from_node.get_children():
-		var found: PigmentEntity = _find_pigment_entity(child)
-		if found:
-			return found
-	return null
 
 
 func _find_collision_object(from_node: Node) -> CollisionObject3D:

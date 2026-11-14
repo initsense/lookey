@@ -44,21 +44,19 @@ transform = Transform3D(1, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, -1.1762344,
 
 [node name="Level_01" type="Node3D" parent="." unique_id=385093112]
 
-[node name="Mirror" parent="Level_01" unique_id=1528812690 node_paths=PackedStringArray("player") instance=ExtResource("6_op6jt")]
+[node name="Mirror" parent="Level_01" unique_id=1528812690 instance=ExtResource("6_op6jt")]
 editor_description = "Yellow Reveal mirror on the North wall of Room 1. Reveals hidden yellow objects directly, and mixes with the blue mirror (Mirror3) to become a green reveal mirror in nested reflections."
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.585005, 3.702)
-player = NodePath("../../Player")
 pigment = 4
 always_active = false
 cull_mask = 295423
 size = Vector2(6, 3)
 max_fps = 120.0
 
-[node name="Mirror3" parent="Level_01" unique_id=345691459 node_paths=PackedStringArray("player") instance=ExtResource("6_op6jt")]
+[node name="Mirror3" parent="Level_01" unique_id=345691459 instance=ExtResource("6_op6jt")]
 editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door3 and Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.9587765, 1.585005, 1.6288898)
 visible = false
-player = NodePath("../../Player")
 pigment = 2
 always_active = false
 cull_mask = 270847
@@ -66,11 +64,10 @@ size = Vector2(4.2, 3)
 max_fps = 120.0
 res_decrease_distances = Array[float]([3.0, 6.0, 9.0])
 
-[node name="Mirror4" parent="Level_01" unique_id=1301903781 node_paths=PackedStringArray("player") instance=ExtResource("6_op6jt")]
+[node name="Mirror4" parent="Level_01" unique_id=1301903781 instance=ExtResource("6_op6jt")]
 editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door3 and Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
 transform = Transform3D(0.12728092, 0, -0.9918668, 0, 1, 0, 0.9918668, 0, 0.12728092, 2.5901515, 1.585005, 1.4912853)
 visible = false
-player = NodePath("../../Player")
 pigment = 1
 always_active = false
 cull_mask = 266751
@@ -78,11 +75,10 @@ size = Vector2(4.2, 3)
 max_fps = 120.0
 res_decrease_distances = Array[float]([3.0, 6.0, 9.0])
 
-[node name="Mirror6" parent="Level_01" unique_id=1659309852 node_paths=PackedStringArray("player") instance=ExtResource("6_op6jt")]
+[node name="Mirror6" parent="Level_01" unique_id=1659309852 instance=ExtResource("6_op6jt")]
 editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door3 and Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
 transform = Transform3D(-0.97448885, 0, -0.22443622, 0, 1, 0, 0.22443622, 0, -0.97448885, -1.5208557, 1.585005, -7.638601)
 visible = false
-player = NodePath("../../Player")
 always_active = false
 cull_mask = 520703
 size = Vector2(4.2, 3)

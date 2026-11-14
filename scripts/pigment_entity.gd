@@ -2,11 +2,12 @@
 class_name PigmentEntity
 extends Node3D
 ## Turns any 3D object into a colored puzzle object (a manifest-entity or a hidden-entity).
-## Attach it to a mesh, a CSG shape, an imported model, or a Node3D that groups several of them:
-## every mesh and CSG shape on or under this node gets the pigment's color and render layer, and
-## every StaticBody3D under it becomes the entity's collider. This also happens in the editor,
-## so the Inspector shows the same material and layers the game uses. No collider yet? Press
-## "Generate collider" in the Inspector, or one is generated when the game starts.
+## Put this on the object, or add it as a child of a mesh that already has its own script,
+## such as a UniBuilder mesh. Every visible shape on that object gets the pigment's render
+## layer, so reveal and dissolve mirrors can hide or show it. Colliders turn solid or not
+## with those mirrors. You can leave the color as the shared pigment material, or assign
+## your own. The same thing happens in the editor, so the view matches the game.
+## No collider yet? Press "Generate collider" in the Inspector, or one is generated when the game starts.
 
 ## Emitted after generate_collider() replaces this entity's collider bodies.
 signal colliders_rebuilt
@@ -43,27 +44,36 @@ const PIGMENT_MATERIALS: Dictionary[Pigments.Pigment, StandardMaterial3D] = {
 	set(value):
 		pigment = value
 		_config_dirty = true
+## Material painted on this object's shapes. Leave empty to use the shared color of the pigment above.
+## Assigning one does not change which mirrors can reveal or dissolve the object.
+@export var surface_material: Material:
+	set(value):
+		surface_material = value
+		_config_dirty = true
 
 @export_category("Collider")
-## Builds a "Collider" body from this object's meshes and CSG shapes and saves it in the scene.
+## Builds a "Collider" body from this object's shapes and saves it in the scene.
 ## Press it again after reshaping the object to rebuild the collider.
 @export_tool_button("Generate collider", "CollisionShape3D")
 var generate_collider_button: Callable = generate_collider
 
 var is_visible_to_mirror: bool = false
 
-## Every mesh and root CSG shape that belongs to this entity.
+## Every shape that mirrors can reflect and paint: meshes, root CSG, multimeshes, sprites, labels, and particles.
 var geometries: Array[GeometryInstance3D] = []
-## Every StaticBody3D that acts as this entity's collider.
-var bodies: Array[StaticBody3D] = []
+## Every collider on this object, including areas. Areas are not the solid body the player bumps into.
+var bodies: Array[CollisionObject3D] = []
 ## The first MeshInstance3D of this entity (null for a CSG-only entity).
 ## Not called "mesh", because that would hide MeshInstance3D.mesh when this script sits on a mesh node.
 var mesh_instance: MeshInstance3D
-## The first collider body of this entity.
+## The first static collider of this entity, including animatable bodies. Null when the only collider is a rigid body or a character body.
 var static_body: StaticBody3D
 
+var _visuals: Array[VisualInstance3D] = []
 var _config_dirty: bool = true
+var _refreshing: bool = false
 var _local_sample_points: Dictionary[GeometryInstance3D, PackedVector3Array] = {}
+var _watched_nodes: Array[Node] = []
 
 var _linked_mirrors: Dictionary[Mirror3D, bool] = {}
 var _affected_mirrors: Dictionary[Mirror3D, bool] = {}
@@ -73,23 +83,32 @@ var _was_affected: bool = false
 
 func _ready() -> void:
 	add_to_group(GROUP_NAME)
-	_resolve_nodes()
+	_refresh_config()
 	if not Engine.is_editor_hint():
 		_disable_csg_collision()
-	_apply_layers_and_material()
-	_update_real_world_collider()
-	_config_dirty = false
-	if not Engine.is_editor_hint() and bodies.is_empty() and not geometries.is_empty():
-		_generate_collider_when_ready()
+		if (
+			not _has_blocking_body()
+			and not _external_collider_provides_body()
+			and not geometries.is_empty()
+		):
+			# A child component's _ready runs while its parent is still entering the tree.
+			if _controlled_root() == self:
+				_generate_collider_when_ready()
+			else:
+				_generate_collider_when_ready.call_deferred()
+
+
+func _exit_tree() -> void:
+	_unwatch_tree()
 
 
 func _process(_delta: float) -> void:
 	# In the editor, show the same material and layers the game uses, so the Inspector tells the truth.
-	if Engine.is_editor_hint() and _config_dirty:
-		_config_dirty = false
-		_resolve_nodes()
-		_apply_layers_and_material()
-		_update_real_world_collider()
+	if not Engine.is_editor_hint():
+		return
+	if _config_dirty or _material_was_overwritten():
+		_refresh_config()
+		update_configuration_warnings()
 
 
 func _physics_process(_delta: float) -> void:
@@ -117,9 +136,13 @@ func _get_configuration_warnings() -> PackedStringArray:
 	var warnings := PackedStringArray()
 	_resolve_nodes()
 	if geometries.is_empty():
-		warnings.append("No mesh or CSG shape found on or under this node, so there is nothing for mirrors to show.")
-	elif bodies.is_empty():
-		warnings.append("No collider yet. Press \"Generate collider\" in the Inspector, or one is generated when the game starts.")
+		warnings.append(
+			"No visible shape found on this object, so there is nothing for mirrors to show."
+		)
+	elif not _has_blocking_body() and not _external_collider_provides_body():
+		warnings.append(
+			"No collider yet. Press \"Generate collider\" in the Inspector, or one is generated when the game starts."
+		)
 	for geometry: GeometryInstance3D in geometries:
 		if geometry is CSGShape3D and (geometry as CSGShape3D).use_collision:
 			warnings.append(
@@ -141,13 +164,16 @@ func is_affected() -> bool:
 	return not _affected_mirrors.is_empty()
 
 
+## Returns true when a solid collider on this object is currently blocking other entities.
 func is_collidable() -> bool:
-	if static_body == null:
-		return false
-	return (static_body.collision_layer & (1 << (Pigments.ENTITY_COLLIDER_LAYER - 1))) != 0
+	var bit: int = 1 << (Pigments.ENTITY_COLLIDER_LAYER - 1)
+	for body: CollisionObject3D in _blocking_bodies():
+		if (body.collision_layer & bit) != 0:
+			return true
+	return false
 
 
-## Returns true when at least one mesh or CSG shape of this entity has geometry mirrors can reflect.
+## Returns true when at least one shape of this entity has geometry mirrors can reflect.
 func has_geometry() -> bool:
 	for geometry: GeometryInstance3D in geometries:
 		if is_instance_valid(geometry) and not _get_local_sample_points(geometry).is_empty():
@@ -155,7 +181,7 @@ func has_geometry() -> bool:
 	return false
 
 
-## Returns the world-space box that encloses every mesh and CSG shape of this entity.
+## Returns the world-space box that encloses every shape of this entity.
 func get_world_aabb() -> AABB:
 	var merged := AABB()
 	var first: bool = true
@@ -174,7 +200,7 @@ func get_world_aabb() -> AABB:
 ## Returns the world-space center of this entity's geometry.
 func get_world_center() -> Vector3:
 	if not has_geometry():
-		return global_position
+		return _controlled_root_3d().global_position
 	return get_world_aabb().get_center()
 
 
@@ -190,10 +216,10 @@ func get_link_sample_points() -> PackedVector3Array:
 	return points
 
 
-## Returns the physics RIDs of every collider body of this entity.
+## Returns the physics RIDs of every collider of this entity.
 func get_collision_rids() -> Array[RID]:
 	var rids: Array[RID] = []
-	for body: StaticBody3D in bodies:
+	for body: CollisionObject3D in bodies:
 		if is_instance_valid(body):
 			rids.append(body.get_rid())
 	return rids
@@ -201,12 +227,24 @@ func get_collision_rids() -> Array[RID]:
 
 ## Builds a "Collider" StaticBody3D with one convex collision shape per mesh or CSG shape,
 ## replacing a previously generated one. In the editor, the new nodes are saved in the scene.
+## The body is parented to the object this entity controls, which may be the parent node.
 func generate_collider() -> void:
 	_resolve_nodes()
-	var previous: Node = get_node_or_null(NodePath(String(GENERATED_COLLIDER_NAME)))
-	if previous is StaticBody3D:
-		remove_child(previous)
-		previous.free()
+	if _external_collider_provides_body():
+		push_warning(
+			"This object already builds its own collider, so a second one was not generated."
+		)
+		_apply_layers_and_material()
+		_update_real_world_collider()
+		return
+
+	_refreshing = true
+	var root: Node3D = _controlled_root_3d()
+	for host: Node in [root, self]:
+		var previous: Node = host.get_node_or_null(NodePath(String(GENERATED_COLLIDER_NAME)))
+		if previous is StaticBody3D:
+			host.remove_child(previous)
+			previous.free()
 
 	var scene_owner: Node = _get_edited_scene_owner()
 	var body := StaticBody3D.new()
@@ -215,10 +253,10 @@ func generate_collider() -> void:
 		"Solid collider generated from this object's shapes. It blocks the player while the "
 		+ "object is solid, and switches off while the object is dissolved or hidden."
 	)
-	add_child(body, true)
+	root.add_child(body, true)
 	body.owner = scene_owner
 	# Keep the body unscaled in world space so its convex shapes never inherit scale.
-	body.global_transform = Transform3D(global_basis.orthonormalized(), global_position)
+	body.global_transform = Transform3D(root.global_basis.orthonormalized(), root.global_position)
 
 	for geometry: GeometryInstance3D in geometries:
 		var geometry_mesh: Mesh = _get_geometry_mesh(geometry)
@@ -240,9 +278,8 @@ func generate_collider() -> void:
 		body.add_child(shape_node, true)
 		shape_node.owner = scene_owner
 
-	_resolve_nodes()
-	_apply_layers_and_material()
-	_update_real_world_collider()
+	_refreshing = false
+	_refresh_config()
 	if Engine.is_editor_hint():
 		update_configuration_warnings()
 	colliders_rebuilt.emit()
@@ -284,12 +321,36 @@ func clear_mirror_link_state(mirror: Mirror3D) -> void:
 	set_mirror_link_state(mirror, false, false)
 
 
+## The material drawn on this object's shapes: the assigned one, or the shared pigment color.
+func get_resolved_material() -> Material:
+	if surface_material != null:
+		return surface_material
+	return PIGMENT_MATERIALS[pigment]
+
+
+func _refresh_config() -> void:
+	if _refreshing or not is_inside_tree():
+		return
+	_refreshing = true
+	_resolve_nodes()
+	_apply_layers_and_material()
+	_update_real_world_collider()
+	_watch_tree()
+	_config_dirty = false
+	_refreshing = false
+
+
 func _resolve_nodes() -> void:
 	geometries.clear()
 	bodies.clear()
+	_visuals.clear()
 	mesh_instance = null
-	_collect_nodes(self)
-	static_body = bodies[0] if not bodies.is_empty() else null
+	static_body = null
+	_collect_nodes(_controlled_root())
+	for body: CollisionObject3D in bodies:
+		if body is StaticBody3D:
+			static_body = body as StaticBody3D
+			break
 	for geometry: GeometryInstance3D in geometries:
 		if geometry is MeshInstance3D:
 			mesh_instance = geometry as MeshInstance3D
@@ -297,33 +358,161 @@ func _resolve_nodes() -> void:
 	_local_sample_points.clear()
 
 
-func _collect_nodes(node: Node) -> void:
-	if node is MeshInstance3D:
-		geometries.append(node as MeshInstance3D)
-	elif node is CSGShape3D and (node as CSGShape3D).is_root_shape():
-		geometries.append(node as CSGShape3D)
-	elif node is StaticBody3D:
-		bodies.append(node as StaticBody3D)
+func _controlled_root() -> Node:
+	if _subtree_has_content(self):
+		return self
+	var parent: Node = get_parent()
+	if parent is GeometryInstance3D or parent is CollisionObject3D:
+		return parent
+	return self
 
+
+func _controlled_root_3d() -> Node3D:
+	var root: Node = _controlled_root()
+	return root as Node3D if root is Node3D else self
+
+
+func _subtree_has_content(node: Node) -> bool:
+	if _node_is_content(node):
+		return true
+	for child: Node in node.get_children():
+		if child is PigmentEntity:
+			continue
+		if _subtree_has_content(child):
+			return true
+	return false
+
+
+func _node_is_content(node: Node) -> bool:
+	if node is VisibleOnScreenNotifier3D or node is Mirror3D:
+		return false
+	if node is CSGShape3D and not (node as CSGShape3D).is_root_shape():
+		return false
+	return node is VisualInstance3D or node is CollisionObject3D
+
+
+func _is_adopted_by_other(node: Node) -> bool:
+	for child: Node in node.get_children():
+		if child is PigmentEntity and child != self:
+			if (child as PigmentEntity)._controlled_root() == node:
+				return true
+	return false
+
+
+func _collect_nodes(node: Node) -> void:
+	if node is Mirror3D:
+		return
+	if node is PigmentEntity and node != self:
+		return
+	if node != _controlled_root() and _is_adopted_by_other(node):
+		return
+
+	_collect_one(node)
 	for child: Node in node.get_children():
 		if child is PigmentEntity:
 			continue
 		_collect_nodes(child)
 
 
+func _collect_one(node: Node) -> void:
+	if node is VisibleOnScreenNotifier3D:
+		return
+	if node is CSGShape3D and not (node as CSGShape3D).is_root_shape():
+		return
+	if node is VisualInstance3D:
+		_visuals.append(node as VisualInstance3D)
+	if _uses_material_override(node):
+		geometries.append(node as GeometryInstance3D)
+	if node is CollisionObject3D:
+		bodies.append(node as CollisionObject3D)
+
+
+func _uses_material_override(node: Node) -> bool:
+	if node is MeshInstance3D or node is MultiMeshInstance3D:
+		return true
+	if node is SpriteBase3D or node is Label3D:
+		return true
+	if node is GPUParticles3D or node is CPUParticles3D:
+		return true
+	return node is CSGShape3D and (node as CSGShape3D).is_root_shape()
+
+
 func _apply_layers_and_material() -> void:
 	var layer: int = Pigments.get_entity_layer(pigment, hidden_entity)
-	var material: StandardMaterial3D = PIGMENT_MATERIALS[pigment]
+	var material: Material = get_resolved_material()
+
+	for visual: VisualInstance3D in _visuals:
+		if not is_instance_valid(visual):
+			continue
+		visual.layers = 0
+		LayerUtils.set_layer_bit(visual, &"layers", layer, true)
 
 	for geometry: GeometryInstance3D in geometries:
+		if not is_instance_valid(geometry):
+			continue
 		geometry.material_override = material
-		geometry.layers = 0
-		LayerUtils.set_layer_bit(geometry, &"layers", layer, true)
 
-	for body: StaticBody3D in bodies:
+	var player_mask: int = 1 << (Pigments.PLAYER_LAYER - 1)
+	for body: CollisionObject3D in bodies:
+		if not is_instance_valid(body):
+			continue
 		body.collision_layer = 0
 		LayerUtils.set_layer_bit(body, &"collision_layer", layer, true)
-		body.collision_mask = 1 << (Pigments.PLAYER_LAYER - 1)
+		# Static and animatable bodies only need to be detected by the player.
+		# Moving bodies keep their mask so they still land on the floor.
+		if body is StaticBody3D:
+			body.collision_mask = player_mask
+
+
+func _material_was_overwritten() -> bool:
+	var material: Material = get_resolved_material()
+	for geometry: GeometryInstance3D in geometries:
+		if is_instance_valid(geometry) and geometry.material_override != material:
+			return true
+	return false
+
+
+func _sync_unibuilder_collision(solid: bool) -> void:
+	var pigment_layer: int = Pigments.get_entity_layer(pigment, hidden_entity)
+	var layer_mask: int = 1 << (pigment_layer - 1)
+	if solid:
+		layer_mask |= 1 << (Pigments.ENTITY_COLLIDER_LAYER - 1)
+	var player_mask: int = 1 << (Pigments.PLAYER_LAYER - 1)
+	for geometry: GeometryInstance3D in geometries:
+		if not _is_self_colliding_mesh(geometry):
+			continue
+		if int(geometry.get(&"collision_layer")) != layer_mask:
+			geometry.set(&"collision_layer", layer_mask)
+		if int(geometry.get(&"collision_mask")) != player_mask:
+			geometry.set(&"collision_mask", player_mask)
+
+
+func _is_self_colliding_mesh(node: Node) -> bool:
+	return (
+		node.has_method(&"refresh_collision")
+		and node.get(&"collision_mode") != null
+		and node.get(&"collision_layer") != null
+		and node.get(&"collision_mask") != null
+	)
+
+
+func _external_collider_provides_body() -> bool:
+	for geometry: GeometryInstance3D in geometries:
+		if _is_self_colliding_mesh(geometry) and int(geometry.get(&"collision_mode")) != 0:
+			return true
+	return false
+
+
+func _has_blocking_body() -> bool:
+	return not _blocking_bodies().is_empty()
+
+
+func _blocking_bodies() -> Array[CollisionObject3D]:
+	var blocking: Array[CollisionObject3D] = []
+	for body: CollisionObject3D in bodies:
+		if is_instance_valid(body) and body is PhysicsBody3D:
+			blocking.append(body)
+	return blocking
 
 
 func _disable_csg_collision() -> void:
@@ -339,14 +528,17 @@ func _generate_collider_when_ready() -> void:
 		await get_tree().process_frame
 		if not is_inside_tree():
 			return
-	if bodies.is_empty():
+	if _has_blocking_body() or _external_collider_provides_body():
+		return
+	if not geometries.is_empty():
 		generate_collider()
 
 
 func _all_geometry_meshes_ready() -> bool:
 	for geometry: GeometryInstance3D in geometries:
-		if _get_geometry_mesh(geometry) == null:
-			return false
+		if geometry is MeshInstance3D or geometry is CSGShape3D or geometry is MultiMeshInstance3D:
+			if _get_geometry_mesh(geometry) == null:
+				return false
 	return true
 
 
@@ -355,6 +547,11 @@ func _get_geometry_mesh(geometry: GeometryInstance3D) -> Mesh:
 		var instance_mesh: Mesh = (geometry as MeshInstance3D).mesh
 		if instance_mesh != null and instance_mesh.get_surface_count() > 0:
 			return instance_mesh
+		return null
+	if geometry is MultiMeshInstance3D:
+		var multi_mesh: MultiMesh = (geometry as MultiMeshInstance3D).multimesh
+		if multi_mesh != null and multi_mesh.mesh != null and multi_mesh.mesh.get_surface_count() > 0:
+			return multi_mesh.mesh
 		return null
 	if geometry is CSGShape3D:
 		var baked: ArrayMesh = (geometry as CSGShape3D).bake_static_mesh()
@@ -374,10 +571,32 @@ func _get_local_sample_points(geometry: GeometryInstance3D) -> PackedVector3Arra
 
 
 func _compute_local_sample_points(geometry: GeometryInstance3D) -> PackedVector3Array:
+	if geometry is MultiMeshInstance3D:
+		return _multi_mesh_sample_points(geometry as MultiMeshInstance3D)
 	var geometry_mesh: Mesh = _get_geometry_mesh(geometry)
-	if geometry_mesh == null:
+	if geometry_mesh != null:
+		return _points_from_mesh(geometry_mesh)
+	if geometry is MeshInstance3D or geometry is CSGShape3D:
 		return PackedVector3Array()
+	return _aabb_corner_points(geometry)
 
+
+func _multi_mesh_sample_points(instance: MultiMeshInstance3D) -> PackedVector3Array:
+	var geometry_mesh: Mesh = _get_geometry_mesh(instance)
+	var local: PackedVector3Array = (
+		_points_from_mesh(geometry_mesh) if geometry_mesh != null else _aabb_corner_points(instance)
+	)
+	var multi_mesh: MultiMesh = instance.multimesh
+	if multi_mesh == null or multi_mesh.instance_count <= 0 or local.is_empty():
+		return local
+	var points := PackedVector3Array()
+	var instance_count: int = mini(multi_mesh.instance_count, MAX_LINK_SAMPLE_POINTS)
+	for index: int in instance_count:
+		points.append(multi_mesh.get_instance_transform(index) * local[0])
+	return points
+
+
+func _points_from_mesh(geometry_mesh: Mesh) -> PackedVector3Array:
 	var unique: Dictionary[Vector3, bool] = {}
 	var too_many: bool = false
 	for surface: int in range(geometry_mesh.get_surface_count()):
@@ -395,6 +614,24 @@ func _compute_local_sample_points(geometry: GeometryInstance3D) -> PackedVector3
 		return PackedVector3Array(unique.keys())
 	var hull: ConvexPolygonShape3D = geometry_mesh.create_convex_shape(true, true)
 	return hull.points if hull != null else PackedVector3Array()
+
+
+func _aabb_corner_points(geometry: GeometryInstance3D) -> PackedVector3Array:
+	var bounds: AABB = geometry.get_aabb()
+	if bounds.size.is_zero_approx():
+		return PackedVector3Array()
+	var origin: Vector3 = bounds.position
+	var size: Vector3 = bounds.size
+	return PackedVector3Array([
+		origin,
+		origin + Vector3(size.x, 0.0, 0.0),
+		origin + Vector3(0.0, size.y, 0.0),
+		origin + Vector3(0.0, 0.0, size.z),
+		origin + Vector3(size.x, size.y, 0.0),
+		origin + Vector3(size.x, 0.0, size.z),
+		origin + Vector3(0.0, size.y, size.z),
+		origin + size,
+	])
 
 
 func _get_edited_scene_owner() -> Node:
@@ -416,13 +653,16 @@ func _update_real_world_collider() -> void:
 
 
 func _set_entity_collider_enabled(enabled: bool) -> void:
-	for body: StaticBody3D in bodies:
+	for body: CollisionObject3D in bodies:
+		if not is_instance_valid(body):
+			continue
 		LayerUtils.set_layer_bit(
 			body,
 			&"collision_layer",
 			Pigments.ENTITY_COLLIDER_LAYER,
 			enabled
 		)
+	_sync_unibuilder_collision(enabled)
 
 
 func _try_restore_dissolve_collider() -> void:
@@ -448,9 +688,7 @@ func _try_restore_dissolve_collider() -> void:
 
 func _get_collision_shapes() -> Array[CollisionShape3D]:
 	var shapes: Array[CollisionShape3D] = []
-	for body: StaticBody3D in bodies:
-		if not is_instance_valid(body):
-			continue
+	for body: CollisionObject3D in _blocking_bodies():
 		for child: Node in body.get_children():
 			var shape_node: CollisionShape3D = child as CollisionShape3D
 			if shape_node != null and shape_node.shape != null and not shape_node.disabled:
@@ -569,6 +807,74 @@ func _push_player_out(player: CharacterBody3D, shape_node: CollisionShape3D) -> 
 	var world_offset: Vector3 = frame.basis * local_offset
 	world_offset.y = 0.0
 	player.global_position += world_offset
+
+
+func _watch_tree() -> void:
+	var needed: Array[Node] = []
+	_gather_watch_nodes(_controlled_root(), needed)
+	var still: Array[Node] = []
+	for node: Node in _watched_nodes:
+		if not is_instance_valid(node) or not needed.has(node):
+			_disconnect_watch(node)
+		else:
+			still.append(node)
+	_watched_nodes = still
+	for node: Node in needed:
+		if _watched_nodes.has(node):
+			continue
+		_connect_watch(node)
+		_watched_nodes.append(node)
+
+
+func _gather_watch_nodes(node: Node, into: Array[Node]) -> void:
+	if not is_instance_valid(node):
+		return
+	if node is Mirror3D:
+		return
+	if node is PigmentEntity and node != self:
+		return
+	if node != _controlled_root() and _is_adopted_by_other(node):
+		return
+	into.append(node)
+	for child: Node in node.get_children():
+		if child is PigmentEntity:
+			continue
+		_gather_watch_nodes(child, into)
+
+
+func _connect_watch(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	if not node.child_entered_tree.is_connected(_on_child_entered_tree):
+		node.child_entered_tree.connect(_on_child_entered_tree)
+	if not node.child_exiting_tree.is_connected(_on_child_exiting_tree):
+		node.child_exiting_tree.connect(_on_child_exiting_tree)
+
+
+func _disconnect_watch(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	if node.child_entered_tree.is_connected(_on_child_entered_tree):
+		node.child_entered_tree.disconnect(_on_child_entered_tree)
+	if node.child_exiting_tree.is_connected(_on_child_exiting_tree):
+		node.child_exiting_tree.disconnect(_on_child_exiting_tree)
+
+
+func _unwatch_tree() -> void:
+	for node: Node in _watched_nodes:
+		_disconnect_watch(node)
+	_watched_nodes.clear()
+
+
+func _on_child_entered_tree(_node: Node) -> void:
+	_config_dirty = true
+	_refresh_config()
+
+
+func _on_child_exiting_tree(_node: Node) -> void:
+	_config_dirty = true
+	if is_inside_tree() and not is_queued_for_deletion():
+		_refresh_config.call_deferred()
 
 
 func _on_visible_on_screen_notifier_3d_screen_entered() -> void:

@@ -1043,7 +1043,7 @@ func test_grouped_manifest_entity_applies_pigment_to_all_geometry() -> void:
 	assert_bool(entity.is_collidable()).is_true()
 	var dissolve := Mirror3D.new()
 	entity.set_mirror_link_state(dissolve, true, true)
-	for body: StaticBody3D in entity.bodies:
+	for body: CollisionObject3D in entity.bodies:
 		assert_bool(_has_layer(body.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_false()
 
 	root.queue_free()
@@ -1072,14 +1072,14 @@ func test_existing_static_body_is_reused() -> void:
 	assert_int(entity.geometries.size()).is_equal(2)
 	assert_int(entity.bodies.size()).is_equal(2)
 	var manifest_layer: int = Pigments.get_entity_layer(Pigments.Pigment.RED, false)
-	for body: StaticBody3D in entity.bodies:
+	for body: CollisionObject3D in entity.bodies:
 		assert_bool(_has_layer(body.collision_layer, manifest_layer)).is_true()
 		assert_bool(_has_layer(body.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_true()
 
 	# A dissolve-mirror disables every collider body of the entity.
 	var dissolve := Mirror3D.new()
 	entity.set_mirror_link_state(dissolve, true, true)
-	for body: StaticBody3D in entity.bodies:
+	for body: CollisionObject3D in entity.bodies:
 		assert_bool(_has_layer(body.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_false()
 
 	root.queue_free()
@@ -1182,6 +1182,134 @@ func test_dissolve_exit_pushes_player_out_of_convex_collider() -> void:
 	dissolve.free()
 
 
+func test_child_pigment_entity_paints_parent_mesh() -> void:
+	var root := Node3D.new()
+	add_child(root)
+
+	var crate := _make_mesh_instance("Crate", BoxMesh.new(), Vector3.ZERO)
+	var entity := _add_pigment_child(crate, Pigments.Pigment.RED, false)
+	root.add_child(crate)
+	await get_tree().process_frame
+	await get_tree().physics_frame
+
+	assert_that(crate.get_script()).is_null()
+	assert_object(entity.get_parent()).is_same(crate)
+	var manifest_layer: int = Pigments.get_entity_layer(Pigments.Pigment.RED, false)
+	assert_object(crate.material_override).is_same(PigmentEntity.PIGMENT_MATERIALS[Pigments.Pigment.RED])
+	assert_int(crate.layers).is_equal(1 << (manifest_layer - 1))
+	var collider: StaticBody3D = crate.get_node_or_null("Collider") as StaticBody3D
+	assert_that(collider).is_not_null()
+	assert_bool(_has_layer(collider.collision_layer, manifest_layer)).is_true()
+	assert_bool(_has_layer(collider.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_true()
+	assert_bool(entity.is_collidable()).is_true()
+
+	root.queue_free()
+
+
+func test_surface_material_overrides_shared_pigment_material() -> void:
+	var root := Node3D.new()
+	add_child(root)
+
+	var block := _make_mesh_instance("Block", BoxMesh.new(), Vector3.ZERO)
+	var entity := _attach_pigment_entity(block, Pigments.Pigment.BLUE, true)
+	root.add_child(block)
+	await get_tree().physics_frame
+
+	var custom := StandardMaterial3D.new()
+	custom.albedo_color = Color(0.4, 0.2, 0.1)
+	entity.surface_material = custom
+	entity._apply_layers_and_material()
+	var hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.BLUE, true)
+	assert_object(block.material_override).is_same(custom)
+	assert_int(block.layers).is_equal(1 << (hidden_layer - 1))
+
+	# A custom look does not change which mirrors can affect the entity.
+	var reveal := Mirror3D.new()
+	reveal.pigment = Pigments.Pigment.BLUE
+	reveal.mirror_type = Mirror3D.MirrorType.REVEAL
+	entity.set_mirror_link_state(reveal, true, true)
+	assert_bool(entity.is_affected()).is_true()
+	assert_object(block.material_override).is_same(custom)
+
+	entity.pigment = Pigments.Pigment.RED
+	entity._apply_layers_and_material()
+	assert_object(block.material_override).is_same(custom)
+	assert_int(block.layers).is_equal(1 << (Pigments.get_entity_layer(Pigments.Pigment.RED, true) - 1))
+
+	entity.surface_material = null
+	entity._apply_layers_and_material()
+	assert_object(block.material_override).is_same(PigmentEntity.PIGMENT_MATERIALS[Pigments.Pigment.RED])
+
+	root.queue_free()
+	reveal.free()
+
+
+func test_unibuilder_mesh_uses_pigment_layers_and_links() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var interaction: Node = mirror.get_node("Interaction")
+	(root.get_node("Front") as Node3D).global_position = Vector3(40, 1, 0)
+	(root.get_node("Hidden") as Node3D).global_position = Vector3(-40, 1, 0)
+
+	var carved := UBMeshInstance3D.new()
+	carved.name = "Carved"
+	carved.mesh_data = UBPrimitives.make_cube()
+	carved.collision_mode = UBMeshInstance3D.CollisionMode.CONVEX
+	var entity := _add_pigment_child(carved, Pigments.Pigment.BLUE, true)
+	root.add_child(carved)
+	carved.global_position = Vector3(0, 1, 0.5)
+	await get_tree().physics_frame
+	interaction._refresh_tracked_entities()
+
+	assert_bool(carved.get_script() != PIGMENT_ENTITY_SCRIPT).is_true()
+	assert_object(entity.get_parent()).is_same(carved)
+	assert_object(carved.material_override).is_same(PigmentEntity.PIGMENT_MATERIALS[Pigments.Pigment.BLUE])
+	var hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.BLUE, true)
+	assert_bool(_has_layer(carved.layers, hidden_layer)).is_true()
+	assert_bool(_has_layer(carved.collision_layer, hidden_layer)).is_true()
+	assert_bool(_has_layer(carved.collision_layer, 1)).is_false()
+	assert_bool(_has_layer(carved.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_false()
+
+	var body: StaticBody3D = carved.get_node_or_null("_UBCollision") as StaticBody3D
+	assert_that(body).is_not_null()
+	assert_bool(_has_layer(body.collision_layer, hidden_layer)).is_true()
+	assert_bool(_has_layer(body.collision_layer, 1)).is_false()
+	assert_that(carved.get_node_or_null("Collider")).is_null()
+	assert_bool(entity.is_collidable()).is_false()
+
+	await _wait_for_link_eval(interaction)
+	assert_bool(entity.is_linked()).is_true()
+	assert_bool(entity.is_affected()).is_true()
+	assert_bool(entity.is_collidable()).is_true()
+	assert_bool(_has_layer(carved.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_true()
+	assert_bool(_has_layer(body.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_true()
+	assert_bool(_has_layer(carved.collision_layer, 1)).is_false()
+	assert_bool(_has_layer(body.collision_layer, 1)).is_false()
+
+	root.queue_free()
+
+
+func test_mirror_finds_player_without_exports() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var player: CharacterBody3D = root.get_node("Player")
+	var hidden: PigmentEntity = root.get_node("Hidden")
+	var interaction: Node = mirror.get_node("Interaction")
+	(root.get_node("Front") as Node3D).global_position = Vector3(40, 1, 0)
+
+	mirror.player = null
+	mirror.player_cam = null
+	mirror._resolve_player_and_camera()
+	assert_object(mirror.player).is_same(player)
+	assert_object(mirror.player_cam).is_same(player.get_node("CamHolder/Camera3D"))
+
+	interaction._refresh_tracked_entities()
+	await _wait_for_link_eval(interaction)
+	assert_bool(hidden.is_linked()).is_true()
+
+	root.queue_free()
+
+
 func _make_mesh_instance(node_name: String, primitive: Mesh, position: Vector3) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
@@ -1195,6 +1323,17 @@ func _attach_pigment_entity(node: Node3D, pigment: Pigments.Pigment, is_hidden: 
 	var entity := node as PigmentEntity
 	entity.pigment = pigment
 	entity.hidden_entity = is_hidden
+	return entity
+
+
+func _add_pigment_child(host: Node3D, pigment: Pigments.Pigment, is_hidden: bool) -> PigmentEntity:
+	var child := Node3D.new()
+	child.name = "Pigment"
+	child.set_script(PIGMENT_ENTITY_SCRIPT)
+	var entity := child as PigmentEntity
+	entity.pigment = pigment
+	entity.hidden_entity = is_hidden
+	host.add_child(child)
 	return entity
 
 
@@ -1238,7 +1377,6 @@ func _build_link_scene() -> Node3D:
 
 	var mirror: Mirror3D = MIRROR_SCENE.instantiate()
 	mirror.player = player
-	mirror.object_to_reflect = hidden
 	root.add_child(mirror)
 	mirror.name = "Mirror"
 	mirror.always_active = true

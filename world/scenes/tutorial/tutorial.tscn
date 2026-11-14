@@ -34,30 +34,27 @@ transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
 
 [node name="Level_01" type="Node3D" parent="." unique_id=385093112]
 
-[node name="Mirror" parent="Level_01" unique_id=715169890 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
+[node name="Mirror" parent="Level_01" unique_id=715169890 instance=ExtResource("4_ygolh")]
 editor_description = "Yellow Reveal mirror on the North wall of Room 1. Reveals hidden yellow objects (like Door3) directly, and mixes with the blue mirror (Mirror3) to become a green reveal mirror in nested reflections."
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.585005, 3.702)
-player = NodePath("../../Player")
 pigment = 4
 always_active = false
 cull_mask = 295423
 size = Vector2(6, 3)
 max_fps = 120.0
 
-[node name="Mirror3" parent="Level_01" unique_id=521782427 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
+[node name="Mirror3" parent="Level_01" unique_id=521782427 instance=ExtResource("4_ygolh")]
 editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.9587765, 1.585005, 1.6288898)
-player = NodePath("../../Player")
 pigment = 2
 always_active = false
 cull_mask = 270847
 size = Vector2(4.2, 3)
 max_fps = 120.0
 
-[node name="Mirror2" parent="Level_01" unique_id=198732667 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
+[node name="Mirror2" parent="Level_01" unique_id=198732667 instance=ExtResource("4_ygolh")]
 editor_description = "Yellow Dissolve mirror in the corridor. Dissolves Door2 so the player can enter Room 2."
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.2023983, 1.5, -8.853809)
-player = NodePath("../../Player")
 pigment = 4
 mirror_type = 1
 always_active = false
@@ -65,10 +62,9 @@ cull_mask = 223
 size = Vector2(1.89, 3)
 max_fps = 60.0
 
-[node name="Mirror4" parent="Level_01" unique_id=523977140 node_paths=PackedStringArray("player") instance=ExtResource("4_ygolh")]
+[node name="Mirror4" parent="Level_01" unique_id=523977140 instance=ExtResource("4_ygolh")]
 editor_description = "Yellow Reveal mirror in Room 2. Reveals the hidden yellow Slope while the player looks at it."
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 9.891178, 1.5657158, -6.8617997)
-player = NodePath("../../Player")
 pigment = 4
 always_active = false
 cull_mask = 295423

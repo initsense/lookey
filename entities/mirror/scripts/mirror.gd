@@ -27,14 +27,10 @@ const MAX_REFLECTED_VIEWS: int = 8
 ## Viewpoint stored for an unused reflected view, so far away that no mirror camera ever matches it.
 const UNUSED_REFLECTED_OBSERVER: Vector3 = Vector3(1e9, 1e9, 1e9)
 
-## Optional specific object to track for mirror interactions. All PigmentEntity nodes in the scene are tracked automatically.
-@export var object_to_reflect: Node3D
-## The player character in the scene. If left empty, the mirror finds the player automatically.
-@export var player: CharacterBody3D
-## Reference to the player's 3D camera.
-@onready var player_cam: Camera3D = (
-	player.get_node_or_null("CamHolder/Camera3D") as Camera3D if player != null else null
-)
+## The player character, found in the scene when the mirror starts.
+var player: CharacterBody3D
+## The player's 3D camera, found with the player.
+var player_cam: Camera3D
 
 @export_category("Mirror type")
 ## The color of this mirror's frame. Determines which colored objects it can reveal or dissolve.
@@ -515,23 +511,45 @@ func _configure_mirror_camera(
 
 
 func _resolve_player_and_camera() -> void:
-	if player != null and not is_instance_valid(player_cam):
+	if not is_inside_tree():
+		return
+	if not is_instance_valid(player_cam):
+		player_cam = _find_player_camera()
+	if not is_instance_valid(player) and is_instance_valid(player_cam):
+		player = _find_player_body(player_cam)
+	if not is_instance_valid(player):
+		player = _find_named_player()
+	if is_instance_valid(player) and not is_instance_valid(player_cam):
 		player_cam = player.get_node_or_null("CamHolder/Camera3D") as Camera3D
 
-	if not is_instance_valid(player_cam) and is_inside_tree():
-		var group_cam: Node = get_tree().get_first_node_in_group(&"camera_player")
-		if group_cam is Camera3D:
-			player_cam = group_cam as Camera3D
-		elif get_viewport() != null:
-			player_cam = get_viewport().get_camera_3d()
 
-	if player == null and is_instance_valid(player_cam):
-		var ancestor: Node = player_cam.get_parent()
-		while ancestor != null:
-			if ancestor is CharacterBody3D:
-				player = ancestor as CharacterBody3D
-				break
-			ancestor = ancestor.get_parent()
+## Returns the player camera from the camera_player group, or from a Player body in the scene.
+func _find_player_camera() -> Camera3D:
+	var group_cam: Node = get_tree().get_first_node_in_group(&"camera_player")
+	if group_cam is Camera3D:
+		return group_cam as Camera3D
+	var named: CharacterBody3D = _find_named_player()
+	if named != null:
+		return named.get_node_or_null("CamHolder/Camera3D") as Camera3D
+	return null
+
+
+## Returns the CharacterBody3D named Player, if the scene has one.
+func _find_named_player() -> CharacterBody3D:
+	var named: Node = get_tree().root.find_child("Player", true, false)
+	if named is CharacterBody3D:
+		return named as CharacterBody3D
+	return null
+
+
+## Walks up from the camera to the character body that carries it.
+func _find_player_body(camera: Camera3D) -> CharacterBody3D:
+	var ancestor: Node = camera.get_parent()
+	while ancestor != null:
+		if ancestor is CharacterBody3D:
+			return ancestor as CharacterBody3D
+		ancestor = ancestor.get_parent()
+	return null
 
 
 func _get_active_camera() -> Camera3D:
