@@ -225,7 +225,12 @@ func prepare_camera_only() -> bool:
 	if distance_from_camera >= freeze_distance:
 		return false
 
-	_configure_mirror_camera(_mirror_camera, active_camera.global_position, cull_mask, true)
+	_configure_mirror_camera(
+		_mirror_camera,
+		_reflection_observer_position(active_camera),
+		cull_mask,
+		true
+	)
 	return true
 
 
@@ -291,7 +296,12 @@ func prepare_frame(delta: float) -> bool:
 	else:
 		_direct_update_allowed = true
 
-	if not _configure_mirror_camera(_mirror_camera, active_camera.global_position, cull_mask, true):
+	if not _configure_mirror_camera(
+		_mirror_camera,
+		_reflection_observer_position(active_camera),
+		cull_mask,
+		true
+	):
 		_direct_update_allowed = false
 	return true
 
@@ -459,6 +469,16 @@ func _handle_mirror(delta: float) -> void:
 		_mirror_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	else:
 		set_direct_viewport_active(true)
+
+
+## Viewpoint for this mirror's own camera. Headbob and shake move only the player
+## camera, so the mirror follows the camera holder and stays still while the player moves.
+func _reflection_observer_position(camera: Camera3D) -> Vector3:
+	if camera == player_cam:
+		var holder: Node3D = camera.get_parent() as Node3D
+		if holder != null:
+			return holder.global_position
+	return camera.global_position
 
 
 func _configure_mirror_camera(
