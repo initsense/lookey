@@ -4,8 +4,9 @@
 [ext_resource type="Environment" uid="uid://sv7cho776efp" path="res://world/scenes/tutorial/environments/daylight/daylight_environment.tres" id="2_olo7t"]
 [ext_resource type="Script" uid="uid://dyj0rf32exito" path="res://addons/unibuilder/core/ub_face.gd" id="2_s40cp"]
 [ext_resource type="Script" uid="uid://dnaqomcyqdloo" path="res://addons/unibuilder/core/ub_mesh_data.gd" id="3_tkl5b"]
-[ext_resource type="PackedScene" uid="uid://bgkmxyw21pc1m" path="res://addons/golem/player/player.tscn" id="4_o26po"]
+[ext_resource type="PackedScene" uid="uid://8du2atgbgggs" path="res://entities/player/player.tscn" id="4_o26po"]
 [ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="4_ygolh"]
+[ext_resource type="Material" path="res://materials/pigments/yellow.tres" id="7_aqu7l"]
 [ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://scripts/pigment_entity.gd" id="7_o26po"]
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_jwddq"]
@@ -1330,7 +1331,7 @@ jump_time_to_descent = 0.3
 [node name="house" type="Node3D" parent="." unique_id=888116368]
 
 [node name="Mirror" parent="house" unique_id=1528812690 instance=ExtResource("4_ygolh")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -8.638905)
+transform = Transform3D(-0.9998808, 0, 0.015441193, 0, 1, 0, -0.015441193, 0, -0.9998808, 0, 2, -8.638905)
 mirror_type = 1
 cull_mask = 3
 size = Vector2(5, 4)
@@ -1451,7 +1452,10 @@ collision_mode = 2
 
 [node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=1705442451]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.54893, -4.473454, 15.780325)
+layers = 32
+material_override = ExtResource("7_aqu7l")
 size = Vector3(4.1674805, 1, 7.805664)
+material = ExtResource("7_aqu7l")
 script = ExtResource("7_o26po")
 pigment = 4
 

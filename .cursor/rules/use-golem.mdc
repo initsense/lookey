@@ -1,1 +1,20 @@
-../../addons/golem/.cursor/rules/use-golem.mdc
+---
+description: How to place the Golem character in a level
+alwaysApply: true
+---
+
+# Golem
+
+Instance `res://entities/player/player.tscn` in a level. Do not instance `res://addons/golem/player/player.tscn`.
+
+`entities/player/player.tscn` is Lookey's player. It is based on the Golem player and already sets the body collision layer to 2 and the collision mask to 2049 (layer 1 `objects` and layer 12 `entity_collider`). The camera spring arm stays on layer 2. The mirror body and the real-world camera cull live in that scene, so every placed player gets them.
+
+`addons/golem/player/player.tscn` is only a reference. Leave files under `vendor/golem` and `addons/golem` unchanged. From the game root, update that reference with `sh addons/golem/update.sh`.
+
+Do not copy this repo's tests or its gdUnit4.
+
+Name the node `Player` and attach `res://addons/golem/menu/golem_world.gd` only when the level should open the Escape menu.
+
+The debug HUD stays in the player scene and starts hidden.
+
+Action names, default keys, and the `toggle_mouse_mode` / `mouse_mode` split are in `addons/golem/docs/using-in-a-game.md`.

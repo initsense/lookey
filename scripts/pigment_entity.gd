@@ -39,17 +39,23 @@ const PIGMENT_MATERIALS: Dictionary[Pigments.Pigment, StandardMaterial3D] = {
 	set(value):
 		hidden_entity = value
 		_config_dirty = true
+		if Engine.is_editor_hint() and is_inside_tree():
+			_refresh_config()
 ## The color of this object. Determines which mirrors can reveal or dissolve it (White works with every mirror color).
 @export var pigment: Pigments.Pigment = Pigments.Pigment.WHITE:
 	set(value):
 		pigment = value
 		_config_dirty = true
+		if Engine.is_editor_hint() and is_inside_tree():
+			_refresh_config()
 ## Material painted on this object's shapes. Leave empty to use the shared color of the pigment above.
 ## Assigning one does not change which mirrors can reveal or dissolve the object.
 @export var surface_material: Material:
 	set(value):
 		surface_material = value
 		_config_dirty = true
+		if Engine.is_editor_hint() and is_inside_tree():
+			_refresh_config()
 
 @export_category("Collider")
 ## Builds a "Collider" body from this object's shapes and saves it in the scene.
@@ -451,6 +457,9 @@ func _apply_layers_and_material() -> void:
 		if not is_instance_valid(geometry):
 			continue
 		geometry.material_override = material
+		# CSG brushes tint from their own material slot; material_override alone often stays gray in the editor.
+		if geometry is CSGShape3D:
+			(geometry as CSGShape3D).material = material
 
 	var player_mask: int = 1 << (Pigments.PLAYER_LAYER - 1)
 	for body: CollisionObject3D in bodies:
