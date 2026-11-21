@@ -141,6 +141,12 @@ func _is_entity_eligible_for_chain(entity: PigmentEntity, chain: Array) -> bool:
 
 
 func _passes_outer_mirror_gates(entity: PigmentEntity) -> bool:
+	# A mirror the player cannot see, including one hidden in the scene, must not
+	# link or affect entities. The frustum check below is only a backup for a
+	# visible mirror whose on-screen notifier has not updated yet.
+	if not _mirror.is_visible_in_tree():
+		return false
+
 	if not is_mirror_visible and not _is_aabb_in_camera_frustum(_mirror_quad_aabb()):
 		return false
 
