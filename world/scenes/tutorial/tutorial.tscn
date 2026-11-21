@@ -1,239 +1,353 @@
-[gd_scene format=3 uid="uid://58kg5u3rdfjd"]
+[gd_scene format=4 uid="uid://6uk6s7xu0wr"]
 
-[ext_resource type="PackedScene" uid="uid://8du2atgbgggs" path="res://entities/player/player.tscn" id="1_j872f"]
+[ext_resource type="Script" uid="uid://cp01tx4fxrgim" path="res://addons/unibuilder/nodes/ub_mesh_instance.gd" id="1_357qv"]
 [ext_resource type="Environment" uid="uid://sv7cho776efp" path="res://world/scenes/tutorial/environments/daylight/daylight_environment.tres" id="2_olo7t"]
-[ext_resource type="PackedScene" uid="uid://doa5a3ihrc7to" path="res://prefabs/terrain.tscn" id="3_hcjmv"]
+[ext_resource type="Script" uid="uid://dyj0rf32exito" path="res://addons/unibuilder/core/ub_face.gd" id="2_s40cp"]
+[ext_resource type="Script" uid="uid://dnaqomcyqdloo" path="res://addons/unibuilder/core/ub_mesh_data.gd" id="3_tkl5b"]
+[ext_resource type="PackedScene" uid="uid://bgkmxyw21pc1m" path="res://addons/golem/player/player.tscn" id="4_o26po"]
 [ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="4_ygolh"]
-[ext_resource type="PackedScene" uid="uid://byvywowoqfw7e" path="res://prefabs/object.tscn" id="5_lm8li"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stairs"]
-albedo_color = Color(0.74, 0.64, 0.5, 1)
+[sub_resource type="ArrayMesh" id="ArrayMesh_aqu7l"]
+lightmap_size_hint = Vector2i(210, 190)
+_surfaces = [{
+"aabb": AABB(-18.79544, 0, -20.53998, 37.59088, 1e-05, 41.07996),
+"attribute_data": PackedByteArray("/////xBdlsHhUaRB9mN/P4lTfz//////EF2WweFRpMHBCRw7iVN/P/////8QXZZB4VGkwcEJHDuSdiw7/////xBdlkHhUaRB9mN/P5J2LDs="),
+"format": 34359742527,
+"index_count": 6,
+"index_data": PackedByteArray("AAABAAIAAgADAAAA"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 4,
+"vertex_data": PackedByteArray("EF2WwQAAAADhUaRBEF2WwQAAAADhUaTBEF2WQQAAAADhUaTBEF2WQQAAAADhUaRBAID//////78AgP//////vwCA//////+/AID//////78=")
+}]
+metadata/ub_uv2_texel = 0.2
+metadata/ub_uv2_scale = Vector3(1, 1, 1)
+metadata/ub_compile_hash = 719678558
 
-[node name="Tutorial" type="Node3D" unique_id=1193302633]
-editor_description = "Main tutorial level demonstrating reveal mirrors, dissolve mirrors, and nested mirror reflections."
+[sub_resource type="Resource" id="Resource_84nl7"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(0, 1, 3, 2)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
 
-[node name="Player" parent="." unique_id=713571688 instance=ExtResource("1_j872f")]
-editor_description = "First-person player character starting in Room 1 in front of the tutorial mirrors."
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 1.6403465, 0.26913548, 0.015626907)
+[sub_resource type="Resource" id="Resource_ieigl"]
+script = ExtResource("3_tkl5b")
+positions = PackedVector3Array(-18.79544, 0, -20.53998, 18.79544, 0, -20.53998, -18.79544, 0, 20.53998, 18.79544, 0, 20.53998)
+faces = Array[ExtResource("2_s40cp")]([SubResource("Resource_84nl7")])
+shape_spec = {
+"base": true,
+"dims": {
+"ah": 0.001,
+"su": 37.59088,
+"sv": 41.07996
+},
+"kind": 1,
+"params": {
+"div_u": 1,
+"div_v": 1
+}
+}
 
-[node name="Environment" type="Node" parent="." unique_id=821477724]
+[sub_resource type="ArrayMesh" id="ArrayMesh_jwddq"]
+lightmap_size_hint = Vector2i(58, 54)
+_surfaces = [{
+"aabb": AABB(-0.6241292, 0, -1.866456, 1.2482584, 4.0121913, 3.732912),
+"attribute_data": PackedByteArray("/////wjo7j8AAAAAn0bYPia0Fzz/////AACAPwAAAAACpwE/JrQXPP////8AAIA/AABAwAKnAT/Mnpk+/////wAAgL8AAEDAKlAzP8yemT7/////AACAvwAAAAAqUDM/JrQXPP////8I6O6/AAAAAN3TSD8mtBc8/////wjo7r/fY4DA3dNIPxPayz7/////COjuP99jgMCfRtg+E9rLPv////8AAIC/AAAAAMs9DTzp08s9/////wjo7r8AAAAAyz0NPCa0Fzz/////COjuv99jgMAJy70+JrQXPP////8I6O4/32OAwAnLvT4T2ss+/////wjo7j8AAAAAyz0NPBPayz7/////AACAPwAAAADLPQ08uqKdPv////8AAIA/AABAwJwGjz66op0+/////wAAgL8AAEDAnAaPPunTyz3/////7sYfPwAAAADuaUQ/ewktP//////uxh+/AAAAAE8jbD97CS0//////+7GH78AAEDATyNsPy+hfT//////7sYfPwAAQMDuaUQ/L6F9P//////uxh8/AACAP6gRVj8mtBc8/////+7GH78AAIA/Cct9Pya0Fzz/////7sYfvwAAgL8Jy30/AACAPv/////uxh8/AACAv6gRVj8AAIA+/////+7GH78AAEDAIyw3Pya0Vz//////7sYfPwAAQMAjLDc/ewktP//////uxh8/AAAAAJ9G2D57CS0//////+7GH78AAAAAn0bYPia0Vz//////7sYfPwAAgL/LPQ08aC8hPv/////uxh+/AACAv2G5Jz5oLyE+/////+7GH78I6O6/YbknPgAAgD7/////7sYfPwjo7r/LPQ08AACAPv/////uxh8/AAAAAMs9DTzaS+g+/////+7GH78AAAAAyz0NPJjQHj//////7sYfv99jgMAJy70+mNAeP//////uxh8/32OAwAnLvT7aS+g+/////+7GHz8I6O4/3dNIP5jQHj//////7sYfvwjo7j/d00g/2kvoPv/////uxh+/COjuv59G2D7aS+g+/////+7GHz8I6O6/n0bYPpjQHj//////7sYfv99jgMAJy70+JrRXP//////uxh8/32OAwAnLvT57CS0//////+7GHz8AAAAAyz0NPHsJLT//////7sYfvwAAAADLPQ08JrRXP//////uxh8/COjuP6gRVj/HcZw+/////+7GH78I6O4/Cct9P8dxnD7/////7sYfvwAAgD8Jy30/E9rLPv/////uxh8/AACAP6gRVj8T2ss+"),
+"format": 34359742527,
+"index_count": 84,
+"index_data": PackedByteArray("AAABAAIAAwAEAAUAAwAFAAYAAgADAAYAAgAGAAcAAgAHAAAACAAJAAoACwAMAA0ACwANAA4ACgALAA4ACgAOAA8ACgAPAAgAEAARABIAEgATABAAFAAVABYAFgAXABQAGAAZABoAGgAbABgAHAAdAB4AHgAfABwAIAAhACIAIgAjACAAJAAlACYAJgAnACQAKAApACoAKgArACgALAAtAC4ALgAvACwA"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 48,
+"vertex_data": PackedByteArray("7sYfPwAAAAAI6O6/7sYfPwAAAAAAAIC/7sYfPwAAQEAAAIC/7sYfPwAAQEAAAIA/7sYfPwAAAAAAAIA/7sYfPwAAAAAI6O4/7sYfP99jgEAI6O4/7sYfP99jgEAI6O6/7sYfvwAAAAAAAIC/7sYfvwAAAAAI6O6/7sYfv99jgEAI6O6/7sYfv99jgEAI6O4/7sYfvwAAAAAI6O4/7sYfvwAAAAAAAIA/7sYfvwAAQEAAAIA/7sYfvwAAQEAAAIC/7sYfPwAAAAAAAIC/7sYfvwAAAAAAAIC/7sYfvwAAQEAAAIC/7sYfPwAAQEAAAIC/7sYfPwAAQEAAAIC/7sYfvwAAQEAAAIC/7sYfvwAAQEAAAIA/7sYfPwAAQEAAAIA/7sYfPwAAQEAAAIA/7sYfvwAAQEAAAIA/7sYfvwAAAAAAAIA/7sYfPwAAAAAAAIA/7sYfPwAAAAAAAIA/7sYfvwAAAAAAAIA/7sYfvwAAAAAI6O4/7sYfPwAAAAAI6O4/7sYfPwAAAAAI6O4/7sYfvwAAAAAI6O4/7sYfv99jgEAI6O4/7sYfP99jgEAI6O4/7sYfP99jgEAI6O4/7sYfv99jgEAI6O4/7sYfv99jgEAI6O6/7sYfP99jgEAI6O6/7sYfP99jgEAI6O6/7sYfv99jgEAI6O6/7sYfvwAAAAAI6O6/7sYfPwAAAAAI6O6/7sYfPwAAAAAI6O6/7sYfvwAAAAAI6O6/7sYfvwAAAAAAAIC/7sYfPwAAAAAAAIC///8AgP///////wCA////////AID///////8AgP///////wCA////////AID///////8AgP///////wCA/////wAAAID/f/+/AAAAgP9//78AAACA/3//vwAAAID/f/+/AAAAgP9//78AAACA/3//vwAAAID/f/+/AAAAgP9//7//f/9/////v/9//3////+//3//f////7//f/9/////vwCAAAD///+/AIAAAP///78AgAAA////vwCAAAD///+//////wAA/7//////AAD/v/////8AAP+//////wAA/78AgAAA////vwCAAAD///+/AIAAAP///78AgAAA////v/9//3////+//3//f////7//f/9/////v/9//3////+/AID//////78AgP//////vwCA//////+/AID//////7//////AAD/v/////8AAP+//////wAA/7//////AAD/vwCAAAD///+/AIAAAP///78AgAAA////vwCAAAD///+/")
+}]
+metadata/ub_uv2_texel = 0.2
+metadata/ub_uv2_scale = Vector3(1, 1, 1)
+metadata/ub_compile_hash = 3324183706
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="Environment" unique_id=1219011229]
+[sub_resource type="Resource" id="Resource_bcs47"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(0, 1, 2, 3, 4, 5, 6, 7)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_obg71"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(15, 14, 13, 12, 11, 10, 9, 8)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_r0i4w"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(8, 9, 1, 0)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_7nlgq"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(9, 10, 2, 1)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_w81oq"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(10, 11, 3, 2)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_y1lyg"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(11, 12, 4, 3)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_ufdsl"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(12, 13, 5, 4)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_xt3c6"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(13, 14, 6, 5)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_h8h2x"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(14, 15, 7, 6)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_y4fv3"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(15, 8, 0, 7)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_0kcye"]
+script = ExtResource("3_tkl5b")
+positions = PackedVector3Array(0.6241292, 0, -1, 0.6241292, 3, -1, 0.6241292, 3, 1, 0.6241292, 0, 1, 0.6241292, 0, 1.866456, 0.6241292, 4.0121913, 1.866456, 0.6241292, 4.0121913, -1.866456, 0.6241292, 0, -1.866456, -0.6241292, 0, -1, -0.6241292, 3, -1, -0.6241292, 3, 1, -0.6241292, 0, 1, -0.6241292, 0, 1.866456, -0.6241292, 4.0121913, 1.866456, -0.6241292, 4.0121913, -1.866456, -0.6241292, 0, -1.866456)
+faces = Array[ExtResource("2_s40cp")]([SubResource("Resource_bcs47"), SubResource("Resource_obg71"), SubResource("Resource_r0i4w"), SubResource("Resource_7nlgq"), SubResource("Resource_w81oq"), SubResource("Resource_y1lyg"), SubResource("Resource_ufdsl"), SubResource("Resource_xt3c6"), SubResource("Resource_h8h2x"), SubResource("Resource_y4fv3")])
+shape_spec = {
+"base": true,
+"dims": {
+"ah": 4.012191502039204,
+"su": 1.2482584,
+"sv": 3.732912
+},
+"kind": 8,
+"params": {
+"arched": 0.0,
+"door_height": 3.0,
+"opening": 2.0,
+"sides": 8,
+"smooth": 0.0
+}
+}
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_xb4ij"]
+lightmap_size_hint = Vector2i(142, 134)
+_surfaces = [{
+"aabb": AABB(-6.9313197, 0, -6.145597, 13.546615, 4, 9.36845),
+"attribute_data": PackedByteArray("/////3+w00AAAAAATD1ZP2CNCT3/////+rvYPwAAAABMPVk/zm5hPv/////6u9g/AACAwD0Zfz/ObmE+/////3+w00AAAIDAPRl/P2CNCT3/////f7DTQDhDTkC0wmY7jYl0O//////6u9g/OENOQIZlOD6NiXQ7//////q72D9sdkFAhmU4PvwIPTz/////GUrNQGx2QUB+Oi88/Ag9PP////8ZSs3AAACAwBKtcD8qZ3c///////q72L8AAIDAEq1wP0ykRz//////+rvYvwAAAAAg0Uo/TKRHP/////8ZSs3AAAAAACDRSj8qZ3c//////xlKzUBsdkHAIOv2PguYzD7/////+rvYP2x2QcAzMqA+C5jMPv/////6u9g/OENOwDMyoD7WmMg+/////3+w00A4Q07AcJf6PtaYyD7/////u6jEQAAAAADgLnU9eqAyP/////84Q07AAAAAAO5Szz56oDI//////zhDTsAAAIDA7lLPPumBCj//////u6jEQAAAgMDgLnU96YEKP/////9/sNNAu6jEwLTCZjtjIr0+/////xlKzUBVQr7AfjovPC8juT7/////VUK+wAAAgMBItAI/gsoZP/////9sdkFAAACAwLvUUz+Cyhk//////2x2QUAAAAAAu9RTPxPpQT//////VUK+wAAAAABItAI/E+lBP/////8ZSs1AVUK+QCDr9j546T8//////3+w00C7qMRAcJf6PhPpQT//////X83dQAAAAADK+C0/jYl0O/////9/sNPAAAAAAMr4LT+wxgQ//////3+w08AAAIDAu9RTP7DGBD//////X83dQAAAgMC71FM/jYl0O/////9fzd3Au6jEwHCX+j5jIr0+//////lm18BVQr7AIOv2Pi8juT7/////+WbXwAAAgMA6kCg/sMYEP/////8ZSs1AAACAwDqQKD+NiXQ7/////xlKzUAAAAAASLQCP42JdDv/////+WbXwAAAAABItAI/sMYEP//////5ZtfAVUK+QH46Lzx46T8//////1/N3cC7qMRAtMJmOxPpQT//////pnRBQAAAAAAZv90+MpGePv////+7qMTAAAAAAB1ItD0ykZ4+/////7uoxMAAAIDAHUi0PR+oHD7/////pnRBQAAAgMAZv90+H6gcPv////9fzd3ApnRBQHCX+j60Gj08//////lm18DapzRAIOv2PqWAnjz/////2qc0wAAAgMCXerI+TKRHP/////9VQr5AAACAwIXNAT1MpEc//////1VCvkAAAAAAhc0BPd7Cbz//////2qc0wAAAAACXerI+3sJvP//////5ZtfA2qc0wH46LzzNl9A+/////1/N3cCmdEHAtMJmO5mYzD7/////5tSHvwAAAABe6gk/TKRHP/////9fzd3AAAAAAJBoRT9MpEc//////1/N3cAAAIDAkGhFP97Cbz//////5tSHvwAAgMBe6gk/3sJvP//////m1Ie/pnRBQMfIjj60Gj08/////+bUh7/apzRAx8iOPqWAnjz/////5tSHPwAAgMDOgQQ/dgt/P//////5ZtdAAACAwM6BBD9MpEc///////lm10AAAAAAuEu9PkykRz//////5tSHPwAAAAC4S70+dgt/P//////m1Ie/2qc0wF04Wz7Nl9A+/////+bUh7+mdEHAXThbPpmYzD7/////OENOQAAAAAAg0Uo//GoMP/////9sdkFAAAAAACDRSj/pgQo//////2x2QUAAAIDAEq1wP+mBCj//////OENOQAAAgMASrXA//GoMP//////apzTAAAAAAGwOpD4IKuc+/////6Z0QcAAAAAAbA6kPi786j7/////pnRBwAAAgMASrTA+LvzqPv/////apzTAAACAwBKtMD4IKuc+"),
+"format": 34359742527,
+"index_count": 132,
+"index_data": PackedByteArray("AAABAAIAAgADAAAABAAFAAYABgAHAAQACAAJAAoACgALAAgADAANAA4ADgAPAAwAEAARABIAEgATABAAFAAEAAcABwAVABQAFgAXABgAGAAZABYAGgAMAA8ADwAbABoAHAAdAB4AHgAfABwAIAAUABUAFQAhACAAIgAjACQAJAAlACIAJgAaABsAGwAnACYAKAApACoAKgArACgALAAgACEAIQAtACwALgAvADAAMAAxAC4AMgAmACcAJwAzADIANAA1ADYANgA3ADQAOAAsAC0ALQA5ADgAOgA7ADwAPAA9ADoAPgAyADMAMwA/AD4AQABBAEIAQgBDAEAARABFAEYARgBHAEQA"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 72,
+"vertex_data": PackedByteArray("f7DTQAAAAAA4Q05A+rvYPwAAAAA4Q05A+rvYPwAAgEA4Q05Af7DTQAAAgEA4Q05Af7DTQAAAgEA4Q05A+rvYPwAAgEA4Q05A+rvYPwAAgEBsdkFAGUrNQAAAgEBsdkFAGUrNQAAAgEBsdkFA+rvYPwAAgEBsdkFA+rvYPwAAAABsdkFAGUrNQAAAAABsdkFAGUrNQAAAAABsdkFA+rvYPwAAAABsdkFA+rvYPwAAAAA4Q05Af7DTQAAAAAA4Q05Af7DTQAAAAAC7qMTAf7DTQAAAAAA4Q05Af7DTQAAAgEA4Q05Af7DTQAAAgEC7qMTAf7DTQAAAgEC7qMTAGUrNQAAAgEBVQr7AGUrNQAAAgEBVQr7AGUrNQAAAgEBsdkFAGUrNQAAAAABsdkFAGUrNQAAAAABVQr7AGUrNQAAAAABVQr7Af7DTQAAAAAC7qMTAX83dwAAAAAC7qMTAf7DTQAAAAAC7qMTAf7DTQAAAgEC7qMTAX83dwAAAgEC7qMTAX83dwAAAgEC7qMTA+WbXwAAAgEBVQr7A+WbXwAAAgEBVQr7AGUrNQAAAgEBVQr7AGUrNQAAAAABVQr7A+WbXwAAAAABVQr7A+WbXwAAAAABVQr7AX83dwAAAAAC7qMTAX83dwAAAAACmdEFAX83dwAAAAAC7qMTAX83dwAAAgEC7qMTAX83dwAAAgECmdEFAX83dwAAAgECmdEFA+WbXwAAAgEDapzRA+WbXwAAAgEDapzRA+WbXwAAAgEBVQr7A+WbXwAAAAABVQr7A+WbXwAAAAADapzRA+WbXwAAAAADapzRAX83dwAAAAACmdEFA5tSHvwAAAACmdEFAX83dwAAAAACmdEFAX83dwAAAgECmdEFA5tSHvwAAgECmdEFA5tSHvwAAgECmdEFA5tSHvwAAgEDapzRA5tSHvwAAgEDapzRA+WbXwAAAgEDapzRA+WbXwAAAAADapzRA5tSHvwAAAADapzRA5tSHvwAAAADapzRA5tSHvwAAAACmdEFA+rvYPwAAAAA4Q05A+rvYPwAAAABsdkFA+rvYPwAAgEBsdkFA+rvYPwAAgEA4Q05A5tSHvwAAAADapzRA5tSHvwAAAACmdEFA5tSHvwAAgECmdEFA5tSHvwAAgEDapzRA/3//f////7//f/9/////v/9//3////+//3//f////78AgP//////vwCA//////+/AID//////78AgP//////v/////8AAP+//////wAA/7//////AAD/v/////8AAP+/AIAAAP///78AgAAA////vwCAAAD///+/AIAAAP///7///wCA////////AID///////8AgP///////wCA/////wCA//////+/AID//////78AAACA/3//vwAAAID/f/+/AAAAgP9//78AAACA/3//vwCAAAD///+/AIAAAP///7//////AAD/v/////8AAP+//////wAA/7//////AAD/vwCA//////+/AID//////7//f/9/////v/9//3////+//3//f////7//f/9/////vwCAAAD///+/AIAAAP///78AAACA/3//vwAAAID/f/+/AAAAgP9//78AAACA/3//vwCA//////+/AID//////7///wCA////////AID///////8AgP///////wCA/////wCAAAD///+/AIAAAP///7//f/9/////v/9//3////+//3//f////7//f/9/////vwCA//////+/AID//////7//////AAD/v/////8AAP+//////wAA/7//////AAD/vwCAAAD///+/AIAAAP///78AAACA/3//vwAAAID/f/+/AAAAgP9//78AAACA/3//v///AID///////8AgP///////wCA////////AID/////")
+}]
+metadata/ub_uv2_texel = 0.2
+metadata/ub_uv2_scale = Vector3(1, 1, 1)
+metadata/ub_compile_hash = 3602379640
+
+[sub_resource type="Resource" id="Resource_03vmk"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(0, 1, 5, 4)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_sh2ou"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(1, 2, 6, 5)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_fxwxk"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(2, 3, 7, 6)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_shb82"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(3, 0, 4, 7)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_5s2t4"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(4, 5, 9, 8)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_qlu60"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(5, 6, 10, 9)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_ite8o"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(6, 7, 11, 10)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_270s3"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(7, 4, 8, 11)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_c6mv3"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(8, 9, 13, 12)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_6la12"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(9, 10, 14, 13)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_r7fy0"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(10, 11, 15, 14)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_4nl70"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(11, 8, 12, 15)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_yulb4"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(12, 13, 17, 16)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_nv7sj"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(13, 14, 18, 17)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_vvpwj"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(14, 15, 19, 18)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_0acaf"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(15, 12, 16, 19)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_xgpyp"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(16, 17, 21, 20)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_gqj6e"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(17, 18, 22, 21)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_ddwyo"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(18, 19, 23, 22)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_a6uu8"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(19, 16, 20, 23)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_mdyin"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(3, 2, 1, 0)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_gnon6"]
+script = ExtResource("2_s40cp")
+vertices = PackedInt32Array(20, 21, 22, 23)
+uv_coords = PackedVector2Array()
+color_corners = PackedColorArray()
+
+[sub_resource type="Resource" id="Resource_w7phy"]
+script = ExtResource("3_tkl5b")
+positions = PackedVector3Array(1.6932366, 0, 3.2228527, 1.6932366, 4, 3.2228527, 1.6932366, 4, 3.022853, 1.6932366, 0, 3.022853, 6.615295, 0, 3.2228527, 6.615295, 4, 3.2228527, 6.415295, 4, 3.022853, 6.415295, 0, 3.022853, 6.615295, 0, -6.145597, 6.615295, 4, -6.145597, 6.415295, 4, -5.945597, 6.415295, 0, -5.945597, -6.9313197, 0, -6.145597, -6.9313197, 4, -6.145597, -6.73132, 4, -5.945597, -6.73132, 0, -5.945597, -6.9313197, 0, 3.0227447, -6.9313197, 4, 3.0227447, -6.73132, 4, 2.8227448, -6.73132, 0, 2.8227448, -1.0611846, 0, 3.0227447, -1.0611846, 4, 3.0227447, -1.0611846, 4, 2.8227448, -1.0611846, 0, 2.8227448)
+faces = Array[ExtResource("2_s40cp")]([SubResource("Resource_03vmk"), SubResource("Resource_sh2ou"), SubResource("Resource_fxwxk"), SubResource("Resource_shb82"), SubResource("Resource_5s2t4"), SubResource("Resource_qlu60"), SubResource("Resource_ite8o"), SubResource("Resource_270s3"), SubResource("Resource_c6mv3"), SubResource("Resource_6la12"), SubResource("Resource_r7fy0"), SubResource("Resource_4nl70"), SubResource("Resource_yulb4"), SubResource("Resource_nv7sj"), SubResource("Resource_vvpwj"), SubResource("Resource_0acaf"), SubResource("Resource_xgpyp"), SubResource("Resource_gqj6e"), SubResource("Resource_ddwyo"), SubResource("Resource_a6uu8"), SubResource("Resource_mdyin"), SubResource("Resource_gnon6")])
+shape_spec = {
+"base": false,
+"dims": {
+"closed": false,
+"points": PackedVector3Array(1.6932366, 0, 3.1228528, 6.515295, 0, 3.1228528, 6.515295, 0, -6.045597, -6.83132, 0, -6.045597, -6.83132, 0, 2.9227448, -1.0611846, 0, 2.9227448),
+"up": Vector3(0, 1, 0)
+},
+"kind": 15,
+"params": {
+"height": 4.0,
+"side": 0,
+"thickness": 0.2
+}
+}
+
+[node name="Tutorial" type="Node3D" unique_id=770254212]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1034804180]
 environment = ExtResource("2_olo7t")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Environment" unique_id=306359258]
-editor_description = "Sun light. Its shadow reach is tuned so the sharp shadow still covers the whole room inside a mirror, even though the mirror camera sits behind the glass."
-transform = Transform3D(-0.993093, 0.102165, 0.0576972, -0.0384632, -0.748043, 0.662535, 0.110848, 0.655739, 0.746806, 0, 0, 0)
-shadow_enabled = true
-directional_shadow_mode = 1
-directional_shadow_split_1 = 0.75
-directional_shadow_max_distance = 80.0
-
-[node name="Terrain" parent="Environment" unique_id=293814791 instance=ExtResource("3_hcjmv")]
-transform = Transform3D(100, 0, 0, 0, 100, 0, 0, 0, 100, 9.637, 0.23, 0.07)
-
-[node name="Level_01" type="Node3D" parent="." unique_id=385093112]
-
-[node name="Mirror" parent="Level_01" unique_id=715169890 instance=ExtResource("4_ygolh")]
-editor_description = "Yellow Reveal mirror on the North wall of Room 1. Reveals hidden yellow objects (like Door3) directly, and mixes with the blue mirror (Mirror3) to become a green reveal mirror in nested reflections."
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.585005, 3.702)
-pigment = 4
-always_active = false
-cull_mask = 295423
-size = Vector2(6, 3)
-max_fps = 120.0
-
-[node name="Mirror3" parent="Level_01" unique_id=521782427 instance=ExtResource("4_ygolh")]
-editor_description = "Blue Reveal mirror on the West wall of Room 1. Reveals hidden blue objects (like Door4) directly, and mixes with the yellow mirror (Mirror) to become a green reveal mirror in nested reflections."
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.9587765, 1.585005, 1.6288898)
-pigment = 2
-always_active = false
-cull_mask = 270847
-size = Vector2(4.2, 3)
-max_fps = 120.0
-
-[node name="Mirror2" parent="Level_01" unique_id=198732667 instance=ExtResource("4_ygolh")]
-editor_description = "Yellow Dissolve mirror in the corridor. Dissolves Door2 so the player can enter Room 2."
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2.2023983, 1.5, -8.853809)
+[node name="Mirror" parent="." unique_id=1528812690 instance=ExtResource("4_ygolh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -8)
 pigment = 4
 mirror_type = 1
-always_active = false
 cull_mask = 223
-size = Vector2(1.89, 3)
-max_fps = 60.0
-
-[node name="Mirror4" parent="Level_01" unique_id=523977140 instance=ExtResource("4_ygolh")]
-editor_description = "Yellow Reveal mirror in Room 2. Reveals the hidden yellow Slope while the player looks at it."
-transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 9.891178, 1.5657158, -6.8617997)
-pigment = 4
-always_active = false
-cull_mask = 295423
 size = Vector2(5, 3)
-max_fps = 60.0
 
-[node name="Wall" type="CSGBox3D" parent="Level_01" unique_id=1977801719]
-transform = Transform3D(-8.742278e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, -2.1124945, 1.6578734, -3.4467535)
-use_collision = true
-size = Vector3(1, 1, 0.5830078)
+[node name="Player" parent="." unique_id=778602952 instance=ExtResource("4_o26po")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -4)
 
-[node name="Wall4" type="CSGBox3D" parent="Level_01" unique_id=790062893]
-transform = Transform3D(-8.742278e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, 1.9831657, 1.6578734, -3.4467535)
-use_collision = true
-size = Vector3(1, 1, 0.5830078)
+[node name="UBPlane" type="MeshInstance3D" parent="." unique_id=875183960]
+mesh = SubResource("ArrayMesh_aqu7l")
+script = ExtResource("1_357qv")
+mesh_data = SubResource("Resource_ieigl")
+collision_mode = 2
+collision_mask = 3
 
-[node name="Wall6" type="CSGBox3D" parent="Level_01" unique_id=246328326]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 8.881784e-16, 0, 4, 0.95407677, 1.6578734, -5.702112)
-use_collision = true
-size = Vector3(1, 1, 1.1459961)
+[node name="UBDoor" type="MeshInstance3D" parent="." unique_id=2132563924]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.36105824, -2.3841858e-07, 0.30723894)
+mesh = SubResource("ArrayMesh_jwddq")
+script = ExtResource("1_357qv")
+mesh_data = SubResource("Resource_0kcye")
+collision_mode = 2
+collision_mask = 3
 
-[node name="Wall8" type="CSGBox3D" parent="Level_01" unique_id=1099204016]
-transform = Transform3D(-8.742279e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, 3.2236443, 1.6578734, -7.875441)
-use_collision = true
-size = Vector3(1, 1, 1.1459961)
-
-[node name="Wall9" type="CSGBox3D" parent="Level_01" unique_id=659778326]
-transform = Transform3D(-8.742279e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, 1.497366, 1.6578734, -9.896397)
-use_collision = true
-size = Vector3(1, 1, 1.9962158)
-
-[node name="Wall14" type="CSGBox3D" parent="Level_01" unique_id=161692634]
-transform = Transform3D(-8.742279e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, 9.587579, 1.6578734, -17.76733)
-use_collision = true
-size = Vector3(1, 1, 2.0786438)
-
-[node name="Wall15" type="CSGBox3D" parent="Level_01" unique_id=168340580]
-transform = Transform3D(-8.742279e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, 9.634467, 1.6578734, -6.7332835)
-use_collision = true
-size = Vector3(1, 1, 2.124054)
-
-[node name="Wall11" type="CSGBox3D" parent="Level_01" unique_id=1666155829]
-transform = Transform3D(-8.742279e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, -1.7122555, 1.6578734, -7.902225)
-use_collision = true
-size = Vector3(1, 1, 0.35061646)
-
-[node name="Wall7" type="CSGBox3D" parent="Level_01" unique_id=433908895]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 8.881784e-16, 0, 4, -1.077939, 1.6578734, -5.6469364)
-use_collision = true
-size = Vector3(1, 1, 1.1184082)
-
-[node name="Wall5" type="CSGBox3D" parent="Level_01" unique_id=1294436483]
-transform = Transform3D(-8.742278e-09, 0, -4, 0, 3, 0, 0.2, 0, -1.7484555e-07, 0.039871216, 1.6578734, 3.8132386)
-use_collision = true
-size = Vector3(1, 1, 1.6727295)
-
-[node name="Wall3" type="CSGBox3D" parent="Level_01" unique_id=444233253]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 0, 0, 4, -3.1196184, 1.6578734, 0.16478908)
-use_collision = true
-size = Vector3(1, 1, 1.9013672)
-
-[node name="Wall2" type="CSGBox3D" parent="Level_01" unique_id=1660789782]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 0, 0, 4, 3.172575, 1.6578734, 0.19408596)
-use_collision = true
-size = Vector3(1, 1, 1.9160156)
-
-[node name="Wall12" type="CSGBox3D" parent="Level_01" unique_id=721958536]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 0, 0, 4, 5.3800774, 1.6578734, -7.2309475)
-use_collision = true
-size = Vector3(1, 1, 0.31079102)
-
-[node name="Wall13" type="CSGBox3D" parent="Level_01" unique_id=1803040950]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 0, 0, 4, 5.3800774, 1.6578734, -13.82382)
-use_collision = true
-size = Vector3(1, 1, 1.9421997)
-
-[node name="Wall10" type="CSGBox3D" parent="Level_01" unique_id=1680446801]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 0, 0, 4, -2.3557177, 1.6578734, -8.843523)
-use_collision = true
-size = Vector3(1, 1, 0.4970703)
-
-[node name="Wall16" type="CSGBox3D" parent="Level_01" unique_id=1627608507]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 0, 0, 4, 13.786082, 1.6578734, -12.2372)
-use_collision = true
-size = Vector3(1, 1, 2.7402954)
-
-[node name="Wall17" type="CSGBox3D" parent="Level_01" unique_id=749909831]
-transform = Transform3D(0.2, 0, 0, 0, 3, 0, 0, 0, 4, 26.704554, 1.6578734, -8.96262)
-use_collision = true
-size = Vector3(1, 1, 1.0539551)
-
-[node name="Cube" type="CSGBox3D" parent="Level_01" unique_id=109309255]
-transform = Transform3D(2.0660706, 0, 0, 0, 2.0660706, 0, 0, 0, 2.0660706, -2.7756152, 0.43059683, -3.116014)
-use_collision = true
-
-[node name="Cube2" type="CSGBox3D" parent="Level_01" unique_id=818428287]
-transform = Transform3D(0.91718876, 0, 0, 0, 0.91718876, 0, 0, 0, 0.91718876, 1.3763291, 0.39626962, 2.5661683)
-use_collision = true
-
-[node name="Cube3" type="CSGBox3D" parent="Level_01" unique_id=1258733001]
-transform = Transform3D(0.91718876, 0, 0, 0, 4.398633, 0, 0, 0, 0.91718876, -0.2145747, 1.9093378, 6.4269505)
-use_collision = true
-
-[node name="Stairs" type="Node3D" parent="Level_01"]
-editor_description = "Stone steps behind the starting spot. Each riser is short enough to walk up, so you can check stair climbing without jumping."
-
-[node name="Step1" type="CSGBox3D" parent="Level_01/Stairs"]
-editor_description = "First step. Turn around from the start and walk onto it."
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.355, -0.95)
-material = SubResource("StandardMaterial3D_stairs")
-use_collision = true
-size = Vector3(1.8, 0.25, 0.6)
-
-[node name="Step2" type="CSGBox3D" parent="Level_01/Stairs"]
-editor_description = "Second step, one riser higher than the first."
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.48, -1.55)
-material = SubResource("StandardMaterial3D_stairs")
-use_collision = true
-size = Vector3(1.8, 0.5, 0.6)
-
-[node name="Step3" type="CSGBox3D" parent="Level_01/Stairs"]
-editor_description = "Third step, one riser higher than the second."
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.605, -2.15)
-material = SubResource("StandardMaterial3D_stairs")
-use_collision = true
-size = Vector3(1.8, 0.75, 0.6)
-
-[node name="Landing" type="CSGBox3D" parent="Level_01/Stairs"]
-editor_description = "Flat top of the stairs. Walk back down the same steps to leave it."
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64, 0.73, -2.875)
-material = SubResource("StandardMaterial3D_stairs")
-use_collision = true
-size = Vector3(1.8, 1, 0.85)
-
-[node name="Door1" parent="Level_01" unique_id=900244337 instance=ExtResource("5_lm8li")]
-editor_description = "Visible yellow door blocking the exit of Room 1. Look at it in a yellow dissolve mirror (like Mirror5) to walk through."
-transform = Transform3D(-4.371139e-09, 0, -1.84, 0, 3, 0, 0.10000002, 0, -8.042896e-08, -0.066, 1.5, -3.44)
-pigment = 4
-
-[node name="Door3" parent="Level_01" unique_id=1816540012 instance=ExtResource("5_lm8li")]
-editor_description = "Hidden yellow block in Room 1. Appears in the yellow reveal mirror (Mirror), but not in the blue reveal mirror (Mirror3)."
-transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -0.33931518, 0.49357176, 2.3336284)
-hidden_entity = true
-pigment = 4
-
-[node name="Door4" parent="Level_01" unique_id=1819968735 instance=ExtResource("5_lm8li")]
-editor_description = "Hidden blue block in Room 1. Appears in the blue reveal mirror (Mirror3), but not in the yellow reveal mirror (Mirror)."
-transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -1.45, 0.49357176, 2.3336284)
-hidden_entity = true
-pigment = 2
-
-[node name="Door5" parent="Level_01" unique_id=1823436510 instance=ExtResource("5_lm8li")]
-editor_description = "Hidden green block in Room 1. Invisible in the real world and in single yellow or blue mirrors, and only appears (and becomes solid) inside the mixed green reflection where Mirror and Mirror3 reflect each other."
-transform = Transform3D(-4.4933454e-08, 0, -1.0132363, 0, 0.7308644, 0, 1.0279577, 0, -4.428997e-08, -0.9, 0.49357176, 1.15)
-hidden_entity = true
-pigment = 3
-
-[node name="Door2" parent="Level_01" unique_id=979869992 instance=ExtResource("5_lm8li")]
-editor_description = "Visible yellow door between the corridor and Room 2. Dissolves when seen in Mirror2."
-transform = Transform3D(-0.10000002, 0, 1.6085791e-07, 0, 3, 0, -8.742278e-09, 0, -1.84, 5.424019, 1.513587, -8.892051)
-pigment = 4
-
-[node name="Slope" parent="Level_01" unique_id=368536315 instance=ExtResource("5_lm8li")]
-editor_description = "Hidden yellow ramp in Room 2. Becomes solid so you can walk up it while visible in Mirror4."
-transform = Transform3D(-1.1793111e-08, 4.6006403e-07, -1.8400003, 0.08941895, 3.3800523, -1.438374e-07, 0.044768903, -6.7511306, -1.9740334e-07, 9.901582, 1.4487948, -14.336652)
-hidden_entity = true
-pigment = 4
-
-[node name="Slope2" parent="Level_01" unique_id=441250804 instance=ExtResource("5_lm8li")]
-editor_description = "Visible yellow ramp in the far area of Level 1."
-transform = Transform3D(-0.044768896, 6.7511296, 2.7783227e-07, 0.08941894, 3.3800516, -1.4383738e-07, -1.3750017e-08, 7.551652e-07, -1.84, 23.135395, 1.4487948, -8.990152)
-pigment = 4
+[node name="UBWall" type="MeshInstance3D" parent="." unique_id=2082392975]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08128047, 0, -2.8470383)
+mesh = SubResource("ArrayMesh_xb4ij")
+script = ExtResource("1_357qv")
+mesh_data = SubResource("Resource_w7phy")
+collision_mode = 2
+collision_mask = 3
