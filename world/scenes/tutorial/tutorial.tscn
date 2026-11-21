@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://dnaqomcyqdloo" path="res://addons/unibuilder/core/ub_mesh_data.gd" id="3_tkl5b"]
 [ext_resource type="PackedScene" uid="uid://bgkmxyw21pc1m" path="res://addons/golem/player/player.tscn" id="4_o26po"]
 [ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="4_ygolh"]
+[ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://scripts/pigment_entity.gd" id="7_o26po"]
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_aqu7l"]
 lightmap_size_hint = Vector2i(210, 190)
@@ -314,20 +315,46 @@ shape_spec = {
 }
 }
 
+[sub_resource type="ArrayMesh" id="ArrayMesh_84nl7"]
+lightmap_size_hint = Vector2i(38, 34)
+_surfaces = [{
+"aabb": AABB(-1.3760738, 0, -0.1, 2.7521477, 4, 0.2),
+"attribute_data": PackedByteArray("/////zAjsD8AAAAA8xoKP/HwcDz/////MCOwvwAAAACvoXw/8fBwPP////8wI7C/AACAwK+hfD/i4SE//////zAjsD8AAIDA8xoKP+LhIT//////MCOwv83MzL02lFc8tbR0P/////8wI7A/zczMvRvK6z61tHQ//////zAjsD/NzMw9G8rrPjw8fD//////MCOwv83MzD02lFc8PDx8P/////8wI7C/AACAwBvK6z7i4SE//////zAjsD8AAIDANpRXPOLhIT//////MCOwPwAAAAA2lFc88fBwPP////8wI7C/AAAAABvK6z7x8HA8/////zAjsL/NzMy9r6F8Pzw8fD//////MCOwP83MzL3zGgo/PDx8P/////8wI7A/zczMPfMaCj+1tHQ//////zAjsL/NzMw9r6F8P7W0dD//////zczMPQAAAAA2lFc8l5ZWP//////NzMy9AAAAADaUVzweHl4//////83MzL0AAIDAlNcQPx4eXj//////zczMPQAAgMCU1xA/l5ZWP//////NzMw9AAAAAJTXED8AAEA//////83MzL0AAAAAlNcQP3h4OD//////zczMvQAAgMA2lFc8eHg4P//////NzMw9AACAwDaUVzwAAEA/"),
+"format": 34359742527,
+"index_count": 36,
+"index_data": PackedByteArray("AAABAAIAAgADAAAABAAFAAYABgAHAAQACAAJAAoACgALAAgADAANAA4ADgAPAAwAEAARABIAEgATABAAFAAVABYAFgAXABQA"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 24,
+"vertex_data": PackedByteArray("MCOwvwAAAADNzMy9MCOwPwAAAADNzMy9MCOwPwAAgEDNzMy9MCOwvwAAgEDNzMy9MCOwvwAAgEDNzMy9MCOwPwAAgEDNzMy9MCOwPwAAgEDNzMw9MCOwvwAAgEDNzMw9MCOwvwAAgEDNzMw9MCOwPwAAgEDNzMw9MCOwPwAAAADNzMw9MCOwvwAAAADNzMw9MCOwvwAAAADNzMw9MCOwPwAAAADNzMw9MCOwPwAAAADNzMy9MCOwvwAAAADNzMy9MCOwPwAAAADNzMy9MCOwPwAAAADNzMw9MCOwPwAAgEDNzMw9MCOwPwAAgEDNzMy9MCOwvwAAAADNzMw9MCOwvwAAAADNzMy9MCOwvwAAgEDNzMy9MCOwvwAAgEDNzMw9/////wAA/7//////AAD/v/////8AAP+//////wAA/78AgP//////vwCA//////+/AID//////78AgP//////v/9//3////+//3//f////7//f/9/////v/9//3////+/AIAAAP///78AgAAA////vwCAAAD///+/AIAAAP///7///wCA////////AID///////8AgP///////wCA/////wAAAID/f/+/AAAAgP9//78AAACA/3//vwAAAID/f/+/")
+}]
+metadata/ub_uv2_texel = 0.2
+metadata/ub_uv2_scale = Vector3(1, 1, 1)
+
 [node name="Tutorial" type="Node3D" unique_id=770254212]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1034804180]
 environment = ExtResource("2_olo7t")
 
-[node name="Mirror" parent="." unique_id=1528812690 instance=ExtResource("4_ygolh")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -8)
-pigment = 4
-mirror_type = 1
-cull_mask = 223
-size = Vector2(5, 3)
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1973673440]
+transform = Transform3D(0.71605945, -0.34349558, 0.6076756, 0, 0.8705464, 0.49208632, -0.6980393, -0.35236305, 0.62336296, 0, 5.7856355, 0)
+shadow_enabled = true
 
 [node name="Player" parent="." unique_id=778602952 instance=ExtResource("4_o26po")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -4)
+first_cam_height = 1.7
+can_headbob = false
+can_turn_lean = false
+jump_height = 3.0
+jump_time_to_peak = 0.35
+jump_time_to_descent = 0.3
+
+[node name="Mirror" parent="." unique_id=1528812690 instance=ExtResource("4_ygolh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -8.638905)
+pigment = 4
+mirror_type = 1
+cull_mask = 223
+size = Vector2(5, 4)
 
 [node name="UBPlane" type="MeshInstance3D" parent="." unique_id=875183960]
 mesh = SubResource("ArrayMesh_aqu7l")
@@ -352,6 +379,9 @@ mesh_data = SubResource("Resource_w7phy")
 collision_mode = 2
 collision_mask = 3
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1973673440]
-transform = Transform3D(0.71605945, -0.34349558, 0.6076756, 0, 0.8705464, 0.49208632, -0.6980393, -0.35236305, 0.62336296, 0, 5.7856355, 0)
-shadow_enabled = true
+[node name="UBWall2" type="MeshInstance3D" parent="." unique_id=2036906673]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.32452965, 0, 0.4003811)
+mesh = SubResource("ArrayMesh_84nl7")
+script = ExtResource("7_o26po")
+pigment = 4
+metadata/_ub_gizmo_lock_ = true
