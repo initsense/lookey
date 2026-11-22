@@ -3,7 +3,6 @@ extends GdUnitTestSuite
 ## dissolve-exit transitions for reveal-mirror and dissolve-mirror mechanics.
 
 
-const OBJECT_SCENE := preload("res://prefabs/object.tscn")
 const MIRROR_SCENE := preload("res://entities/mirror/mirror.tscn")
 const PLAYER_SCENE := preload("res://entities/player/player.tscn")
 const PIGMENT_ENTITY_SCRIPT := preload("res://scripts/pigment_entity.gd")
@@ -955,7 +954,7 @@ func test_nested_dissolve_linking_and_collider_across_two_mirrors() -> void:
 
 
 func test_legacy_is_invisible_property_sets_hidden_entity() -> void:
-	var entity: PigmentEntity = OBJECT_SCENE.instantiate()
+	var entity: PigmentEntity = _make_object()
 	entity.set(&"is_invisible", true)
 	assert_bool(entity.hidden_entity).is_true()
 	assert_bool(entity.is_hidden_entity()).is_true()
@@ -1244,6 +1243,69 @@ func test_surface_material_overrides_shared_pigment_material() -> void:
 	reveal.free()
 
 
+func test_plain_parent_pigment_child_paints_links_and_restores() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var interaction: Node = mirror.get_node("Interaction")
+	(root.get_node("Front") as Node3D).global_position = Vector3(40, 1, 0)
+	(root.get_node("Hidden") as Node3D).global_position = Vector3(-40, 1, 0)
+
+	var host := Node3D.new()
+	host.name = "Prop"
+	root.add_child(host)
+	host.global_position = Vector3(0, 1, 0.5)
+	var mesh := _make_mesh_instance("Crate", BoxMesh.new(), Vector3.ZERO)
+	var original_layers: int = mesh.layers
+	var original_material: Material = mesh.material_override
+	host.add_child(mesh)
+	var entity := _add_pigment_child(host, Pigments.Pigment.BLUE, true)
+	await get_tree().process_frame
+	await get_tree().physics_frame
+	interaction._refresh_tracked_entities()
+
+	assert_object(entity.get_parent()).is_same(host)
+	var hidden_layer: int = Pigments.get_entity_layer(Pigments.Pigment.BLUE, true)
+	assert_object(mesh.material_override).is_same(PigmentEntity.PIGMENT_MATERIALS[Pigments.Pigment.BLUE])
+	assert_int(mesh.layers).is_equal(1 << (hidden_layer - 1))
+	var collider: StaticBody3D = host.get_node_or_null("Collider") as StaticBody3D
+	assert_that(collider).is_not_null()
+	assert_bool(entity.is_collidable()).is_false()
+
+	await _wait_for_link_eval(interaction)
+	assert_bool(entity.is_linked()).is_true()
+	assert_bool(entity.is_affected()).is_true()
+	assert_bool(entity.is_collidable()).is_true()
+	assert_bool(_has_layer(collider.collision_layer, Pigments.ENTITY_COLLIDER_LAYER)).is_true()
+
+	host.remove_child(entity)
+	entity.free()
+	assert_object(mesh.material_override).is_same(original_material)
+	assert_int(mesh.layers).is_equal(original_layers)
+	assert_that(host.get_node_or_null("Collider")).is_same(collider)
+	assert_int(collider.collision_layer).is_equal(1)
+	assert_int(collider.collision_mask).is_equal(1)
+
+	root.queue_free()
+
+
+func test_later_pigment_sibling_does_not_repaint() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var mesh := _make_mesh_instance("Crate", BoxMesh.new(), Vector3.ZERO)
+	root.add_child(mesh)
+	var first := _add_pigment_child(root, Pigments.Pigment.RED, false)
+	var second := _add_pigment_child(root, Pigments.Pigment.BLUE, false)
+	await get_tree().process_frame
+	await get_tree().physics_frame
+
+	assert_object(mesh.material_override).is_same(PigmentEntity.PIGMENT_MATERIALS[Pigments.Pigment.RED])
+	var warnings := second._get_configuration_warnings()
+	assert_int(warnings.size()).is_equal(1)
+	assert_bool(warnings[0].contains("already colors")).is_true()
+
+	root.queue_free()
+
+
 func test_unibuilder_mesh_uses_pigment_layers_and_links() -> void:
 	var root := await _build_link_scene()
 	var mirror: Mirror3D = root.get_node("Mirror")
@@ -1346,13 +1408,39 @@ func _has_layer(mask: int, layer: int) -> bool:
 	return (mask & (1 << (layer - 1))) != 0
 
 
+## The old object prefab: a pigment entity, a box mesh, a static collider, and an on-screen notifier.
+func _make_object() -> PigmentEntity:
+	var entity := Node3D.new()
+	entity.set_script(PIGMENT_ENTITY_SCRIPT)
+	var mesh := MeshInstance3D.new()
+	mesh.name = "MeshInstance3D"
+	mesh.mesh = BoxMesh.new()
+	entity.add_child(mesh)
+	var body := StaticBody3D.new()
+	body.name = "StaticBody3D"
+	body.collision_mask = 2
+	mesh.add_child(body)
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	body.add_child(shape)
+	var notifier := VisibleOnScreenNotifier3D.new()
+	notifier.name = "VisibleOnScreenNotifier3D"
+	notifier.layers = 1024
+	notifier.aabb = AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)
+	entity.add_child(notifier)
+	var pigment_entity := entity as PigmentEntity
+	notifier.screen_entered.connect(pigment_entity._on_visible_on_screen_notifier_3d_screen_entered)
+	notifier.screen_exited.connect(pigment_entity._on_visible_on_screen_notifier_3d_screen_exited)
+	return pigment_entity
+
+
 func _spawn_object(
 	parent: Node,
 	pigment: Pigments.Pigment,
 	is_hidden: bool,
 	position: Vector3
 ) -> PigmentEntity:
-	var entity: PigmentEntity = OBJECT_SCENE.instantiate()
+	var entity: PigmentEntity = _make_object()
 	entity.pigment = pigment
 	entity.hidden_entity = is_hidden
 	parent.add_child(entity)

@@ -1370,12 +1370,20 @@ collision_mask = 3
 
 [node name="UBDoor2" type="MeshInstance3D" parent="house" unique_id=1656785202]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.042, -4, 12.058)
+layers = 32
+material_override = ExtResource("7_aqu7l")
 mesh = SubResource("ArrayMesh_qtr0w")
 skeleton = NodePath("../..")
 script = ExtResource("1_357qv")
 mesh_data = SubResource("Resource_28jlt")
 collision_mode = 2
-collision_mask = 3
+collision_layer = 2080
+collision_mask = 2
+
+[node name="PigmentEntity" type="Node3D" parent="house/UBDoor2" unique_id=189962095]
+script = ExtResource("7_o26po")
+pigment = 4
+metadata/_custom_type_script = "uid://oa0eex2hb1c4"
 
 [node name="UBWall" type="MeshInstance3D" parent="house" unique_id=2082392975]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08128047, 0, -2.8470383)

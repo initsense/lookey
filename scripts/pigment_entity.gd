@@ -2,11 +2,13 @@
 class_name PigmentEntity
 extends Node3D
 ## Turns any 3D object into a colored puzzle object (a manifest-entity or a hidden-entity).
-## Put this on the object, or add it as a child of a mesh that already has its own script,
-## such as a UniBuilder mesh. Every visible shape on that object gets the pigment's render
-## layer, so reveal and dissolve mirrors can hide or show it. Colliders turn solid or not
-## with those mirrors. You can leave the color as the shared pigment material, or assign
-## your own. The same thing happens in the editor, so the view matches the game.
+## Put this on the object, or add an empty one as a child of the object you want to color,
+## including a mesh that already has its own script, such as a UniBuilder mesh. Every visible
+## shape on that object gets the pigment's render layer, so reveal and dissolve mirrors can
+## hide or show it. Colliders turn solid or not with those mirrors. You can leave the color
+## as the shared pigment material, or assign your own. Adding this node in the editor paints
+## that color immediately. A hidden object keeps its hidden layer, and the editor view still
+## shows it because the editor camera draws every layer.
 ## No collider yet? Press "Generate collider" in the Inspector, or one is generated when the game starts.
 
 ## Emitted after generate_collider() replaces this entity's collider bodies.
@@ -85,6 +87,13 @@ var _linked_mirrors: Dictionary[Mirror3D, bool] = {}
 var _affected_mirrors: Dictionary[Mirror3D, bool] = {}
 var _pending_dissolve_restore: bool = false
 var _was_affected: bool = false
+## Look each painted shape had before this entity first changed it.
+var _painted_look: Dictionary = {}
+## True while this node is leaving the tree, so a refresh cannot paint over a restore.
+var _leaving: bool = false
+## True when the parent is leaving too. Closing the scene must not put the old look back.
+var _parent_leaving: bool = false
+var _parent_exit_watched: Node = null
 
 
 func _ready() -> void:
@@ -105,6 +114,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_leaving = true
+	_release_painted_parent()
+	_unwatch_parent_exit()
 	_unwatch_tree()
 
 
@@ -125,7 +137,13 @@ func _physics_process(_delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_CHILD_ORDER_CHANGED and Engine.is_editor_hint():
+	if what == NOTIFICATION_ENTER_TREE:
+		# Dragging this node onto another object does not run _ready again.
+		_leaving = false
+		_parent_leaving = false
+		_watch_parent_exit()
+		_refresh_config()
+	elif what == NOTIFICATION_CHILD_ORDER_CHANGED and Engine.is_editor_hint():
 		_config_dirty = true
 		update_configuration_warnings()
 
@@ -140,6 +158,10 @@ func _set(property: StringName, value: Variant) -> bool:
 
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings := PackedStringArray()
+	var parent := get_parent()
+	if parent != null and _earlier_sibling_adopts_parent(parent):
+		warnings.append("Another pigment entity already colors this object.")
+		return warnings
 	_resolve_nodes()
 	if geometries.is_empty():
 		warnings.append(
@@ -335,10 +357,11 @@ func get_resolved_material() -> Material:
 
 
 func _refresh_config() -> void:
-	if _refreshing or not is_inside_tree():
+	if _refreshing or _leaving or not is_inside_tree():
 		return
 	_refreshing = true
 	_resolve_nodes()
+	_remember_painted_nodes()
 	_apply_layers_and_material()
 	_update_real_world_collider()
 	_watch_tree()
@@ -364,13 +387,26 @@ func _resolve_nodes() -> void:
 	_local_sample_points.clear()
 
 
+## The node whose shapes this entity colors. An empty pigment node uses its parent.
+## The earlier empty sibling owns that parent; a later one leaves it alone.
 func _controlled_root() -> Node:
 	if _subtree_has_content(self):
 		return self
 	var parent: Node = get_parent()
-	if parent is GeometryInstance3D or parent is CollisionObject3D:
-		return parent
-	return self
+	if parent == null or _earlier_sibling_adopts_parent(parent):
+		return self
+	return parent
+
+
+## True when an earlier pigment sibling has no shapes of its own and therefore colors this parent.
+## Sibling order only: asking the other entity for its controlled root would recurse.
+func _earlier_sibling_adopts_parent(parent: Node) -> bool:
+	for child: Node in parent.get_children():
+		if child == self:
+			return false
+		if child is PigmentEntity and not (child as PigmentEntity)._subtree_has_content(child):
+			return true
+	return false
 
 
 func _controlled_root_3d() -> Node3D:
@@ -441,6 +477,91 @@ func _uses_material_override(node: Node) -> bool:
 	if node is GPUParticles3D or node is CPUParticles3D:
 		return true
 	return node is CSGShape3D and (node as CSGShape3D).is_root_shape()
+
+
+## Stores the look of each shape the first time this entity paints it, including shapes that appear later.
+func _remember_painted_nodes() -> void:
+	for visual: VisualInstance3D in _visuals:
+		_remember_painted_node(visual)
+	for geometry: GeometryInstance3D in geometries:
+		_remember_painted_node(geometry)
+	for body: CollisionObject3D in bodies:
+		_remember_painted_node(body)
+
+
+func _remember_painted_node(node: Node) -> void:
+	if not is_instance_valid(node) or _painted_look.has(node):
+		return
+	var look := {}
+	if node is VisualInstance3D:
+		look["layers"] = (node as VisualInstance3D).layers
+	if node is GeometryInstance3D:
+		look["material_override"] = (node as GeometryInstance3D).material_override
+	if node is CSGShape3D:
+		look["csg_material"] = (node as CSGShape3D).material
+	if node is CollisionObject3D:
+		var body := node as CollisionObject3D
+		look["collision_layer"] = body.collision_layer
+		look["collision_mask"] = body.collision_mask
+	if _is_self_colliding_mesh(node):
+		look["ub_collision_layer"] = int(node.get(&"collision_layer"))
+		look["ub_collision_mask"] = int(node.get(&"collision_mask"))
+	_painted_look[node] = look
+
+
+## Puts back the look saved before the first paint. The generated collider node stays.
+func _restore_painted_look() -> void:
+	for node: Variant in _painted_look.keys():
+		if not is_instance_valid(node):
+			continue
+		var look: Dictionary = _painted_look[node]
+		if node is VisualInstance3D and look.has("layers"):
+			(node as VisualInstance3D).layers = int(look["layers"])
+		if node is GeometryInstance3D and look.has("material_override"):
+			(node as GeometryInstance3D).material_override = look["material_override"] as Material
+		if node is CSGShape3D and look.has("csg_material"):
+			(node as CSGShape3D).material = look["csg_material"] as Material
+		if node is CollisionObject3D and look.has("collision_layer"):
+			var body := node as CollisionObject3D
+			body.collision_layer = int(look["collision_layer"])
+			body.collision_mask = int(look["collision_mask"])
+		if look.has("ub_collision_layer"):
+			var painted := node as Object
+			painted.set(&"collision_layer", int(look["ub_collision_layer"]))
+			painted.set(&"collision_mask", int(look["ub_collision_mask"]))
+	_painted_look.clear()
+
+
+## Restores the painted shapes only when the parent stays in the tree.
+func _release_painted_parent() -> void:
+	var parent := get_parent()
+	if parent != null and is_instance_valid(parent) and parent.is_inside_tree() and not _parent_leaving:
+		_restore_painted_look()
+	else:
+		_painted_look.clear()
+
+
+func _watch_parent_exit() -> void:
+	var parent := get_parent()
+	if parent == _parent_exit_watched:
+		return
+	_unwatch_parent_exit()
+	if parent == null:
+		return
+	_parent_exit_watched = parent
+	if not parent.tree_exiting.is_connected(_on_parent_tree_exiting):
+		parent.tree_exiting.connect(_on_parent_tree_exiting)
+
+
+func _unwatch_parent_exit() -> void:
+	var parent := _parent_exit_watched
+	_parent_exit_watched = null
+	if parent != null and is_instance_valid(parent) and parent.tree_exiting.is_connected(_on_parent_tree_exiting):
+		parent.tree_exiting.disconnect(_on_parent_tree_exiting)
+
+
+func _on_parent_tree_exiting() -> void:
+	_parent_leaving = true
 
 
 func _apply_layers_and_material() -> void:
@@ -880,9 +1001,12 @@ func _on_child_entered_tree(_node: Node) -> void:
 	_refresh_config()
 
 
-func _on_child_exiting_tree(_node: Node) -> void:
+func _on_child_exiting_tree(node: Node) -> void:
+	if node == self:
+		_leaving = true
+		return
 	_config_dirty = true
-	if is_inside_tree() and not is_queued_for_deletion():
+	if is_inside_tree() and not is_queued_for_deletion() and not _leaving:
 		_refresh_config.call_deferred()
 
 
