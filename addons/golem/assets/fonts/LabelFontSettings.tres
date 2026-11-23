@@ -1,4 +1,4 @@
-[gd_resource type="LabelSettings" load_steps=2 format=3 uid="uid://sescerp70o6b"]
+[gd_resource type="LabelSettings" format=3 uid="uid://sescerp70o6b"]
 
 [ext_resource type="FontFile" uid="uid://dewgtcm8moxxi" path="res://addons/golem/assets/fonts/Ticketing.ttf" id="1_qtvfi"]
 

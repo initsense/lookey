@@ -16,7 +16,7 @@ Mechanic invariants live in `.cursor/rules/` and always apply. They encode the g
 - `mirror-types-and-effects.mdc` — affected entities, reveal-mirror, dissolve-mirror
 - `interactions-and-transitions.mdc` — collision and dissolve transition edge cases
 - `editor-organization-and-descriptions.mdc` — scene tree visibility, node tooltips, and beginner-friendly descriptions
-- `use-golem.mdc` — instance `res://entities/player/player.tscn`. That scene is Lookey's player: body collision layer 2, collision mask 2049 (layer 1 `objects` and layer 12 `entity_collider`). `addons/golem` is the dropped-in character and is not a plugin. `addons/golem/player/player.tscn` is only a reference. Leave floors on their current layers.
+- `use-golem.mdc` — instance `res://entities/player/player.tscn`. That scene is Lookey's player: body collision layer 2, collision mask 2049 (layer 1 `objects` and layer 12 `entity_collider`). `addons/golem` is the dropped-in character. Enable the Golem plugin. `addons/golem/scenes/player.tscn` is only a reference. Leave floors on their current layers. A stock preset replaces Lookey's collision layers.
 
 Use design glossary terms in code, comments, tests, and docs. If gameplay behavior changes, update `docs/design.md` and the matching rule in the same change.
 

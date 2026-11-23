@@ -1,10 +1,10 @@
 [gd_scene format=4 uid="uid://6uk6s7xu0wr"]
 
 [ext_resource type="Script" uid="uid://cp01tx4fxrgim" path="res://addons/unibuilder/nodes/ub_mesh_instance.gd" id="1_357qv"]
+[ext_resource type="PackedScene" uid="uid://bgkmxyw21pc1m" path="res://addons/golem/scenes/player.tscn" id="2_aqu7l"]
 [ext_resource type="Environment" uid="uid://sv7cho776efp" path="res://world/scenes/tutorial/environments/daylight/daylight_environment.tres" id="2_olo7t"]
 [ext_resource type="Script" uid="uid://dyj0rf32exito" path="res://addons/unibuilder/core/ub_face.gd" id="2_s40cp"]
 [ext_resource type="Script" uid="uid://dnaqomcyqdloo" path="res://addons/unibuilder/core/ub_mesh_data.gd" id="3_tkl5b"]
-[ext_resource type="PackedScene" uid="uid://8du2atgbgggs" path="res://entities/player/player.tscn" id="4_o26po"]
 [ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="4_ygolh"]
 [ext_resource type="Material" path="res://materials/pigments/yellow.tres" id="7_aqu7l"]
 [ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://scripts/pigment_entity.gd" id="7_o26po"]
@@ -1319,14 +1319,11 @@ environment = ExtResource("2_olo7t")
 transform = Transform3D(0.71605945, -0.34349558, 0.6076756, 0, 0.8705464, 0.49208632, -0.6980393, -0.35236305, 0.62336296, 0, 5.7856355, 0)
 shadow_enabled = true
 
-[node name="Player" parent="." unique_id=778602952 instance=ExtResource("4_o26po")]
-transform = Transform3D(-1, 3.821371e-15, 8.742278e-08, -3.821371e-15, 1, -8.742278e-08, -8.742278e-08, -8.742278e-08, -1, 0, 1, -4)
-first_cam_height = 1.7
-can_headbob = false
-can_turn_lean = false
-jump_height = 3.0
-jump_time_to_peak = 0.35
-jump_time_to_descent = 0.3
+[node name="Player" parent="." unique_id=317014982 instance=ExtResource("2_aqu7l")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3.8369238)
+collision_layer = 2
+collision_mask = 511
+jump_velocity = 6.5
 
 [node name="house" type="Node3D" parent="." unique_id=888116368]
 
@@ -1464,8 +1461,11 @@ layers = 32
 material_override = ExtResource("7_aqu7l")
 size = Vector3(4.1674805, 1, 7.805664)
 material = ExtResource("7_aqu7l")
+
+[node name="PigmentEntity" type="Node3D" parent="CSGBox3D" unique_id=1442337063]
 script = ExtResource("7_o26po")
 pigment = 4
+metadata/_custom_type_script = "uid://oa0eex2hb1c4"
 
 [node name="UBWall" type="MeshInstance3D" parent="." unique_id=810419528]
 transform = Transform3D(1, 0, 0, 0, 2.266099, 0, 0, 0, 1, -14.651133, -4.830269, 15.819)

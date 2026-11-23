@@ -241,6 +241,10 @@ func get_link_sample_points() -> PackedVector3Array:
 		var geometry_transform: Transform3D = geometry.global_transform
 		for local_point: Vector3 in _get_local_sample_points(geometry):
 			points.append(geometry_transform * local_point)
+		# Hull corners of a large shape can all miss a mirror while the middle of a face is in the glass.
+		var bounds: AABB = geometry.get_aabb()
+		if not bounds.size.is_zero_approx():
+			points.append(geometry_transform * bounds.get_center())
 	return points
 
 

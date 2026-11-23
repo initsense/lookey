@@ -541,6 +541,15 @@ func _resolve_player_and_camera() -> void:
 		player = _find_named_player()
 	if is_instance_valid(player) and not is_instance_valid(player_cam):
 		player_cam = player.get_node_or_null("CamHolder/Camera3D") as Camera3D
+	# A dissolved body keeps its pigment layer so mirror rays can still see it.
+	# The player only blocks on the world and the entity-collider layer, or that pigment layer stays solid.
+	if is_instance_valid(player):
+		var solid_mask: int = (
+			(1 << (Pigments.WORLD_GEOMETRY_LAYER - 1))
+			| (1 << (Pigments.ENTITY_COLLIDER_LAYER - 1))
+		)
+		if player.collision_mask != solid_mask:
+			player.collision_mask = solid_mask
 
 
 ## Returns the player camera from the camera_player group, or from a Player body in the scene.
