@@ -47,6 +47,10 @@ shader_parameter/smoothness = 1.5
 resource_local_to_scene = true
 material = SubResource("ShaderMaterial_reflected")
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_collider"]
+resource_local_to_scene = true
+size = Vector3(1, 1, 0.1)
+
 [node name="Mirror" type="Node3D" unique_id=1528812690]
 editor_description = "A planar mirror that reflects the room and applies reveal or dissolve effects based on its pigment color."
 script = ExtResource("1_mtvun")
@@ -219,6 +223,15 @@ aabb = AABB(-0.522976, -0.525133, -0.022962, 1.04595, 1.05027, 0.045924)
 [node name="Interaction" type="Node3D" parent="." unique_id=632032196]
 editor_description = "Checks which colored objects are visible in this mirror and enables or disables their physical collision."
 script = ExtResource("3_inter")
+
+[node name="Collider" type="StaticBody3D" parent="." unique_id=1428173920]
+editor_description = "Solid body matching the mirror's width and height. Sits on layer 12 (entity_collider) so the player bumps into the mirror and can grab it without mirror raycasts hitting the glass itself."
+collision_layer = 2048
+collision_mask = 2049
+
+[node name="Shape" type="CollisionShape3D" parent="Collider" unique_id=1428173921]
+editor_description = "Thin box matching the mirror's glass size. Automatically resized whenever the mirror's Size changes."
+shape = SubResource("BoxShape3D_collider")
 
 [connection signal="screen_entered" from="MirrorNotifier" to="Interaction" method="_on_mirror_notifier_screen_entered"]
 [connection signal="screen_exited" from="MirrorNotifier" to="Interaction" method="_on_mirror_notifier_screen_exited"]

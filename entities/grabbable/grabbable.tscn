@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://entities/grabbable/grabbable.gd" id="1_grab"]
+
+[node name="GrabbableEntity" type="Node3D"]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("1_grab")

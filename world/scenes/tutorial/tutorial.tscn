@@ -1,13 +1,14 @@
 [gd_scene format=4 uid="uid://6uk6s7xu0wr"]
 
 [ext_resource type="Script" uid="uid://cp01tx4fxrgim" path="res://addons/unibuilder/nodes/ub_mesh_instance.gd" id="1_357qv"]
-[ext_resource type="PackedScene" uid="uid://bgkmxyw21pc1m" path="res://addons/golem/scenes/player.tscn" id="2_aqu7l"]
+[ext_resource type="PackedScene" uid="uid://8du2atgbgggs" path="res://entities/player/player.tscn" id="2_aqu7l"]
 [ext_resource type="Environment" uid="uid://sv7cho776efp" path="res://world/scenes/tutorial/environments/daylight/daylight_environment.tres" id="2_olo7t"]
 [ext_resource type="Script" uid="uid://dyj0rf32exito" path="res://addons/unibuilder/core/ub_face.gd" id="2_s40cp"]
 [ext_resource type="Script" uid="uid://dnaqomcyqdloo" path="res://addons/unibuilder/core/ub_mesh_data.gd" id="3_tkl5b"]
 [ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="4_ygolh"]
 [ext_resource type="Material" path="res://materials/pigments/yellow.tres" id="7_aqu7l"]
 [ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://scripts/pigment_entity.gd" id="7_o26po"]
+[ext_resource type="Script" uid="uid://briolgcbif223" path="res://entities/grabbable/grabbable.gd" id="10_ieigl"]
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_jwddq"]
 lightmap_size_hint = Vector2i(58, 54)
@@ -1321,8 +1322,6 @@ shadow_enabled = true
 
 [node name="Player" parent="." unique_id=317014982 instance=ExtResource("2_aqu7l")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3.8369238)
-collision_layer = 2
-collision_mask = 509
 jump_velocity = 7.0
 
 [node name="house" type="Node3D" parent="." unique_id=888116368]
@@ -1339,6 +1338,12 @@ pigment = 4
 mirror_type = 1
 cull_mask = 223
 size = Vector2(5, 4)
+
+[node name="GrabbableEntity" type="Node3D" parent="house/Mirror2" unique_id=1629856247]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("10_ieigl")
+can_rotate_vertically = false
+metadata/_custom_type_script = "uid://briolgcbif223"
 
 [node name="Mirror3" parent="house" unique_id=763074019 instance=ExtResource("4_ygolh")]
 transform = Transform3D(-4.3711385e-08, -1, 8.742278e-08, -4.3711395e-08, -8.742278e-08, -1, 1, -4.371139e-08, -4.3711385e-08, -15.455971, 3.9345567, 15.778)
@@ -1466,6 +1471,11 @@ material = ExtResource("7_aqu7l")
 script = ExtResource("7_o26po")
 pigment = 4
 metadata/_custom_type_script = "uid://oa0eex2hb1c4"
+
+[node name="GrabbableEntity" type="Node3D" parent="CSGBox3D" unique_id=1805073649]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("10_ieigl")
+metadata/_custom_type_script = "uid://briolgcbif223"
 
 [node name="UBWall" type="MeshInstance3D" parent="." unique_id=810419528]
 transform = Transform3D(1, 0, 0, 0, 2.266099, 0, 0, 0, 1, -14.651133, -4.830269, 15.819)

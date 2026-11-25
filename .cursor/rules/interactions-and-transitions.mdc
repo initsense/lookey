@@ -16,9 +16,10 @@ Canonical source: `docs/design.md`.
 
 While an entity is affected by a **dissolve-mirror**:
 
-- Its collider is disabled.
-- It cannot be lifted, pushed, carried, or activated.
+- Its solid collider is disabled.
+- It cannot be pushed or activated.
 - Interactions between it and other entities are disabled.
+- A grab does not turn the solid collider back on. The player can pick the object up while it is non-solid only when its `GrabbableEntity` node's `overrides_mirrors` is on, and finds it with the crosshair.
 
 ## Transition on leaving dissolve
 
@@ -34,3 +35,5 @@ When an entity stops being affected by a dissolve-mirror:
 - Do not re-enable interaction while overlapping another non-player entity.
 - Do not resolve player overlap by teleporting the dissolved entity away; push the player.
 - Reveal-linked hidden entities must be collidable/interactable in the real-world while linked, even though invisible there.
+- Dissolve and reveal own the solid collider. Grabbing never makes an entity solid.
+- An entity is grabbable while non-solid only when its `GrabbableEntity` node's `overrides_mirrors` is on. The player finds that object with the crosshair and walks through it.

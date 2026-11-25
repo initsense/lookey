@@ -7,7 +7,7 @@ alwaysApply: true
 
 Instance `res://entities/player/player.tscn` in a level. Do not instance `res://addons/golem/scenes/player.tscn`.
 
-`entities/player/player.tscn` is Lookey's player. It is based on the Golem player and already sets the body collision layer to 2 and the collision mask to 2049 (layer 1 `objects` and layer 12 `entity_collider`). The camera spring arm stays on layer 2. The mirror body and the real-world camera cull live in that scene, so every placed player gets them.
+`entities/player/player.tscn` is Lookey's player. It is based on the Golem player and already sets the body collision layer to 2 and the collision mask to 2049 (layer 1 `objects` and layer 12 `entity_collider`). The camera spring arm stays on layer 2. The mirror body and the real-world camera cull live in that scene, so every placed player gets them. The same scene has a Grab node and a crosshair. The Grab node's mask is physics layer 20, `grab`. The player mask stays 2049, so the body does not collide with a pickup volume.
 
 `addons/golem` is the dropped-in character. Enable the Golem plugin. `addons/golem/scenes/player.tscn` is only a reference. Do not copy Golem's tests or its gdUnit4.
 

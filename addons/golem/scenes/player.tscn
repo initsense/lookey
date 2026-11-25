@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3 uid="uid://bgkmxyw21pc1m"]
+[gd_scene load_steps=33 format=3 uid="uid://bgkmxyw21pc1m"]
 
 [ext_resource type="Script" uid="uid://de2sqbhiahmo6" path="res://addons/golem/scripts/player_character.gd" id="1_ms4x1"]
 [ext_resource type="PackedScene" uid="uid://dmyrflud401tg" path="res://addons/golem/scenes/godot_plush_skin.tscn" id="2_mtsks"]
@@ -20,6 +20,8 @@
 [ext_resource type="Script" uid="uid://chnbi4s1tf7pa" path="res://addons/golem/scripts/debug/DebugHUDScript.gd" id="17_qmq2g"]
 [ext_resource type="Script" path="res://addons/golem/scripts/state_machine/slide_state.gd" id="18_slide"]
 [ext_resource type="Script" path="res://addons/golem/scripts/state_machine/wall_run_state.gd" id="19_wall"]
+[ext_resource type="Script" path="res://addons/golem/grab/player_grab.gd" id="20_grab"]
+[ext_resource type="Script" path="res://addons/golem/grab/crosshair.gd" id="21_cross"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_xhngq"]
 
@@ -293,3 +295,23 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "....."
 label_settings = ExtResource("17_c1i0s")
+
+[node name="Grab" type="Node" parent="."]
+process_physics_priority = 10
+editor_description = "Picks up the object under the crosshair. E or the left mouse button lifts it, the wheel sets how far away it sits, T and the mouse turn it, and a left click throws it."
+script = ExtResource("20_grab")
+
+[node name="Crosshair" type="CanvasLayer" parent="."]
+layer = 20
+editor_description = "The pickup mark in the middle of the view. It stays up while the debug readout is hidden."
+
+[node name="Mark" type="Control" parent="Crosshair"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+editor_description = "A hollow circle. It fills when you look at something you can pick up, and a ring appears outside it while you are holding something."
+script = ExtResource("21_cross")

@@ -162,6 +162,7 @@ func _ready() -> void:
 		_make_runtime_resources_unique()
 	elif _reflected_quad != null:
 		_reflected_quad.visible = false
+	_sync_collider_size()
 	_collect_reflected_views()
 
 	if _mirror_viewport != null:
@@ -631,6 +632,10 @@ func _make_runtime_resources_unique() -> void:
 		_reflected_shader_material = _shader_material.duplicate(true)
 		_reflected_quad.set_surface_override_material(0, _reflected_shader_material)
 
+	var collider_shape := get_node_or_null("Collider/Shape") as CollisionShape3D
+	if collider_shape != null and collider_shape.shape != null:
+		collider_shape.shape = collider_shape.shape.duplicate()
+
 
 func _collect_reflected_views() -> void:
 	_reflected_viewports.clear()
@@ -730,6 +735,7 @@ func _apply_mirror_config() -> void:
 			Vector3(-size.x * 0.5, -size.y * 0.5, -0.05),
 			Vector3(size.x, size.y, 0.1)
 		)
+	_sync_collider_size()
 	_apply_viewport_size()
 
 	if _mirror_viewport != null and not _has_rendered_direct:
@@ -764,3 +770,15 @@ func _apply_shader_parameters(material: ShaderMaterial, viewport_texture: Viewpo
 	material.set_shader_parameter(&"mirror_texture_linear", viewport_texture if use_linear_filter else null)
 	material.set_shader_parameter(&"mirror_texture_nearest", viewport_texture if not use_linear_filter else null)
 	material.set_shader_parameter(&"use_mirror_texture_linear", use_linear_filter)
+
+
+func _sync_collider_size() -> void:
+	var collider_shape := get_node_or_null("Collider/Shape") as CollisionShape3D
+	if collider_shape == null:
+		return
+	var box := collider_shape.shape as BoxShape3D
+	if box == null:
+		return
+	var target_size := Vector3(maxf(size.x, 0.05), maxf(size.y, 0.05), 0.1)
+	if not box.size.is_equal_approx(target_size):
+		box.size = target_size

@@ -15,7 +15,7 @@ extends Node3D
 signal colliders_rebuilt
 
 const GROUP_NAME: StringName = &"pigment_entities"
-## Name of the StaticBody3D that generate_collider() creates.
+## Name of the body that generate_collider() creates.
 const GENERATED_COLLIDER_NAME: StringName = &"Collider"
 ## Meshes with more unique vertices than this are sampled through their simplified convex hull
 ## when mirrors check whether the entity is linked, so detailed models stay cheap.
@@ -94,11 +94,17 @@ var _leaving: bool = false
 ## True when the parent is leaving too. Closing the scene must not put the old look back.
 var _parent_leaving: bool = false
 var _parent_exit_watched: Node = null
+## Grabbable node whose target_body_ready signal we are listening to.
+var _watched_grabbable: Grabbable = null
+## True during _ready, so Grabbable setup waits until sibling nodes are in the tree.
+var _in_ready: bool = false
 
 
 func _ready() -> void:
+	_in_ready = true
 	add_to_group(GROUP_NAME)
 	_refresh_config()
+	_in_ready = false
 	if not Engine.is_editor_hint():
 		_disable_csg_collision()
 		if (
@@ -111,10 +117,13 @@ func _ready() -> void:
 				_generate_collider_when_ready()
 			else:
 				_generate_collider_when_ready.call_deferred()
+	if _entity_grabbable() != null:
+		_refresh_config.call_deferred()
 
 
 func _exit_tree() -> void:
 	_leaving = true
+	_unwatch_grabbable()
 	_release_painted_parent()
 	_unwatch_parent_exit()
 	_unwatch_tree()
@@ -167,16 +176,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 		warnings.append(
 			"No visible shape found on this object, so there is nothing for mirrors to show."
 		)
-	elif not _has_blocking_body() and not _external_collider_provides_body():
-		warnings.append(
-			"No collider yet. Press \"Generate collider\" in the Inspector, or one is generated when the game starts."
-		)
-	for geometry: GeometryInstance3D in geometries:
-		if geometry is CSGShape3D and (geometry as CSGShape3D).use_collision:
-			warnings.append(
-				"CSG shape \"%s\" has Use Collision on. It is turned off when the game starts, because this entity's collider decides when the object is solid."
-				% geometry.name
-			)
 	return warnings
 
 
@@ -199,6 +198,14 @@ func is_collidable() -> bool:
 		if (body.collision_layer & bit) != 0:
 			return true
 	return false
+
+
+## Rebuilds the carry after a Grabbable node is added, removed, or its mirror override changes.
+func notify_grabbable_changed() -> void:
+	if not is_inside_tree() or _leaving:
+		return
+	_config_dirty = true
+	_refresh_config()
 
 
 ## Returns true when at least one shape of this entity has geometry mirrors can reflect.
@@ -257,12 +264,13 @@ func get_collision_rids() -> Array[RID]:
 	return rids
 
 
-## Builds a "Collider" StaticBody3D with one convex collision shape per mesh or CSG shape,
+## Builds a "Collider" body with one convex collision shape per mesh or CSG shape,
 ## replacing a previously generated one. In the editor, the new nodes are saved in the scene.
 ## The body is parented to the object this entity controls, which may be the parent node.
+## A grabbable object gets a frozen rigid body, so the player can pick it up later.
 func generate_collider() -> void:
 	_resolve_nodes()
-	if _external_collider_provides_body():
+	if _external_collider_provides_body() and _entity_grabbable() == null:
 		push_warning(
 			"This object already builds its own collider, so a second one was not generated."
 		)
@@ -274,41 +282,17 @@ func generate_collider() -> void:
 	var root: Node3D = _controlled_root_3d()
 	for host: Node in [root, self]:
 		var previous: Node = host.get_node_or_null(NodePath(String(GENERATED_COLLIDER_NAME)))
-		if previous is StaticBody3D:
+		if previous is PhysicsBody3D:
 			host.remove_child(previous)
 			previous.free()
 
 	var scene_owner: Node = _get_edited_scene_owner()
-	var body := StaticBody3D.new()
-	body.name = GENERATED_COLLIDER_NAME
-	body.editor_description = (
-		"Solid collider generated from this object's shapes. It blocks the player while the "
-		+ "object is solid, and switches off while the object is dissolved or hidden."
-	)
+	var body := _make_generated_body()
 	root.add_child(body, true)
 	body.owner = scene_owner
 	# Keep the body unscaled in world space so its convex shapes never inherit scale.
 	body.global_transform = Transform3D(root.global_basis.orthonormalized(), root.global_position)
-
-	for geometry: GeometryInstance3D in geometries:
-		var geometry_mesh: Mesh = _get_geometry_mesh(geometry)
-		if geometry_mesh == null:
-			continue
-		var convex: ConvexPolygonShape3D = geometry_mesh.create_convex_shape(true, false)
-		if convex == null or convex.points.is_empty():
-			continue
-		var to_body: Transform3D = body.global_transform.affine_inverse() * geometry.global_transform
-		var points: PackedVector3Array = convex.points
-		for i: int in range(points.size()):
-			points[i] = to_body * points[i]
-		convex.points = points
-
-		var shape_node := CollisionShape3D.new()
-		shape_node.name = "%sShape" % geometry.name
-		shape_node.editor_description = "Collision shape generated from \"%s\"." % geometry.name
-		shape_node.shape = convex
-		body.add_child(shape_node, true)
-		shape_node.owner = scene_owner
+	_fill_body_with_convex_shapes(body, scene_owner)
 
 	_refreshing = false
 	_refresh_config()
@@ -365,12 +349,21 @@ func _refresh_config() -> void:
 		return
 	_refreshing = true
 	_resolve_nodes()
+	_sync_grabbable_connection()
+	if not Engine.is_editor_hint() and _carry_setup_allowed():
+		var grab := _entity_grabbable()
+		if grab != null:
+			grab.ensure_setup()
+			_resolve_nodes()
 	_remember_painted_nodes()
 	_apply_layers_and_material()
 	_update_real_world_collider()
+	_update_grab_area_enabled()
 	_watch_tree()
 	_config_dirty = false
 	_refreshing = false
+	if Engine.is_editor_hint():
+		update_configuration_warnings()
 
 
 func _resolve_nodes() -> void:
@@ -430,7 +423,7 @@ func _subtree_has_content(node: Node) -> bool:
 
 
 func _node_is_content(node: Node) -> bool:
-	if node is VisibleOnScreenNotifier3D or node is Mirror3D:
+	if node is VisibleOnScreenNotifier3D or node is Mirror3D or _is_grab_volume(node):
 		return false
 	if node is CSGShape3D and not (node as CSGShape3D).is_root_shape():
 		return false
@@ -446,7 +439,11 @@ func _is_adopted_by_other(node: Node) -> bool:
 
 
 func _collect_nodes(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
 	if node is Mirror3D:
+		return
+	if _is_grab_volume(node):
 		return
 	if node is PigmentEntity and node != self:
 		return
@@ -777,6 +774,133 @@ func _get_edited_scene_owner() -> Node:
 	return null
 
 
+func _make_generated_body() -> PhysicsBody3D:
+	if _entity_grabbable() != null:
+		var rigid := RigidBody3D.new()
+		rigid.name = GENERATED_COLLIDER_NAME
+		rigid.freeze = true
+		rigid.editor_description = (
+			"Solid body generated from this object's shapes. The player can pick it up. "
+			+ "It stays put until then, and a mirror still decides when it blocks the player."
+		)
+		return rigid
+	var body := StaticBody3D.new()
+	body.name = GENERATED_COLLIDER_NAME
+	body.editor_description = (
+		"Solid collider generated from this object's shapes. It blocks the player while the "
+		+ "object is solid, and switches off while the object is dissolved or hidden."
+	)
+	return body
+
+
+func _fill_body_with_convex_shapes(body: PhysicsBody3D, scene_owner: Node) -> void:
+	for geometry: GeometryInstance3D in geometries:
+		var geometry_mesh: Mesh = _get_geometry_mesh(geometry)
+		if geometry_mesh == null:
+			continue
+		var convex: ConvexPolygonShape3D = geometry_mesh.create_convex_shape(true, false)
+		if convex == null or convex.points.is_empty():
+			continue
+		var to_body: Transform3D = body.global_transform.affine_inverse() * geometry.global_transform
+		var points: PackedVector3Array = convex.points
+		for i: int in range(points.size()):
+			points[i] = to_body * points[i]
+		convex.points = points
+		var shape_node := CollisionShape3D.new()
+		shape_node.name = "%sShape" % geometry.name
+		shape_node.editor_description = "Collision shape generated from \"%s\"." % geometry.name
+		shape_node.shape = convex
+		body.add_child(shape_node, true)
+		if scene_owner != null:
+			shape_node.owner = scene_owner
+
+
+func _is_grab_volume(node: Node) -> bool:
+	return is_instance_valid(node) and node is Grabbable
+
+
+## The Grabbable child that opts this object into being picked up. Null when there is none.
+func _entity_grabbable() -> Grabbable:
+	return _find_entity_grabbable(_controlled_root())
+
+
+func _find_entity_grabbable(node: Node) -> Grabbable:
+	if not is_instance_valid(node):
+		return null
+	if node is Mirror3D:
+		return null
+	if node != self and node is PigmentEntity:
+		return null
+	if node is Grabbable:
+		return node as Grabbable
+	for child: Node in node.get_children():
+		if child is PigmentEntity and child != self:
+			continue
+		var found: Grabbable = _find_entity_grabbable(child)
+		if found != null:
+			return found
+	return null
+
+
+func _carry_setup_allowed() -> bool:
+	return is_node_ready() and not _in_ready
+
+
+func _carry_body() -> RigidBody3D:
+	var grab := _entity_grabbable()
+	if grab == null or not is_instance_valid(grab):
+		return null
+	return grab.get_body()
+
+
+func _sync_grabbable_connection() -> void:
+	var grab := _entity_grabbable()
+	if grab == _watched_grabbable:
+		return
+	_unwatch_grabbable()
+	if grab == null:
+		return
+	_watched_grabbable = grab
+	if not grab.target_body_ready.is_connected(_on_grabbable_body_ready):
+		grab.target_body_ready.connect(_on_grabbable_body_ready)
+
+
+func _unwatch_grabbable() -> void:
+	var grab := _watched_grabbable
+	_watched_grabbable = null
+	if grab != null and is_instance_valid(grab) and grab.target_body_ready.is_connected(_on_grabbable_body_ready):
+		grab.target_body_ready.disconnect(_on_grabbable_body_ready)
+
+
+func _on_grabbable_body_ready(_body: RigidBody3D) -> void:
+	if not is_inside_tree() or _leaving or _refreshing:
+		return
+	_config_dirty = true
+	_refresh_config()
+
+
+func _configure_carry_body(solid: bool) -> void:
+	var body: RigidBody3D = _carry_body()
+	if body == null or not is_instance_valid(body):
+		return
+	var objects_bit: int = 1 << (Pigments.WORLD_GEOMETRY_LAYER - 1)
+	var entity_bit: int = 1 << (Pigments.ENTITY_COLLIDER_LAYER - 1)
+	LayerUtils.set_layer_bit(body, &"collision_layer", Pigments.WORLD_GEOMETRY_LAYER, false)
+	LayerUtils.set_layer_bit(body, &"collision_layer", Pigments.ENTITY_COLLIDER_LAYER, solid)
+	body.collision_mask = objects_bit
+	if solid:
+		body.collision_mask |= entity_bit
+
+
+func _update_grab_area_enabled() -> void:
+	var grab := _entity_grabbable()
+	if grab == null or not is_instance_valid(grab):
+		return
+	var solid: bool = is_collidable()
+	var overrides: bool = bool(grab.get(&"overrides_mirrors"))
+	grab.set_grab_enabled(solid or overrides)
+
+
 func _update_real_world_collider() -> void:
 	if is_hidden_entity():
 		_set_entity_collider_enabled(is_affected())
@@ -797,6 +921,8 @@ func _set_entity_collider_enabled(enabled: bool) -> void:
 			enabled
 		)
 	_sync_unibuilder_collision(enabled)
+	_configure_carry_body(enabled)
+	_update_grab_area_enabled()
 
 
 func _try_restore_dissolve_collider() -> void:
@@ -948,7 +1074,9 @@ func _watch_tree() -> void:
 	_gather_watch_nodes(_controlled_root(), needed)
 	var still: Array[Node] = []
 	for node: Node in _watched_nodes:
-		if not is_instance_valid(node) or not needed.has(node):
+		if not is_instance_valid(node):
+			continue
+		if not needed.has(node):
 			_disconnect_watch(node)
 		else:
 			still.append(node)
@@ -963,7 +1091,7 @@ func _watch_tree() -> void:
 func _gather_watch_nodes(node: Node, into: Array[Node]) -> void:
 	if not is_instance_valid(node):
 		return
-	if node is Mirror3D:
+	if node is Mirror3D or _is_grab_volume(node):
 		return
 	if node is PigmentEntity and node != self:
 		return
@@ -996,12 +1124,19 @@ func _disconnect_watch(node: Node) -> void:
 
 func _unwatch_tree() -> void:
 	for node: Node in _watched_nodes:
-		_disconnect_watch(node)
+		if is_instance_valid(node):
+			_disconnect_watch(node)
 	_watched_nodes.clear()
 
 
-func _on_child_entered_tree(_node: Node) -> void:
+func _on_child_entered_tree(node: Node) -> void:
+	if _refreshing:
+		return
 	_config_dirty = true
+	if node is Grabbable:
+		_sync_grabbable_connection()
+		_refresh_config.call_deferred()
+		return
 	_refresh_config()
 
 

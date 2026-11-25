@@ -25,8 +25,12 @@ func _add_missing_actions() -> void:
 	for action: String in Defaults.ACTIONS:
 		if ProjectSettings.has_setting("input/%s" % action):
 			existing.append(action)
+	for action: String in Defaults.POINTER_ACTIONS:
+		if ProjectSettings.has_setting("input/%s" % action):
+			existing.append(action)
 	var missing := Defaults.missing_actions(existing)
-	if missing.is_empty():
+	var missing_pointer := Defaults.missing_pointer_actions(existing)
+	if missing.is_empty() and missing_pointer.is_empty():
 		return
 	for action: String in missing:
 		var event := InputEventKey.new()
@@ -34,5 +38,12 @@ func _add_missing_actions() -> void:
 		ProjectSettings.set_setting("input/%s" % action, {
 			"deadzone": 0.2,
 			"events": [event],
+		})
+	for action: String in missing_pointer:
+		var button := InputEventMouseButton.new()
+		button.button_index = Defaults.POINTER_ACTIONS[action]
+		ProjectSettings.set_setting("input/%s" % action, {
+			"deadzone": 0.2,
+			"events": [button],
 		})
 	ProjectSettings.save()

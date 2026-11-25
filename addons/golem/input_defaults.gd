@@ -8,7 +8,9 @@ const ACTIONS := {
 	"jump": KEY_SPACE,
 	"run": KEY_SHIFT,
 	"crouch": KEY_X,
-	"ragdoll": KEY_E,
+	"interact": KEY_E,
+	"rotate_held": KEY_T,
+	"ragdoll": KEY_R,
 	"first_person": KEY_V,
 	"third_person": KEY_N,
 	"third_aim_left": KEY_M,
@@ -21,10 +23,26 @@ const ACTIONS := {
 	"options_menu": KEY_ESCAPE,
 }
 
+## Mouse buttons and the wheel. These are not keys, so they stay out of ACTIONS.
+const POINTER_ACTIONS := {
+	"throw": MOUSE_BUTTON_LEFT,
+	"hold_nearer": MOUSE_BUTTON_WHEEL_UP,
+	"hold_farther": MOUSE_BUTTON_WHEEL_DOWN,
+}
+
 
 static func missing_actions(existing: PackedStringArray) -> PackedStringArray:
 	var missing := PackedStringArray()
 	for action: String in ACTIONS:
+		if existing.has(action):
+			continue
+		missing.append(action)
+	return missing
+
+
+static func missing_pointer_actions(existing: PackedStringArray) -> PackedStringArray:
+	var missing := PackedStringArray()
+	for action: String in POINTER_ACTIONS:
 		if existing.has(action):
 			continue
 		missing.append(action)

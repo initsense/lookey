@@ -97,11 +97,32 @@ func _input(event) -> void:
 	
 	# rotate cam according to the mouse
 	if event is InputEventMouseMotion:
-		rotation.y -= event.relative.x * cR.mouse_sens
-		rotation.y = wrapf(rotation.y, 0.0, TAU)
-		rotation.x -= event.relative.y * cR.mouse_sens
-		rotation.x = clamp(rotation.x, cam_limit_up, cam_limit_down)
-		add_turn_lean(event.relative.x)
+		# T turns a held object instead of the view.
+		if _held_object_takes_mouse():
+			return
+		apply_look_motion(event.relative)
+
+
+func _held_object_takes_mouse() -> bool:
+	if not InputMap.has_action("rotate_held") or not Input.is_action_pressed("rotate_held"):
+		return false
+	var grab := cR.get_node_or_null("Grab")
+	if grab == null:
+		return false
+	if grab.has_method("can_rotate_held"):
+		return grab.can_rotate_held()
+	return grab.has_method("is_holding") and grab.is_holding()
+
+
+## Turns the view from a mouse movement. Does nothing while T is turning a held object.
+func apply_look_motion(relative: Vector2) -> void:
+	if _held_object_takes_mouse():
+		return
+	rotation.y -= relative.x * cR.mouse_sens
+	rotation.y = wrapf(rotation.y, 0.0, TAU)
+	rotation.x -= relative.y * cR.mouse_sens
+	rotation.x = clamp(rotation.x, cam_limit_up, cam_limit_down)
+	add_turn_lean(relative.x)
 
 
 func add_turn_lean(yaw_pixels: float) -> void:

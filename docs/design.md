@@ -169,9 +169,17 @@ Any hue-manifest-entity can be affected by a white-dissolve-mirror.
 
 Dissolve-mirrors disable interactions between affected entities and other entities.
 
-Affected entities lose their colliders and cannot be lifted, pushed, carried, or activated.
+Affected entities lose their solid collider. They cannot be pushed or activated. Picking one up does not turn that collider back on.
 
-> **Example.** In a room, there is only a blue manifest-object and a blue-dissolve-mirror. As long as the player keeps seeing the reflection of the object in the reflected-world of the blue-dissolve-mirror, the blue manifest-object loses its collider: the player cannot interact with it. When the reflection leaves the player view, the object returns to being collidable and interactable, unless its collider overlaps another entity.
+> **Example.** In a room, there is only a blue manifest-object and a blue-dissolve-mirror. As long as the player keeps seeing the reflection of the object in the reflected-world of the blue-dissolve-mirror, the blue manifest-object loses its collider: the player walks through it. When the reflection leaves the player view, the object returns to being collidable and interactable, unless its collider overlaps another entity.
+
+# Grab
+
+Any 3D object—including a pigment entity, a mirror, or a plain mesh—can be picked up when it has a **Grabbable** child (or **GrabbableEntity**, which extends **Grabbable** with mirror override control). **Grabbable** discovers the parent's collider (or builds one from its meshes) and matches the project's `grab` physics layer automatically. While its solid collider is on, the player looks at it, presses interact or the left mouse button, and carries it. Pressing interact again lets it go. Gravity drops it, and it can come to rest on the room. While it is held, the mouse wheel sets the distance, T and the mouse turn it, and the left mouse button throws it. Each **Grabbable** (and **GrabbableEntity**) can customize these actions in the Inspector: pickup availability and reach, horizontal/vertical movement, distance adjustment and hold distance, player-yaw following, horizontal/vertical/diagonal rotation locks, upright lock, angle snapping, throwing, and release physics (fall, float, or freeze in place, rotation lock, and body mass).
+
+The **GrabbableEntity** node's **overrides_mirrors** also allows that pickup on a pigment entity while a mirror has made it non-solid. That covers a dissolved manifest object and a hidden object that no reveal-mirror is showing. The object stays non-solid. The player finds it because the crosshair fills, and walks through it. Letting go drops it onto the room without making it solid.
+
+The solid collider on a pigment entity still belongs to the reveal and dissolve mirrors. A grab never turns it on. If a mirror removes the solid collider while the object is held and **overrides_mirrors** is off, the carry ends and the object falls. With **overrides_mirrors** on, losing that collider, or losing a reveal link, leaves the carry going.
 
 # Interaction transitions
 
@@ -197,3 +205,5 @@ If the re-enabled collider overlaps the player, the player is pushed away.
 - **Reveal-mirror**: A mirror that affects linked hidden entities by making them interactable in the real-world while keeping them invisible there.
 - **Dissolve-mirror**: A mirror that affects linked manifest entities by making them non-interactive in the real-world while keeping them visible there.
 - **Collider**: A physical boundary that allows an entity to block or be blocked by other entities.
+- **Grabbable**: A child node that lets the player pick up any 3D object (including mirrors, plain meshes, or pigment entities) while it is solid, carry it, and put it down by discovering its collider or meshes automatically.
+- **overrides_mirrors**: A setting on the `GrabbableEntity` node. The player can also pick this pigment entity up while a mirror has made it non-solid. That covers a dissolved manifest object and a hidden object that no reveal-mirror is showing. The object stays non-solid: the player finds it with the crosshair and walks through it.
