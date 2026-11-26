@@ -8,6 +8,8 @@ uniform vec4 color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform sampler2D mirror_texture_linear : source_color, filter_linear;
 uniform sampler2D mirror_texture_nearest : source_color, filter_nearest;
 uniform bool use_mirror_texture_linear = true;
+// Sub-region (x, y, width, height) of the mirror's full [0..1] UV space rendered into the direct SubViewport.
+uniform vec4 direct_uv_rect = vec4(0.0, 0.0, 1.0, 1.0);
 
 uniform sampler2D distortion_texture : source_color, filter_linear_mipmap;
 uniform float distortion_strength : hint_range(0, 100, 0.01) = 10.0;
@@ -71,7 +73,6 @@ void fragment() {
     // --- Mirror sampling ---
     float distortion_offset = texture(distortion_texture, uv).r;
     distortion_offset = (distortion_offset * 2.0) - 1.0;
-    vec2 distorted_uv = uv + (distortion_offset * distortion_strength / VIEWPORT_SIZE);
 
     vec4 mirror_sample;
     vec4 frame_color = border_color;
@@ -80,12 +81,20 @@ void fragment() {
         if (slot < 0) {
             discard;
         }
+        vec2 distorted_uv = uv + (distortion_offset * distortion_strength / VIEWPORT_SIZE);
         mirror_sample = sample_reflected_view(slot, distorted_uv);
         frame_color = reflected_border_colors[slot];
     } else {
+        vec2 crop_span = max(direct_uv_rect.zw, vec2(1e-4));
+        vec2 tex_size = vec2(use_mirror_texture_linear
+            ? textureSize(mirror_texture_linear, 0)
+            : textureSize(mirror_texture_nearest, 0));
+        vec2 full_quad_texels = max(tex_size / crop_span, vec2(1.0));
+        vec2 distorted_uv = uv + (distortion_offset * distortion_strength / full_quad_texels);
+        vec2 sample_uv = clamp((distorted_uv - direct_uv_rect.xy) / crop_span, vec2(0.0), vec2(1.0));
         mirror_sample = use_mirror_texture_linear
-            ? texture(mirror_texture_linear, distorted_uv)
-            : texture(mirror_texture_nearest, distorted_uv);
+            ? texture(mirror_texture_linear, sample_uv)
+            : texture(mirror_texture_nearest, sample_uv);
     }
 
     vec4 mirror_color = mirror_sample * color;

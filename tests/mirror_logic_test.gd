@@ -528,20 +528,287 @@ func test_shadow_casters_survive_off_axis_mirror_culling() -> void:
 	root.queue_free()
 
 
-func test_mirror_keeps_full_resolution_up_close() -> void:
-	# Tight resolution thresholds make the mirror shrink its viewport (blurry glass) and
-	# resize it on every threshold crossing (black-frame flicker) while the player walks around.
+func test_mirror_matches_camera_resolution_up_close_and_caps_distant_small_footprint() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var player: CharacterBody3D = root.get_node("Player")
+	mirror.size = Vector2(5.0, 4.0)
+	mirror.full_resolution_distance = 3.0
+	mirror.min_resolution_distance = 30.0
+	mirror.max_resolution_scale = 1.0
+	mirror.min_resolution_scale = 0.25
+
+	var expected_cam_vp: Vector2i = mirror._get_camera_viewport_size(mirror.player_cam)
+
+	# Standing 1.0 m in front of a 5x4 m mirror (including laterally off-center):
+	# closest surface distance <= 3.0 m and the mirror fills the screen -> exact 1:1 camera resolution.
+	player.global_position = Vector3(1.1, 0.5, 2.0)
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	assert_float(mirror._distance_to_mirror_surface(mirror.player_cam.global_position)).is_less(2.0)
+	assert_float(mirror._current_resolution_scale).is_equal_approx(1.0, 1e-4)
+	assert_that(mirror._target_viewport_size).is_equal(expected_cam_vp)
+	assert_that(mirror._mirror_viewport.size).is_equal(expected_cam_vp)
+
+	# Even when standing right near the outer edge (x = 2.3 on a 5m-wide mirror) so half the screen shows the
+	# room beside the mirror, the mirror's surface distance is still <= 3.0 m (full_resolution_scale = 1.0).
+	player.global_position = Vector3(2.3, 0.5, 2.0)
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	assert_float(mirror._distance_to_mirror_surface(mirror.player_cam.global_position)).is_less(2.0)
+	assert_float(mirror._current_resolution_scale).is_equal_approx(1.0, 1e-4)
+
+	# A small 1x1 m mirror 2.8 m away is still within full_resolution_distance,
+	# yet covers a fraction of the screen, so its SubViewport is capped to its screen footprint.
+	mirror.size = Vector2(1.0, 1.0)
+	player.global_position = Vector3(0.0, 0.5, 0.2)
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	assert_float(mirror._current_resolution_scale).is_equal_approx(1.0, 1e-4)
+	assert_int(mirror._target_viewport_size.x).is_less(expected_cam_vp.x)
+	assert_int(mirror._target_viewport_size.y).is_less(expected_cam_vp.y)
+
+	root.queue_free()
+
+
+func test_dynamic_resolution_steps_hysteresis_and_inspector_overrides() -> void:
 	var mirror: Mirror3D = MIRROR_SCENE.instantiate()
-	mirror.res_decrease_distances = [3.0, 6.0, 9.0]
+	# Custom tight Inspector settings must NOT be overwritten in _ready().
+	mirror.full_resolution_distance = 1.5
+	mirror.min_resolution_distance = 11.5
+	mirror.max_resolution_scale = 1.0
+	mirror.min_resolution_scale = 0.2
+	mirror.resolution_steps = 5
 	add_child(mirror)
 
-	assert_float(mirror.res_decrease_distances[0]).is_greater_equal(30.0)
-	mirror._update_resolution_scale(10.0)
-	assert_float(mirror._current_resolution_scale).is_equal(1.0)
-	mirror._update_resolution_scale(29.0)
-	assert_float(mirror._current_resolution_scale).is_equal(1.0)
+	assert_float(mirror.full_resolution_distance).is_equal_approx(1.5, 1e-4)
+	assert_float(mirror.min_resolution_distance).is_equal_approx(11.5, 1e-4)
+	assert_int(mirror.resolution_steps).is_equal(5)
+
+	# 5 steps between 1.0 and 0.2 -> scales [1.0, 0.8, 0.6, 0.4, 0.2] at t = [0, 0.25, 0.5, 0.75, 1.0].
+	assert_float(mirror._update_resolution_scale(1.0)).is_equal_approx(1.0, 1e-4)
+	assert_int(mirror._current_step_index).is_equal(0)
+
+	# t = (2.9 - 1.5) / 10 = 0.14 -> continuous_step = 0.56 (< 0.65 hysteresis threshold): stays on step 0.
+	assert_float(mirror._update_resolution_scale(2.9)).is_equal_approx(1.0, 1e-4)
+	assert_int(mirror._current_step_index).is_equal(0)
+
+	# t = (3.3 - 1.5) / 10 = 0.18 -> continuous_step = 0.72 (> 0.65): transitions to step 1 (0.8).
+	assert_float(mirror._update_resolution_scale(3.3)).is_equal_approx(0.8, 1e-4)
+	assert_int(mirror._current_step_index).is_equal(1)
+
+	# Walking slightly back toward the mirror (continuous_step = 0.44, which is >= 1 - 0.65 = 0.35):
+	# hysteresis prevents ping-ponging back to step 0.
+	assert_float(mirror._update_resolution_scale(2.6)).is_equal_approx(0.8, 1e-4)
+	assert_int(mirror._current_step_index).is_equal(1)
+
+	# Beyond min_resolution_distance -> clamps to min_resolution_scale (0.2).
+	assert_float(mirror._update_resolution_scale(25.0)).is_equal_approx(0.2, 1e-4)
+	assert_int(mirror._current_step_index).is_equal(4)
+
+	# Inverted / extreme Inspector settings are guarded safely and capped at MAX_VIEWPORT_DIMENSION.
+	mirror.min_resolution_distance = 0.5
+	mirror.full_resolution_distance = 5.0
+	mirror.min_resolution_scale = 0.9
+	mirror.max_resolution_scale = 10.0
+	mirror.resolution_steps = 0
+	assert_float(mirror._update_resolution_scale(2.0)).is_equal_approx(4.0, 1e-4)
+	var huge: Vector2i = mirror._compute_quantized_direct_size(Vector2i(2560, 1440), Vector2(2560, 1440), true, true)
+	assert_int(huge.x).is_less_equal(Mirror3D.MAX_VIEWPORT_DIMENSION)
+	assert_int(huge.y).is_less_equal(Mirror3D.MAX_VIEWPORT_DIMENSION)
 
 	mirror.queue_free()
+
+
+func test_fixed_resolution_fallback_uses_pixels_per_unit_and_full_uv() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	mirror.size = Vector2(3.0, 2.0)
+	mirror.pixels_per_unit = 300
+	mirror.dynamic_resolution = false
+	MirrorManager.refresh_now()
+
+	assert_that(mirror._target_viewport_size).is_equal(Vector2i(900, 600))
+	assert_that(mirror._reflected_viewport_size).is_equal(Vector2i(900, 600))
+	assert_that(mirror._pending_direct_uv_rect).is_equal(Mirror3D.FULL_UV_RECT)
+	var shader_rect: Vector4 = mirror._shader_material.get_shader_parameter(&"direct_uv_rect")
+	assert_that(shader_rect).is_equal(Vector4(0.0, 0.0, 1.0, 1.0))
+
+	root.queue_free()
+
+
+func test_cropped_frustum_matches_uncropped_world_projection_on_standard_and_mirrored_transforms() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var player: CharacterBody3D = root.get_node("Player")
+	mirror.size = Vector2(5.0, 4.0)
+
+	# Test 1: Front-facing off-center close-up on a non-square 5x4 m mirror.
+	player.global_position = Vector3(1.1, 0.2, 1.6)
+	player.rotation = Vector3(0.0, -0.22, 0.0)
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	_assert_cropped_and_uncropped_sample_same_point(mirror, Vector3(0.6, 1.8, -1.5))
+
+	# Test 2: Back-facing off-center close-up (camera on the opposite side of the mirror plane).
+	mirror.rotation = Vector3.ZERO
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	_assert_cropped_and_uncropped_sample_same_point(mirror, Vector3(0.6, 1.8, -1.5))
+
+	# Test 3: Negative-determinant mirror transform (mirrored X scale = -1, flipping winding/FRONT_FACING).
+	mirror.global_transform = Transform3D(
+		Basis(
+			Vector3(1.0, 0.0, 0.0),
+			Vector3(0.0, 1.0, 0.0),
+			Vector3(0.0, 0.0, -1.0)
+		),
+		Vector3(0.0, 1.5, 3.0)
+	)
+	assert_float(mirror._mirror_quad.global_basis.determinant()).is_less(0.0)
+	player.global_position = Vector3(0.9, 0.3, 1.6)
+	player.rotation = Vector3(0.0, -0.18, 0.0)
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	_assert_cropped_and_uncropped_sample_same_point(mirror, Vector3(0.5, 1.7, -1.5))
+
+	root.queue_free()
+
+
+func test_small_camera_rotation_keeps_viewport_size_stable_and_paused_frame_keeps_uv_rect() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var player: CharacterBody3D = root.get_node("Player")
+	mirror.size = Vector2(2.0, 2.0)
+	player.global_position = Vector3(0.0, 0.5, -1.0)
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+
+	var initial_vp_size: Vector2i = mirror._mirror_viewport.size
+	# Small 1.5-degree yaw rotation: footprint shifts by a few pixels, which pixel-bucket hysteresis absorbs.
+	player.rotation.y = deg_to_rad(1.5)
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	assert_that(mirror._mirror_viewport.size).is_equal(initial_vp_size)
+
+	# Off-screen always_active mirror falls back to uncropped FULL_UV_RECT (aspect-expanded) without collapsing.
+	player.rotation.y = PI
+	await get_tree().process_frame
+	MirrorManager.refresh_now()
+	assert_float(mirror._pending_direct_uv_rect.size.x).is_greater_equal(1.0 - 1e-4)
+	assert_float(mirror._pending_direct_uv_rect.size.y).is_greater_equal(1.0 - 1e-4)
+
+	# When set_direct_viewport_active(false) skips rendering, direct_uv_rect on the shader stays untouched.
+	var applied_before: Rect2 = mirror._applied_direct_uv_rect
+	mirror._pending_direct_uv_rect = Rect2(0.2, 0.2, 0.4, 0.4)
+	mirror.set_direct_viewport_active(false)
+	assert_that(mirror._applied_direct_uv_rect).is_equal(applied_before)
+
+	root.queue_free()
+
+
+func test_reflected_viewport_preserves_mirror_aspect_and_resizes_lazily() -> void:
+	var root := await _build_nested_mirror_scene(
+		Pigments.Pigment.YELLOW,
+		Mirror3D.MirrorType.REVEAL,
+		Pigments.Pigment.BLUE,
+		Mirror3D.MirrorType.REVEAL
+	)
+	var inner_mirror: Mirror3D = root.get_node("InnerMirror")
+	var outer_mirror: Mirror3D = root.get_node("OuterMirror")
+	inner_mirror.size = Vector2(1.5, 3.0)
+	inner_mirror.reflected_resolution_scale = 0.5
+	MirrorManager.refresh_now()
+
+	# InnerMirror is 1.5x3.0 (aspect 0.5): its reflected viewport size must match aspect ~0.5.
+	var refl_aspect: float = float(inner_mirror._reflected_viewport_size.x) / float(inner_mirror._reflected_viewport_size.y)
+	assert_float(refl_aspect).is_equal_approx(0.5, 0.02)
+
+	var active_slot: int = inner_mirror.get_reflected_slot(Mirror3D.reflected_view_key([outer_mirror]))
+	assert_int(active_slot).is_greater_equal(0)
+	assert_that(inner_mirror._reflected_viewports[active_slot].size).is_equal(inner_mirror._reflected_viewport_size)
+
+	# Unused reflected slots remain at their initial 400x400 size instead of wasting VRAM.
+	var unused_slot: int = 7
+	assert_int(unused_slot).is_not_equal(active_slot)
+	assert_that(inner_mirror._reflected_viewports[unused_slot].size).is_equal(Vector2i(400, 400))
+
+	# Cropping on outer_mirror must never alter outer_mirror._mirror_camera.global_position or basis.
+	var expected_obs: Vector3 = outer_mirror.reflect_point(outer_mirror._reflection_observer_position(outer_mirror.player_cam))
+	assert_vector(outer_mirror._mirror_camera.global_position).is_equal_approx(expected_obs, Vector3(1e-4, 1e-4, 1e-4))
+
+	root.queue_free()
+
+
+func _assert_cropped_and_uncropped_sample_same_point(mirror: Mirror3D, world_target: Vector3) -> void:
+	var obs_pos: Vector3 = mirror._reflection_observer_position(mirror.player_cam)
+	var quad_pos: Vector3 = mirror._mirror_quad.global_position
+	var quad_right: Vector3 = mirror._mirror_quad.global_basis.x.normalized()
+	var quad_up: Vector3 = mirror._mirror_quad.global_basis.y.normalized()
+	var mirror_normal: Vector3 = mirror._mirror_quad.global_basis.z.normalized()
+	var world_size: Vector2 = mirror.get_world_size()
+
+	# Ray from reflected observer (mirror camera) to world_target intersects the mirror plane at bounce_pt.
+	var cam_pos: Vector3 = mirror.reflect_point(obs_pos)
+	var ray_dir: Vector3 = world_target - cam_pos
+	var denom: float = ray_dir.dot(mirror_normal)
+	assert_bool(absf(denom) > 1e-4).is_true()
+	var t_hit: float = (quad_pos - cam_pos).dot(mirror_normal) / denom
+	var bounce_pt: Vector3 = cam_pos + ray_dir * t_hit
+	var rel_bounce: Vector3 = bounce_pt - quad_pos
+	var lx: float = rel_bounce.dot(quad_right)
+	var ly: float = rel_bounce.dot(quad_up)
+
+	var signed_dist: float = (obs_pos - quad_pos).dot(mirror_normal)
+	var front: bool = mirror._is_observer_front_facing(signed_dist)
+	# Shader uv at bounce_pt on the mirror quad:
+	var shader_uv := Vector2(
+		(0.5 - lx / world_size.x) if front else (0.5 + lx / world_size.x),
+		0.5 - ly / world_size.y
+	)
+
+	# Configure mirror camera with the cropped rect and verify world_size aspect match.
+	var crop_rect: Rect2 = mirror._pending_direct_uv_rect
+	var expected_vp_aspect: float = float(mirror._target_viewport_size.x) / float(mirror._target_viewport_size.y)
+	var actual_world_aspect: float = (crop_rect.size.x * world_size.x) / (crop_rect.size.y * world_size.y)
+	assert_float(actual_world_aspect).is_equal_approx(expected_vp_aspect, 1e-3)
+
+	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, obs_pos, mirror.cull_mask, true, crop_rect)).is_true()
+	var cropped_cam_pos: Vector3 = mirror._mirror_camera.global_position
+	var cropped_cam_basis: Basis = mirror._mirror_camera.global_basis
+
+	# Compare against uncropped FULL_UV_RECT camera transform & projection:
+	var cam_uv_cropped: Vector2 = _project_through_frustum_camera(
+		mirror._mirror_camera,
+		expected_vp_aspect,
+		world_target
+	)
+	var shader_sample_uv := Vector2(
+		(shader_uv.x - crop_rect.position.x) / crop_rect.size.x,
+		(shader_uv.y - crop_rect.position.y) / crop_rect.size.y
+	)
+	assert_vector(Vector3(cam_uv_cropped.x, cam_uv_cropped.y, 0.0)).is_equal_approx(
+		Vector3(shader_sample_uv.x, shader_sample_uv.y, 0.0),
+		Vector3(1e-3, 1e-3, 1e-3)
+	)
+
+	# Verify camera position and perpendicular basis never change between cropped and uncropped.
+	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, obs_pos, mirror.cull_mask, true, Mirror3D.FULL_UV_RECT)).is_true()
+	assert_vector(cropped_cam_pos).is_equal_approx(mirror._mirror_camera.global_position, Vector3(1e-5, 1e-5, 1e-5))
+	assert_vector(cropped_cam_basis.z).is_equal_approx(mirror._mirror_camera.global_basis.z, Vector3(1e-5, 1e-5, 1e-5))
+
+
+func _project_through_frustum_camera(cam: Camera3D, vp_aspect: float, world_pt: Vector3) -> Vector2:
+	var local: Vector3 = cam.global_transform.affine_inverse() * world_pt
+	var depth: float = -local.z
+	var scale_to_near: float = cam.near / depth
+	var near_x: float = local.x * scale_to_near
+	var near_y: float = local.y * scale_to_near
+	var near_w: float = cam.size
+	var near_h: float = near_w / vp_aspect
+	var u: float = (near_x - cam.frustum_offset.x) / near_w + 0.5
+	var v: float = 0.5 - (near_y - cam.frustum_offset.y) / near_h
+	return Vector2(u, v)
 
 
 func test_observer_on_mirror_plane_pauses_reflection() -> void:

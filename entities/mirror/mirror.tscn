@@ -52,7 +52,7 @@ resource_local_to_scene = true
 size = Vector3(1, 1, 0.1)
 
 [node name="Mirror" type="Node3D" unique_id=1528812690]
-editor_description = "A planar mirror that reflects the room and applies reveal or dissolve effects based on its pigment color."
+editor_description = "A planar mirror that reflects the room, matches the player camera's resolution up close, lowers sharpness with distance, and applies reveal or dissolve effects based on its pigment color."
 script = ExtResource("1_mtvun")
 distortion_texture = SubResource("NoiseTexture2D_707dm")
 

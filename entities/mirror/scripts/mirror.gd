@@ -26,6 +26,20 @@ const MIN_PLANE_DISTANCE: float = 0.05
 const MAX_REFLECTED_VIEWS: int = 8
 ## Viewpoint stored for an unused reflected view, so far away that no mirror camera ever matches it.
 const UNUSED_REFLECTED_OBSERVER: Vector3 = Vector3(1e9, 1e9, 1e9)
+## Highest width or height (in pixels) any mirror SubViewport will allocate.
+const MAX_VIEWPORT_DIMENSION: int = 4096
+## Smallest width or height (in UV space, 0..1) a cropped view will shrink to at grazing angles.
+const MIN_UV_SPAN: float = 0.05
+## Pixel step used to bucket dynamic SubViewport sizes so small camera turns do not reallocate VRAM.
+const RESOLUTION_PIXEL_STEP: int = 64
+## Pixel margin beyond the current bucket required before resizing the SubViewport.
+const RESOLUTION_PIXEL_HYSTERESIS: int = 96
+## Extra UV margin added around the visible mirror region so 1-frame headbob or look deltas never clip.
+const BASE_UV_CROP_MARGIN: float = 0.03
+## Full-quad UV rectangle used when the mirror is uncropped.
+const FULL_UV_RECT: Rect2 = Rect2(0.0, 0.0, 1.0, 1.0)
+## Plane-clipping epsilon when slicing the mirror quad against the player camera frustum.
+const FRUSTUM_CLIP_EPSILON: float = 1e-5
 
 ## The player character, found in the scene when the mirror starts.
 var player: CharacterBody3D
@@ -62,18 +76,61 @@ var player_cam: Camera3D
 ## If the player is farther than this distance (in meters), the mirror pauses rendering to save performance.
 @export var freeze_distance: float = 50.0
 
+@export_category("Resolution")
+## Matches the mirror's sharpness to the player's camera resolution up close and lowers it smoothly with distance. Turn off to use a fixed Pixels Per Unit size instead.
+@export var dynamic_resolution: bool = true:
+	set(value):
+		dynamic_resolution = value
+		_invalidate_resolution_state()
+
+## How close (in meters) to the mirror glass the player must stand for the reflection to render at full camera sharpness (Max Resolution Scale).
+@export_range(0.0, 200.0, 0.1, "or_greater", "suffix:m") var full_resolution_distance: float = 3.0:
+	set(value):
+		full_resolution_distance = value
+		_invalidate_resolution_state()
+
+## Distance (in meters) from the mirror glass where the reflection reaches its lowest sharpness (Min Resolution Scale).
+@export_range(0.1, 500.0, 0.1, "or_greater", "suffix:m") var min_resolution_distance: float = 30.0:
+	set(value):
+		min_resolution_distance = value
+		_invalidate_resolution_state()
+
+## Sharpness up close as a fraction of the camera's screen resolution (1.0 matches the camera pixel-for-pixel).
+@export_range(0.1, 2.0, 0.05) var max_resolution_scale: float = 1.0:
+	set(value):
+		max_resolution_scale = value
+		_invalidate_resolution_state()
+
+## Lowest sharpness when far away, as a fraction of the camera's screen resolution.
+@export_range(0.05, 1.0, 0.05) var min_resolution_scale: float = 0.25:
+	set(value):
+		min_resolution_scale = value
+		_invalidate_resolution_state()
+
+## Number of quality steps between full and minimum sharpness. Stepping keeps the mirror from resizing its texture every single frame while you walk.
+@export_range(1, 32, 1) var resolution_steps: int = 8:
+	set(value):
+		resolution_steps = value
+		_invalidate_resolution_state()
+
+## Sharpness multiplier for mirrors seen reflected inside other mirrors, keeping nested reflections fast.
+@export_range(0.1, 1.0, 0.05) var reflected_resolution_scale: float = 0.5:
+	set(value):
+		reflected_resolution_scale = value
+		_invalidate_resolution_state()
+
+## Fixed reflection sharpness (pixels per meter of mirror size) used only when Dynamic Resolution is turned off.
+@export var pixels_per_unit: int = 400:
+	set(value):
+		pixels_per_unit = value
+		_invalidate_resolution_state()
+
 @export_category("Settings")
 ## Width and height of the mirror glass in meters.
 @export var size: Vector2 = Vector2.ONE:
 	set(value):
 		size = value
-		_config_dirty = true
-
-## Reflection sharpness: how many texture pixels to render per meter of mirror size.
-@export var pixels_per_unit: int = 400:
-	set(value):
-		pixels_per_unit = value
-		_config_dirty = true
+		_invalidate_resolution_state()
 
 ## Caps how many times per second the direct reflection updates. Set to -1 for unlimited (every frame).
 @export var max_fps: float = -1.0
@@ -89,12 +146,6 @@ var player_cam: Camera3D
 	set(value):
 		color = value
 		_config_dirty = true
-
-## Distances (in meters) from the player where the mirror lowers its resolution to save performance. Leave empty to disable.
-@export var res_decrease_distances: Array[float] = [30.0, 60.0, 90.0]
-
-## How much to divide the mirror resolution at each distance in res_decrease_distances.
-@export var res_decrease_factors: Array[float] = [2.0, 4.0, 8.0]
 
 ## Enables wavy glass distortion on the reflection.
 @export var use_distortion: bool = false:
@@ -123,8 +174,12 @@ var _reflected_pigments: Array[Pigments.Pigment] = []
 var _reflected_slot_keys: PackedStringArray = PackedStringArray()
 var _reflected_observers: PackedVector3Array = PackedVector3Array()
 var _current_resolution_scale: float = -1.0
+var _current_step_index: int = -1
+var _last_camera_viewport_size: Vector2i = Vector2i.ZERO
 var _target_viewport_size: Vector2i = Vector2i(400, 400)
 var _reflected_viewport_size: Vector2i = Vector2i(400, 400)
+var _pending_direct_uv_rect: Rect2 = FULL_UV_RECT
+var _applied_direct_uv_rect: Rect2 = FULL_UV_RECT
 var _time_since_update: float = 0.0
 var _time_update_dirty: bool = true
 var _direct_update_allowed: bool = true
@@ -154,10 +209,6 @@ func _ready() -> void:
 		_reflected_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	if not Engine.is_editor_hint():
-		# Scene instances may override res_decrease_distances with tight debug values (e.g. [3, 6, 9]).
-		# Clamp any first threshold below 30 m back to the default [30, 60, 90] so mirrors stay sharp.
-		if not res_decrease_distances.is_empty() and res_decrease_distances[0] < 30.0:
-			res_decrease_distances = [30.0, 60.0, 90.0]
 		_resolve_player_and_camera()
 		_make_runtime_resources_unique()
 	elif _reflected_quad != null:
@@ -269,12 +320,8 @@ func prepare_frame(delta: float) -> bool:
 
 	# Update resolution scale BEFORE evaluating _time_update_dirty so resolution changes
 	# immediately mark this frame as needing a fresh render.
-	if Engine.is_editor_hint():
-		if not is_equal_approx(_current_resolution_scale, 1.0):
-			_current_resolution_scale = 1.0
-			_apply_viewport_size()
-	else:
-		_update_resolution_scale(distance_from_camera)
+	var observer_pos: Vector3 = _reflection_observer_position(active_camera)
+	_update_direct_resolution_and_crop(active_camera, observer_pos)
 
 	if _config_dirty:
 		_config_dirty = false
@@ -299,9 +346,10 @@ func prepare_frame(delta: float) -> bool:
 
 	if not _configure_mirror_camera(
 		_mirror_camera,
-		_reflection_observer_position(active_camera),
+		observer_pos,
 		cull_mask,
-		true
+		true,
+		_pending_direct_uv_rect
 	):
 		_direct_update_allowed = false
 	return true
@@ -420,7 +468,7 @@ func freeze_reflected_view(keep_quad_visible: bool) -> void:
 
 
 ## Enables or pauses rendering on the direct player-facing viewport.
-## Only resizes the SubViewport when it is actively rendering so a paused viewport is never cleared to black.
+## Only resizes the SubViewport and updates direct_uv_rect when actively rendering so a paused viewport is never cleared or stretched.
 func set_direct_viewport_active(active: bool, force_ignore_max_fps: bool = false) -> void:
 	if _mirror_viewport == null or not is_instance_valid(_mirror_viewport):
 		return
@@ -428,6 +476,7 @@ func set_direct_viewport_active(active: bool, force_ignore_max_fps: bool = false
 	if should_render:
 		if _mirror_viewport.size != _target_viewport_size:
 			_mirror_viewport.size = _target_viewport_size
+		_push_direct_uv_rect(_pending_direct_uv_rect)
 		_mirror_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		_has_rendered_direct = true
 	else:
@@ -486,7 +535,8 @@ func _configure_mirror_camera(
 	target_camera: Camera3D,
 	observer_position: Vector3,
 	mask: int,
-	allow_nested_layer: bool
+	allow_nested_layer: bool,
+	uv_rect: Rect2 = FULL_UV_RECT
 ) -> bool:
 	if target_camera == null or _mirror_quad == null:
 		return false
@@ -496,6 +546,8 @@ func _configure_mirror_camera(
 	target_camera.set_cull_mask_value(DIRECT_MIRROR_LAYER, false)
 
 	var quad_pos: Vector3 = _mirror_quad.global_position
+	var quad_right: Vector3 = _mirror_quad.global_basis.x.normalized()
+	var up_axis: Vector3 = _mirror_quad.global_basis.y.normalized()
 	var mirror_normal: Vector3 = _mirror_quad.global_basis.z.normalized()
 	var signed_distance: float = (observer_position - quad_pos).dot(mirror_normal)
 	if absf(signed_distance) <= MIN_PLANE_DISTANCE:
@@ -504,7 +556,6 @@ func _configure_mirror_camera(
 	var mirror_transform: Transform3D = get_mirror_transform(mirror_normal, quad_pos)
 	var reflected_pos: Vector3 = mirror_transform * observer_position
 	var midpoint: Vector3 = (reflected_pos + observer_position) * 0.5
-	var up_axis: Vector3 = _mirror_quad.global_basis.y.normalized()
 
 	target_camera.projection = Camera3D.PROJECTION_FRUSTUM
 	target_camera.keep_aspect = Camera3D.KEEP_WIDTH
@@ -517,17 +568,26 @@ func _configure_mirror_camera(
 	var proj_distance: float = absf(camera_to_mirror_offset.dot(mirror_normal))
 	if proj_distance <= MIN_PLANE_DISTANCE:
 		return false
+
+	var world_size: Vector2 = get_world_size()
+	var uv_center: Vector2 = uv_rect.position + uv_rect.size * 0.5
+	var is_front_facing: bool = _is_observer_front_facing(signed_distance)
+	var local_x: float = (0.5 - uv_center.x) * world_size.x if is_front_facing else (uv_center.x - 0.5) * world_size.x
+	var local_y: float = (0.5 - uv_center.y) * world_size.y
+	var rect_center_world: Vector3 = quad_pos + quad_right * local_x + up_axis * local_y
+	var camera_to_rect_offset: Vector3 = rect_center_world - target_camera.global_position
+
 	var near: float = maxf(proj_distance + cull_near, 0.05)
-	var far: float = camera_to_mirror_offset.length() + cull_far
+	var far: float = maxf(camera_to_mirror_offset.length(), camera_to_rect_offset.length()) + cull_far
 	if far <= near:
 		far = near + 0.1
 
-	var local_camera_offset: Vector3 = target_camera.global_basis.inverse() * camera_to_mirror_offset
+	var local_camera_offset: Vector3 = target_camera.global_basis.inverse() * camera_to_rect_offset
 	var frustum_scale: float = near / proj_distance
 	var frustum_offset: Vector2 = Vector2(local_camera_offset.x, local_camera_offset.y) * frustum_scale
-	var world_size: Vector2 = get_world_size()
 	# Keep-width frustum: size is the near-plane width. Height follows the viewport aspect.
-	target_camera.set_frustum(world_size.x * frustum_scale, frustum_offset, near, far)
+	var frustum_width: float = maxf(uv_rect.size.x * world_size.x, 1e-4) * frustum_scale
+	target_camera.set_frustum(frustum_width, frustum_offset, near, far)
 	return true
 
 
@@ -688,26 +748,555 @@ func _apply_pigment() -> void:
 	_push_reflected_slot_parameters()
 
 
-func _update_resolution_scale(distance_from_camera: float) -> void:
-	var resolution_scale: float = 1.0
-	for i: int in mini(res_decrease_distances.size(), res_decrease_factors.size()):
-		if distance_from_camera >= res_decrease_distances[i]:
-			resolution_scale = 1.0 / res_decrease_factors[i]
+func _invalidate_resolution_state() -> void:
+	_current_resolution_scale = -1.0
+	_current_step_index = -1
+	_config_dirty = true
+	_time_update_dirty = true
 
-	if not is_equal_approx(resolution_scale, _current_resolution_scale):
-		_current_resolution_scale = resolution_scale
-		_apply_viewport_size()
+
+func _push_direct_uv_rect(rect: Rect2) -> void:
+	if _shader_material == null:
+		return
+	if Engine.is_editor_hint():
+		return
+	var target_rect: Rect2 = rect if dynamic_resolution else FULL_UV_RECT
+	if (
+		is_equal_approx(_applied_direct_uv_rect.position.x, target_rect.position.x)
+		and is_equal_approx(_applied_direct_uv_rect.position.y, target_rect.position.y)
+		and is_equal_approx(_applied_direct_uv_rect.size.x, target_rect.size.x)
+		and is_equal_approx(_applied_direct_uv_rect.size.y, target_rect.size.y)
+	):
+		return
+	_applied_direct_uv_rect = target_rect
+	_shader_material.set_shader_parameter(
+		&"direct_uv_rect",
+		Vector4(target_rect.position.x, target_rect.position.y, target_rect.size.x, target_rect.size.y)
+	)
+
+
+## Returns true when the observer sees the mirror QuadMesh's front-facing winding.
+## A negative-determinant transform flips triangle winding in Godot, inverting FRONT_FACING in the shader.
+func _is_observer_front_facing(signed_distance: float) -> bool:
+	var det_sign: float = 1.0
+	if _mirror_quad != null and _mirror_quad.global_basis.determinant() < 0.0:
+		det_sign = -1.0
+	return (signed_distance * det_sign) > 0.0
+
+
+## Shortest world-space distance from point to the bounded rectangular mirror glass surface.
+func _distance_to_mirror_surface(point: Vector3) -> float:
+	if _mirror_quad == null:
+		return global_position.distance_to(point)
+	var quad_pos: Vector3 = _mirror_quad.global_position
+	var quad_right: Vector3 = _mirror_quad.global_basis.x.normalized()
+	var quad_up: Vector3 = _mirror_quad.global_basis.y.normalized()
+	var quad_normal: Vector3 = _mirror_quad.global_basis.z.normalized()
+	var world_size: Vector2 = get_world_size()
+	var half_x: float = maxf(world_size.x * 0.5, 0.0)
+	var half_y: float = maxf(world_size.y * 0.5, 0.0)
+	var offset: Vector3 = point - quad_pos
+	var clamped_x: float = clampf(offset.dot(quad_right), -half_x, half_x)
+	var clamped_y: float = clampf(offset.dot(quad_up), -half_y, half_y)
+	var plane_dist: float = offset.dot(quad_normal)
+	var in_plane_dx: float = offset.dot(quad_right) - clamped_x
+	var in_plane_dy: float = offset.dot(quad_up) - clamped_y
+	return sqrt(in_plane_dx * in_plane_dx + in_plane_dy * in_plane_dy + plane_dist * plane_dist)
+
+
+## Effective 3D render target resolution of the active camera's viewport.
+## Falls back to the project's configured window size in headless mode or before a viewport is sized.
+func _get_camera_viewport_size(camera: Camera3D) -> Vector2i:
+	var fallback_w: int = maxi(2, int(ProjectSettings.get_setting("display/window/size/viewport_width", 1920)))
+	var fallback_h: int = maxi(2, int(ProjectSettings.get_setting("display/window/size/viewport_height", 1080)))
+	if DisplayServer.get_name() == "headless":
+		return Vector2i(fallback_w, fallback_h)
+	if is_instance_valid(camera):
+		var vp: Viewport = camera.get_viewport()
+		if vp != null:
+			var rect_size: Vector2 = vp.get_visible_rect().size
+			var scale_3d: float = vp.scaling_3d_scale if vp.scaling_3d_scale > 0.0 else 1.0
+			var w: int = roundi(rect_size.x * scale_3d)
+			var h: int = roundi(rect_size.y * scale_3d)
+			if w > 64 and h > 64:
+				return Vector2i(mini(w, MAX_VIEWPORT_DIMENSION), mini(h, MAX_VIEWPORT_DIMENSION))
+	return Vector2i(mini(fallback_w, MAX_VIEWPORT_DIMENSION), mini(fallback_h, MAX_VIEWPORT_DIMENSION))
+
+
+## Quantizes distance_from_surface into discrete resolution steps with hysteresis so walking near a
+## boundary never ping-pongs the SubViewport size on consecutive frames.
+func _update_resolution_scale(distance_from_surface: float) -> float:
+	if not dynamic_resolution:
+		if not is_equal_approx(_current_resolution_scale, 1.0):
+			_current_resolution_scale = 1.0
+			_current_step_index = 0
+			_time_update_dirty = true
+		return 1.0
+
+	var max_scale: float = clampf(maxf(max_resolution_scale, min_resolution_scale), 0.05, 4.0)
+	var min_scale: float = clampf(minf(min_resolution_scale, max_resolution_scale), 0.05, max_scale)
+	var near_dist: float = maxf(full_resolution_distance, 0.0)
+	var far_dist: float = maxf(min_resolution_distance, near_dist)
+	var steps: int = maxi(resolution_steps, 1)
+
+	var target_scale: float = max_scale
+	if steps <= 1 or is_equal_approx(far_dist, near_dist) or is_equal_approx(max_scale, min_scale):
+		target_scale = max_scale if distance_from_surface <= near_dist else min_scale
+		_current_step_index = 0 if is_equal_approx(target_scale, max_scale) else steps - 1
+	else:
+		var span: float = far_dist - near_dist
+		var raw_t: float = clampf((distance_from_surface - near_dist) / span, 0.0, 1.0)
+		var step_count_minus_one: int = steps - 1
+		var continuous_step: float = raw_t * float(step_count_minus_one)
+		var chosen_step: int
+		if _current_step_index < 0 or _current_step_index > step_count_minus_one:
+			chosen_step = clampi(roundi(continuous_step), 0, step_count_minus_one)
+		else:
+			chosen_step = _current_step_index
+			# Require crossing 0.65 of a step (0.15 hysteresis deadband around the 0.5 midpoint)
+			# before jumping to a neighbor step.
+			if continuous_step > float(_current_step_index) + 0.65:
+				chosen_step = clampi(roundi(continuous_step), _current_step_index + 1, step_count_minus_one)
+			elif continuous_step < float(_current_step_index) - 0.65:
+				chosen_step = clampi(roundi(continuous_step), 0, _current_step_index - 1)
+		_current_step_index = chosen_step
+		var quantized_t: float = float(chosen_step) / float(step_count_minus_one)
+		target_scale = lerpf(max_scale, min_scale, quantized_t)
+
+	if not is_equal_approx(target_scale, _current_resolution_scale):
+		_current_resolution_scale = target_scale
 		_time_update_dirty = true
+	return _current_resolution_scale
+
+
+## Updates distance scale, target/reflected SubViewport sizes, and direct frustum crop UV rect in order.
+func _update_direct_resolution_and_crop(active_camera: Camera3D, observer_position: Vector3) -> void:
+	var surface_distance: float = _distance_to_mirror_surface(active_camera.global_position)
+	_update_resolution_scale(surface_distance)
+
+	var cam_vp_size: Vector2i = _get_camera_viewport_size(active_camera)
+	var vp_changed: bool = cam_vp_size != _last_camera_viewport_size
+	_last_camera_viewport_size = cam_vp_size
+
+	if not dynamic_resolution:
+		_pending_direct_uv_rect = FULL_UV_RECT
+		var prev_fixed: Vector2i = _target_viewport_size
+		_apply_fixed_viewport_size()
+		if _target_viewport_size != prev_fixed:
+			_time_update_dirty = true
+		return
+
+	if Engine.is_editor_hint():
+		_pending_direct_uv_rect = FULL_UV_RECT
+		var editor_size: Vector2i = _compute_aspect_matched_size(cam_vp_size, _current_resolution_scale)
+		if editor_size != _target_viewport_size or vp_changed:
+			_target_viewport_size = editor_size
+			_reflected_viewport_size = _compute_reflected_dynamic_size(cam_vp_size)
+			_time_update_dirty = true
+		return
+
+	var clip_info: Dictionary = _compute_raw_visible_uv_and_footprint(
+		active_camera,
+		observer_position,
+		cam_vp_size
+	)
+	var raw_uv_rect: Rect2 = clip_info["uv_rect"]
+	var footprint_px: Vector2 = clip_info["footprint_px"]
+	var covers_full_screen: bool = clip_info["covers_full_screen"]
+
+	var new_direct_size: Vector2i = _compute_quantized_direct_size(
+		cam_vp_size,
+		footprint_px,
+		covers_full_screen,
+		vp_changed
+	)
+	if new_direct_size != _target_viewport_size:
+		_target_viewport_size = new_direct_size
+		_time_update_dirty = true
+
+	_reflected_viewport_size = _compute_reflected_dynamic_size(cam_vp_size)
+	_pending_direct_uv_rect = _expand_uv_rect_to_viewport_aspect(raw_uv_rect, _target_viewport_size)
+
+
+func _compute_quantized_direct_size(
+	cam_vp_size: Vector2i,
+	footprint_px: Vector2,
+	covers_full_screen: bool,
+	force_recompute: bool
+) -> Vector2i:
+	var scale_factor: float = _current_resolution_scale if _current_resolution_scale > 0.0 else 1.0
+	var max_w: float = float(cam_vp_size.x) * scale_factor
+	var max_h: float = float(cam_vp_size.y) * scale_factor
+
+	if covers_full_screen:
+		return Vector2i(
+			clampi(roundi(max_w), 2, MAX_VIEWPORT_DIMENSION),
+			clampi(roundi(max_h), 2, MAX_VIEWPORT_DIMENSION)
+		)
+
+	var desired_w: float = minf(footprint_px.x * scale_factor, max_w)
+	var desired_h: float = minf(footprint_px.y * scale_factor, max_h)
+
+	var snapped_w: int = _quantize_dimension_with_hysteresis(
+		desired_w,
+		_target_viewport_size.x,
+		roundi(max_w),
+		force_recompute or not _has_rendered_direct
+	)
+	var snapped_h: int = _quantize_dimension_with_hysteresis(
+		desired_h,
+		_target_viewport_size.y,
+		roundi(max_h),
+		force_recompute or not _has_rendered_direct
+	)
+	return Vector2i(snapped_w, snapped_h)
+
+
+func _quantize_dimension_with_hysteresis(
+	desired: float,
+	current: int,
+	cap: int,
+	bypass_hysteresis: bool
+) -> int:
+	var clamped_cap: int = clampi(cap, 2, MAX_VIEWPORT_DIMENSION)
+	if desired >= float(clamped_cap) - float(RESOLUTION_PIXEL_STEP) * 0.5:
+		return clamped_cap
+	var bucket: int = maxi(
+		RESOLUTION_PIXEL_STEP,
+		int(ceil(desired / float(RESOLUTION_PIXEL_STEP))) * RESOLUTION_PIXEL_STEP
+	)
+	bucket = clampi(bucket, 2, clamped_cap)
+	if bypass_hysteresis or current <= 2:
+		return bucket
+	if absf(desired - float(current)) < float(RESOLUTION_PIXEL_HYSTERESIS) and current <= clamped_cap:
+		return current
+	return bucket
+
+
+func _compute_aspect_matched_size(cam_vp_size: Vector2i, scale_factor: float) -> Vector2i:
+	var world_size: Vector2 = get_world_size()
+	var w_m: float = maxf(world_size.x, 0.01)
+	var h_m: float = maxf(world_size.y, 0.01)
+	var aspect: float = w_m / h_m
+	var pixel_budget: float = maxf(
+		4.0,
+		float(cam_vp_size.x) * float(cam_vp_size.y) * scale_factor * scale_factor
+	)
+	var out_h: int = clampi(roundi(sqrt(pixel_budget / aspect)), 2, MAX_VIEWPORT_DIMENSION)
+	var out_w: int = clampi(roundi(float(out_h) * aspect), 2, MAX_VIEWPORT_DIMENSION)
+	return Vector2i(out_w, out_h)
+
+
+func _compute_reflected_dynamic_size(cam_vp_size: Vector2i) -> Vector2i:
+	var base_scale: float = _current_resolution_scale if _current_resolution_scale > 0.0 else 1.0
+	var refl_scale: float = clampf(reflected_resolution_scale, 0.05, 1.0) * base_scale
+	return _compute_aspect_matched_size(cam_vp_size, refl_scale)
+
+
+## Clips the mirror quad against the active camera's frustum, returning:
+## - "uv_rect": visible region in shader uv space (with headbob & distortion margin)
+## - "footprint_px": projected width & height on the camera's viewport in pixels
+## - "covers_full_screen": true when the mirror fills >= 85% of the screen width or height
+func _compute_raw_visible_uv_and_footprint(
+	active_camera: Camera3D,
+	observer_position: Vector3,
+	cam_vp_size: Vector2i
+) -> Dictionary:
+	var vp_vec := Vector2(float(cam_vp_size.x), float(cam_vp_size.y))
+	if _mirror_quad == null or not is_instance_valid(active_camera):
+		return {
+			"uv_rect": FULL_UV_RECT,
+			"footprint_px": vp_vec,
+			"covers_full_screen": true,
+		}
+
+	var world_size: Vector2 = get_world_size()
+	if world_size.x <= 1e-4 or world_size.y <= 1e-4:
+		return {
+			"uv_rect": FULL_UV_RECT,
+			"footprint_px": Vector2(2.0, 2.0),
+			"covers_full_screen": false,
+		}
+
+	# Throttled mirrors (max_fps >= 0) keep the full quad framed so camera motion between updates
+	# never reveals unrendered edges.
+	var allow_crop: bool = max_fps < 0.0
+
+	var quad_pos: Vector3 = _mirror_quad.global_position
+	var quad_right: Vector3 = _mirror_quad.global_basis.x.normalized()
+	var quad_up: Vector3 = _mirror_quad.global_basis.y.normalized()
+	var mirror_normal: Vector3 = _mirror_quad.global_basis.z.normalized()
+	var half_x: float = world_size.x * 0.5
+	var half_y: float = world_size.y * 0.5
+
+	var poly := PackedVector3Array([
+		quad_pos - quad_right * half_x - quad_up * half_y,
+		quad_pos + quad_right * half_x - quad_up * half_y,
+		quad_pos + quad_right * half_x + quad_up * half_y,
+		quad_pos - quad_right * half_x + quad_up * half_y,
+	])
+
+	var frustum_planes: Array[Plane] = (
+		_build_analytic_frustum_planes(active_camera, vp_vec)
+		if DisplayServer.get_name() == "headless"
+		else active_camera.get_frustum()
+	)
+	for plane: Plane in frustum_planes:
+		poly = _clip_poly_against_frustum_plane(poly, plane)
+		if poly.is_empty():
+			break
+
+	# Completely outside the camera frustum (e.g. an off-screen always_active mirror):
+	# keep the full quad ready at a modest aspect-matched footprint.
+	if poly.is_empty():
+		var fallback_size: Vector2i = _compute_aspect_matched_size(cam_vp_size, 1.0)
+		return {
+			"uv_rect": FULL_UV_RECT,
+			"footprint_px": Vector2(float(fallback_size.x), float(fallback_size.y)),
+			"covers_full_screen": false,
+		}
+
+	var signed_distance: float = (observer_position - quad_pos).dot(mirror_normal)
+	var is_front_facing: bool = _is_observer_front_facing(signed_distance)
+
+	var uv_min := Vector2(INF, INF)
+	var uv_max := Vector2(-INF, -INF)
+	var px_min := Vector2(INF, INF)
+	var px_max := Vector2(-INF, -INF)
+	var cam_basis_z: Vector3 = active_camera.global_basis.z
+	var cam_origin: Vector3 = active_camera.global_position
+	var vp_rect_size: Vector2 = (
+		active_camera.get_viewport().get_visible_rect().size
+		if active_camera.get_viewport() != null
+		else vp_vec
+	)
+	var px_scale := Vector2(
+		vp_vec.x / maxf(vp_rect_size.x, 1.0),
+		vp_vec.y / maxf(vp_rect_size.y, 1.0)
+	)
+	var use_analytic_projection: bool = (
+		DisplayServer.get_name() == "headless"
+		or vp_rect_size.x <= 64.0
+		or vp_rect_size.y <= 64.0
+	)
+
+	for pt: Vector3 in poly:
+		var rel: Vector3 = pt - quad_pos
+		var lx: float = rel.dot(quad_right)
+		var ly: float = rel.dot(quad_up)
+		var u: float = (0.5 - lx / world_size.x) if is_front_facing else (0.5 + lx / world_size.x)
+		var v: float = 0.5 - ly / world_size.y
+		uv_min.x = minf(uv_min.x, u)
+		uv_min.y = minf(uv_min.y, v)
+		uv_max.x = maxf(uv_max.x, u)
+		uv_max.y = maxf(uv_max.y, v)
+
+		# Project clipped point onto screen pixels to measure actual screen coverage.
+		var depth_along_look: float = -(pt - cam_origin).dot(cam_basis_z)
+		if depth_along_look > 0.01:
+			var screen_pt: Vector2
+			if use_analytic_projection:
+				screen_pt = _project_point_to_screen_analytic(active_camera, pt, vp_vec)
+			else:
+				screen_pt = active_camera.unproject_position(pt) * px_scale
+			px_min.x = minf(px_min.x, clampf(screen_pt.x, 0.0, vp_vec.x))
+			px_min.y = minf(px_min.y, clampf(screen_pt.y, 0.0, vp_vec.y))
+			px_max.x = maxf(px_max.x, clampf(screen_pt.x, 0.0, vp_vec.x))
+			px_max.y = maxf(px_max.y, clampf(screen_pt.y, 0.0, vp_vec.y))
+
+	var footprint_w: float = vp_vec.x
+	var footprint_h: float = vp_vec.y
+	if px_max.x >= px_min.x and px_max.y >= px_min.y:
+		# Include a small padding factor corresponding to the UV safety margin.
+		footprint_w = clampf((px_max.x - px_min.x) * 1.08, 2.0, vp_vec.x)
+		footprint_h = clampf((px_max.y - px_min.y) * 1.08, 2.0, vp_vec.y)
+
+	var covers_full_screen: bool = (
+		footprint_w >= vp_vec.x * 0.85
+		and footprint_h >= vp_vec.y * 0.85
+	)
+
+	if not allow_crop:
+		return {
+			"uv_rect": FULL_UV_RECT,
+			"footprint_px": Vector2(footprint_w, footprint_h),
+			"covers_full_screen": covers_full_screen,
+		}
+
+	# Add safety margin for headbob/camera-offset delta and optional glass distortion.
+	var headbob_world: float = active_camera.global_position.distance_to(observer_position)
+	var margin_u: float = BASE_UV_CROP_MARGIN + (headbob_world / world_size.x)
+	var margin_v: float = BASE_UV_CROP_MARGIN + (headbob_world / world_size.y)
+	if use_distortion and distortion > 0.0:
+		var dist_uv: float = distortion / maxf(minf(vp_vec.x, vp_vec.y), 64.0)
+		margin_u += dist_uv
+		margin_v += dist_uv
+
+	var min_u: float = clampf(uv_min.x - margin_u, 0.0, 1.0)
+	var max_u: float = clampf(uv_max.x + margin_u, 0.0, 1.0)
+	var min_v: float = clampf(uv_min.y - margin_v, 0.0, 1.0)
+	var max_v: float = clampf(uv_max.y + margin_v, 0.0, 1.0)
+
+	# Enforce MIN_UV_SPAN so grazing-angle slivers never create a near-zero frustum.
+	if max_u - min_u < MIN_UV_SPAN:
+		var center_u: float = clampf((min_u + max_u) * 0.5, MIN_UV_SPAN * 0.5, 1.0 - MIN_UV_SPAN * 0.5)
+		min_u = center_u - MIN_UV_SPAN * 0.5
+		max_u = center_u + MIN_UV_SPAN * 0.5
+	if max_v - min_v < MIN_UV_SPAN:
+		var center_v: float = clampf((min_v + max_v) * 0.5, MIN_UV_SPAN * 0.5, 1.0 - MIN_UV_SPAN * 0.5)
+		min_v = center_v - MIN_UV_SPAN * 0.5
+		max_v = center_v + MIN_UV_SPAN * 0.5
+
+	return {
+		"uv_rect": Rect2(min_u, min_v, max_u - min_u, max_v - min_v),
+		"footprint_px": Vector2(footprint_w, footprint_h),
+		"covers_full_screen": covers_full_screen,
+	}
+
+
+## Expands raw_rect outward along its narrower world-space axis so that
+## (rect.size.x * world_size.x) / (rect.size.y * world_size.y) strictly equals viewport_size.x / viewport_size.y.
+## Shifts into [0, 1] first where room exists, and extends past [0, 1] without clamping size when needed.
+func _expand_uv_rect_to_viewport_aspect(raw_rect: Rect2, viewport_size: Vector2i) -> Rect2:
+	var world_size: Vector2 = get_world_size()
+	var w_m: float = maxf(world_size.x, 1e-4)
+	var h_m: float = maxf(world_size.y, 1e-4)
+	var vp_aspect: float = float(maxi(viewport_size.x, 1)) / float(maxi(viewport_size.y, 1))
+
+	var pos_u: float = raw_rect.position.x
+	var pos_v: float = raw_rect.position.y
+	var size_u: float = maxf(raw_rect.size.x, MIN_UV_SPAN)
+	var size_v: float = maxf(raw_rect.size.y, MIN_UV_SPAN)
+
+	var span_w_m: float = size_u * w_m
+	var span_h_m: float = size_v * h_m
+	var current_world_aspect: float = span_w_m / span_h_m
+
+	if current_world_aspect < vp_aspect:
+		var target_size_u: float = (span_h_m * vp_aspect) / w_m
+		var center_u: float = pos_u + size_u * 0.5
+		pos_u = center_u - target_size_u * 0.5
+		size_u = target_size_u
+		if size_u <= 1.0:
+			pos_u = clampf(pos_u, 0.0, 1.0 - size_u)
+	elif current_world_aspect > vp_aspect:
+		var target_size_v: float = (span_w_m / vp_aspect) / h_m
+		var center_v: float = pos_v + size_v * 0.5
+		pos_v = center_v - target_size_v * 0.5
+		size_v = target_size_v
+		if size_v <= 1.0:
+			pos_v = clampf(pos_v, 0.0, 1.0 - size_v)
+
+	return Rect2(pos_u, pos_v, size_u, size_v)
+
+
+## Builds outward-facing frustum planes analytically using screen_size's true aspect ratio
+## (used in headless mode where Godot's dummy viewport reports a 1:1 aspect to Camera3D.get_frustum()).
+static func _build_analytic_frustum_planes(camera: Camera3D, screen_size: Vector2) -> Array[Plane]:
+	if camera.projection != Camera3D.PROJECTION_PERSPECTIVE:
+		return camera.get_frustum()
+	var aspect: float = screen_size.x / maxf(screen_size.y, 1.0)
+	var tan_half_fov: float = tan(deg_to_rad(camera.fov) * 0.5)
+	var tan_x: float
+	var tan_y: float
+	if camera.keep_aspect == Camera3D.KEEP_HEIGHT:
+		tan_y = tan_half_fov
+		tan_x = tan_y * aspect
+	else:
+		tan_x = tan_half_fov
+		tan_y = tan_x / aspect
+
+	var cam_xf: Transform3D = camera.global_transform
+	var origin: Vector3 = cam_xf.origin
+	var right: Vector3 = cam_xf.basis.x.normalized()
+	var up: Vector3 = cam_xf.basis.y.normalized()
+	var back: Vector3 = cam_xf.basis.z.normalized() # Camera looks along -back
+	var forward: Vector3 = -back
+
+	var near_pt: Vector3 = origin + forward * maxf(camera.near, 0.01)
+	var far_pt: Vector3 = origin + forward * maxf(camera.far, camera.near + 0.1)
+
+	# Outward-pointing normals (distance_to(p) <= 0 is inside).
+	var n_near: Vector3 = back
+	var n_far: Vector3 = forward
+	var n_left: Vector3 = (-right - forward * tan_x).normalized()
+	var n_right: Vector3 = (right - forward * tan_x).normalized()
+	var n_bottom: Vector3 = (-up - forward * tan_y).normalized()
+	var n_top: Vector3 = (up - forward * tan_y).normalized()
+
+	return [
+		Plane(n_near, near_pt),
+		Plane(n_far, far_pt),
+		Plane(n_left, origin),
+		Plane(n_top, origin),
+		Plane(n_right, origin),
+		Plane(n_bottom, origin),
+	]
+
+
+## Analytic perspective/frustum screen projection used in headless mode where the root Viewport rect is tiny.
+func _project_point_to_screen_analytic(camera: Camera3D, world_pt: Vector3, screen_size: Vector2) -> Vector2:
+	var local: Vector3 = camera.global_transform.affine_inverse() * world_pt
+	var z_dist: float = maxf(-local.z, 0.01)
+	var aspect: float = screen_size.x / maxf(screen_size.y, 1.0)
+	var half_h: float
+	var half_w: float
+	if camera.keep_aspect == Camera3D.KEEP_HEIGHT:
+		half_h = tan(deg_to_rad(camera.fov) * 0.5) * z_dist
+		half_w = half_h * aspect
+	else:
+		half_w = tan(deg_to_rad(camera.fov) * 0.5) * z_dist
+		half_h = half_w / aspect
+	var ndc_x: float = local.x / maxf(half_w, 1e-5)
+	var ndc_y: float = local.y / maxf(half_h, 1e-5)
+	return Vector2(
+		(ndc_x * 0.5 + 0.5) * screen_size.x,
+		(0.5 - ndc_y * 0.5) * screen_size.y
+	)
+
+
+## Clips a 3D polygon against one Camera3D frustum plane (outward normal: inside is plane.distance_to(p) <= 0).
+static func _clip_poly_against_frustum_plane(poly: PackedVector3Array, plane: Plane) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var count: int = poly.size()
+	if count == 0:
+		return out
+	for i: int in range(count):
+		var curr: Vector3 = poly[i]
+		var next: Vector3 = poly[(i + 1) % count]
+		var d_curr: float = plane.distance_to(curr)
+		var d_next: float = plane.distance_to(next)
+		var curr_in: bool = d_curr <= FRUSTUM_CLIP_EPSILON
+		var next_in: bool = d_next <= FRUSTUM_CLIP_EPSILON
+		if curr_in:
+			out.append(curr)
+		if curr_in != next_in:
+			var denom: float = d_curr - d_next
+			if not is_zero_approx(denom):
+				var t: float = clampf(d_curr / denom, 0.0, 1.0)
+				out.append(curr.lerp(next, t))
+	return out
+
+
+func _apply_fixed_viewport_size() -> void:
+	var world_size: Vector2 = get_world_size()
+	var ppu: int = maxi(1, pixels_per_unit)
+	_target_viewport_size = Vector2i(
+		clampi(int(world_size.x * ppu), 2, MAX_VIEWPORT_DIMENSION),
+		clampi(int(world_size.y * ppu), 2, MAX_VIEWPORT_DIMENSION)
+	)
+	_reflected_viewport_size = _target_viewport_size
 
 
 func _apply_viewport_size() -> void:
-	var scale_factor: float = _current_resolution_scale if _current_resolution_scale > 0.0 else 1.0
-	var world_size: Vector2 = get_world_size()
-	_target_viewport_size = Vector2i(
-		maxi(2, int(world_size.x * pixels_per_unit * scale_factor)),
-		maxi(2, int(world_size.y * pixels_per_unit * scale_factor))
-	)
-	_reflected_viewport_size = _target_viewport_size
+	if not dynamic_resolution:
+		_apply_fixed_viewport_size()
+		return
+	var active_cam: Camera3D = _get_active_camera()
+	var cam_vp_size: Vector2i = _get_camera_viewport_size(active_cam)
+	var scale_factor: float = _current_resolution_scale if _current_resolution_scale > 0.0 else clampf(max_resolution_scale, 0.05, 4.0)
+	_target_viewport_size = _compute_aspect_matched_size(cam_vp_size, scale_factor)
+	_reflected_viewport_size = _compute_reflected_dynamic_size(cam_vp_size)
 
 
 func _apply_mirror_config() -> void:
@@ -736,18 +1325,17 @@ func _apply_mirror_config() -> void:
 			Vector3(size.x, size.y, 0.1)
 		)
 	_sync_collider_size()
-	_apply_viewport_size()
+	if _current_resolution_scale <= 0.0:
+		_apply_viewport_size()
 
 	if _mirror_viewport != null and not _has_rendered_direct:
 		_mirror_viewport.size = _target_viewport_size
-	if not _has_rendered_reflected:
-		for viewport: SubViewport in _reflected_viewports:
-			if viewport != null:
-				viewport.size = _reflected_viewport_size
 
 	if _mirror_viewport != null:
 		var direct_tex: ViewportTexture = _mirror_viewport.get_texture()
 		_apply_shader_parameters(_shader_material, direct_tex)
+		if not dynamic_resolution:
+			_push_direct_uv_rect(FULL_UV_RECT)
 
 	if _reflected_viewport != null and _reflected_shader_material != null:
 		var reflected_tex: ViewportTexture = _reflected_viewport.get_texture()
