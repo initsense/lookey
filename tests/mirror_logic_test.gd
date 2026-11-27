@@ -528,6 +528,182 @@ func test_shadow_casters_survive_off_axis_mirror_culling() -> void:
 	root.queue_free()
 
 
+func test_mirror_sun_copies_its_parent_and_uses_one_cascade() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var sun := DirectionalLight3D.new()
+	sun.light_color = Color(1.0, 0.8, 0.6)
+	sun.light_energy = 1.4
+	sun.light_indirect_energy = 0.7
+	sun.light_volumetric_fog_energy = 0.3
+	sun.light_specular = 0.4
+	sun.light_angular_distance = 0.5
+	sun.light_negative = false
+	sun.light_cull_mask = 512
+	sun.shadow_caster_mask = 7
+	sun.shadow_enabled = true
+	sun.shadow_bias = 0.08
+	sun.shadow_normal_bias = 1.5
+	sun.shadow_transmittance_bias = 0.04
+	sun.shadow_blur = 1.2
+	sun.shadow_opacity = 0.9
+	sun.shadow_reverse_cull_face = true
+	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	sun.layers = 512
+	sun.rotation = Vector3(-0.6, 0.4, 0.0)
+	root.add_child(sun)
+
+	var mirror_sun: MirrorSun = preload("res://entities/mirror/mirror_sun.tscn").instantiate()
+	sun.add_child(mirror_sun)
+	await get_tree().process_frame
+
+	assert_int(mirror_sun.layers).is_equal(1 << (Mirror3D.MIRROR_SUN_LAYER - 1))
+	assert_int(mirror_sun.directional_shadow_mode).is_equal(DirectionalLight3D.SHADOW_ORTHOGONAL)
+	assert_float(mirror_sun.directional_shadow_max_distance).is_equal_approx(MirrorSun.SHADOW_MAX_DISTANCE, 0.01)
+	assert_float(mirror_sun.directional_shadow_fade_start).is_equal_approx(MirrorSun.SHADOW_FADE_START, 0.001)
+	assert_int(sun.directional_shadow_mode).is_not_equal(DirectionalLight3D.SHADOW_ORTHOGONAL)
+	assert_that(mirror_sun.light_color).is_equal(sun.light_color)
+	assert_float(mirror_sun.light_energy).is_equal_approx(sun.light_energy, 0.001)
+	assert_float(mirror_sun.light_indirect_energy).is_equal_approx(sun.light_indirect_energy, 0.001)
+	assert_float(mirror_sun.light_volumetric_fog_energy).is_equal_approx(sun.light_volumetric_fog_energy, 0.001)
+	assert_float(mirror_sun.light_specular).is_equal_approx(sun.light_specular, 0.001)
+	assert_float(mirror_sun.light_angular_distance).is_equal_approx(
+		maxf(sun.light_angular_distance, MirrorSun.MIN_ANGULAR_DISTANCE),
+		0.001
+	)
+	assert_bool(mirror_sun.light_negative).is_equal(sun.light_negative)
+	assert_int(mirror_sun.light_cull_mask).is_equal(sun.light_cull_mask)
+	assert_int(mirror_sun.shadow_caster_mask).is_equal(sun.shadow_caster_mask)
+	assert_bool(mirror_sun.shadow_enabled).is_true()
+	assert_float(mirror_sun.shadow_bias).is_equal_approx(sun.shadow_bias, 0.001)
+	assert_float(mirror_sun.shadow_normal_bias).is_equal_approx(sun.shadow_normal_bias, 0.001)
+	assert_float(mirror_sun.shadow_transmittance_bias).is_equal_approx(sun.shadow_transmittance_bias, 0.001)
+	assert_float(mirror_sun.shadow_blur).is_equal_approx(sun.shadow_blur, 0.001)
+	assert_float(mirror_sun.shadow_opacity).is_equal_approx(sun.shadow_opacity, 0.001)
+	assert_bool(mirror_sun.shadow_reverse_cull_face).is_true()
+	assert_int(mirror_sun.sky_mode).is_equal(DirectionalLight3D.SKY_MODE_LIGHT_ONLY)
+	assert_bool(mirror_sun.global_basis.is_equal_approx(sun.global_basis)).is_true()
+
+	sun.light_energy = 0.35
+	sun.light_angular_distance = 0.2
+	sun.shadow_enabled = false
+	sun.rotation = Vector3(-0.2, 1.1, 0.0)
+	await get_tree().process_frame
+	assert_float(mirror_sun.light_energy).is_equal_approx(0.35, 0.001)
+	assert_float(mirror_sun.light_angular_distance).is_equal_approx(MirrorSun.MIN_ANGULAR_DISTANCE, 0.001)
+	assert_bool(mirror_sun.shadow_enabled).is_false()
+	assert_int(mirror_sun.directional_shadow_mode).is_equal(DirectionalLight3D.SHADOW_ORTHOGONAL)
+	assert_bool(mirror_sun.global_basis.is_equal_approx(sun.global_basis)).is_true()
+
+	sun.visible = false
+	await get_tree().process_frame
+	assert_bool(mirror_sun.visible).is_true()
+	assert_bool(mirror_sun.is_visible_in_tree()).is_false()
+	sun.visible = true
+	await get_tree().process_frame
+	assert_bool(mirror_sun.is_visible_in_tree()).is_true()
+
+	var orphan := MirrorSun.new()
+	root.add_child(orphan)
+	var orphan_warnings := orphan._get_configuration_warnings()
+	assert_int(orphan_warnings.size()).is_equal(1)
+	assert_bool(orphan_warnings[0].contains("child of the level")).is_true()
+
+	sun.layers = 1
+	mirror_sun._last_warning_state = -1
+	mirror_sun._refresh_warnings()
+	var overlap_warnings := mirror_sun._get_configuration_warnings()
+	assert_int(overlap_warnings.size()).is_equal(1)
+	assert_bool(overlap_warnings[0].contains("lit twice")).is_true()
+	sun.layers = 512
+	var clear_warnings := mirror_sun._get_configuration_warnings()
+	assert_int(clear_warnings.size()).is_equal(0)
+
+	root.queue_free()
+
+
+func test_tutorial_sun_lights_the_room_and_mirror_sun_lights_mirrors() -> void:
+	var packed: PackedScene = load("res://world/scenes/tutorial/tutorial.tscn")
+	var root: Node = packed.instantiate()
+	add_child(root)
+	var sun: DirectionalLight3D = root.get_node("DirectionalLight3D")
+	var mirror_sun: MirrorSun = sun.get_node("MirrorSun")
+	await get_tree().process_frame
+
+	assert_int(sun.layers).is_equal(1 << (Mirror3D.DIRECT_MIRROR_LAYER - 1))
+	assert_int(mirror_sun.layers).is_equal(1 << (Mirror3D.MIRROR_SUN_LAYER - 1))
+	assert_int(mirror_sun.directional_shadow_mode).is_equal(DirectionalLight3D.SHADOW_ORTHOGONAL)
+	assert_bool(mirror_sun.shadow_enabled).is_equal(sun.shadow_enabled)
+	assert_bool(mirror_sun.global_basis.is_equal_approx(sun.global_basis)).is_true()
+	var player_cam: Camera3D = root.get_node("Player/CamHolder/Camera3D")
+	assert_bool(_has_layer(player_cam.cull_mask, Mirror3D.DIRECT_MIRROR_LAYER)).is_true()
+	assert_bool(_has_layer(player_cam.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_false()
+
+	root.queue_free()
+
+
+func test_mirror_cameras_see_the_mirror_sun_without_changing_far() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	var player_cam: Camera3D = root.get_node("Player/CamHolder/Camera3D")
+	mirror.size = Vector2(5.0, 4.0)
+	mirror.global_position = Vector3(0.0, 2.0, 0.0)
+	mirror.rotation = Vector3(0.0, PI, 0.0)
+	var observer := Vector3(0.0, 2.0, -2.0)
+	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, observer, mirror.cull_mask, true)).is_true()
+	# 2 m in front of the glass, centered: far stays distance + cull_far, not the mirror sun's shadow range.
+	assert_float(mirror._mirror_camera.far).is_equal_approx(2.0 + mirror.cull_far, 0.02)
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_true()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.DIRECT_MIRROR_LAYER)).is_false()
+	assert_bool(_has_layer(player_cam.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_false()
+
+	mirror._apply_mirror_config()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_true()
+	assert_float(mirror._mirror_camera.far).is_equal_approx(2.0 + mirror.cull_far, 0.02)
+
+	mirror.configure_reflected_view(observer, mirror.cull_mask)
+	var reflected: Camera3D = mirror._reflected_cameras[0]
+	assert_bool(_has_layer(reflected.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_true()
+	assert_float(reflected.far).is_equal_approx(2.0 + mirror.cull_far, 0.02)
+
+	root.queue_free()
+
+
+func test_single_cascade_covers_off_axis_mirror_views() -> void:
+	var root := await _build_link_scene()
+	var mirror: Mirror3D = root.get_node("Mirror")
+	mirror.size = Vector2(5.0, 4.0)
+	mirror.global_position = Vector3(0.0, 2.0, 0.0)
+	mirror.rotation = Vector3(0.0, PI, 0.0)
+	var viewport_size := Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width", 2560)),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height", 1440))
+	)
+	mirror._mirror_viewport.size = viewport_size
+	# Views like the reported screenshots: straight on from 12 m, and 6 m to the side.
+	var observers: Array[Vector3] = [
+		Vector3(0.0, 2.0, -12.0),
+		Vector3(6.0, 2.0, -12.0),
+		Vector3(6.0, 2.5, -8.0),
+	]
+	for observer: Vector3 in observers:
+		assert_bool(
+			mirror._configure_mirror_camera(mirror._mirror_camera, observer, mirror.cull_mask, true)
+		).is_true()
+		_assert_shadow_corners_inside_cascade(mirror, mirror._mirror_camera, viewport_size, observer)
+		mirror.configure_reflected_view(observer, mirror.cull_mask)
+		var reflected_viewport: SubViewport = mirror._reflected_viewports[0]
+		reflected_viewport.size = viewport_size
+		_assert_shadow_corners_inside_cascade(
+			mirror,
+			mirror._reflected_cameras[0],
+			viewport_size,
+			observer
+		)
+
+	root.queue_free()
+
+
 func test_mirror_matches_camera_resolution_up_close_and_caps_distant_small_footprint() -> void:
 	var root := await _build_link_scene()
 	var mirror: Mirror3D = root.get_node("Mirror")
@@ -1852,3 +2028,94 @@ func _wait_for_link_eval(interaction: Node) -> void:
 
 
 const STAGGER_WAIT_FRAMES: int = 8
+
+
+## Godot builds one directional shadow cascade from a centered frustum (Projection.get_fov), ignoring
+## the mirror camera's frustum offset. These helpers rebuild that cascade the way
+## RendererSceneCull::_light_instance_setup_directional_shadow does for MirrorSun's single cascade,
+## including the extra map width from MirrorSun's minimum sun angle.
+func _assert_shadow_corners_inside_cascade(
+	mirror: Mirror3D,
+	camera: Camera3D,
+	viewport_size: Vector2i,
+	observer: Vector3
+) -> void:
+	var sphere: Dictionary = _orthogonal_cascade_sphere(camera, viewport_size)
+	var center: Vector3 = sphere["center"]
+	var radius: float = sphere["radius"]
+	var proj_distance: float = absf((observer - mirror.get_mirror_origin()).dot(mirror.get_mirror_normal()))
+	var behind_glass: float = minf(camera.far - 0.05, proj_distance + 20.0)
+	var depths: Array[float] = [camera.near, behind_glass]
+	for depth: float in depths:
+		for corner: Vector3 in _off_axis_frustum_corners(camera, viewport_size, depth):
+			assert_float(corner.distance_to(center)).is_less_equal(radius + 0.05)
+
+
+func _orthogonal_cascade_sphere(camera: Camera3D, viewport_size: Vector2i) -> Dictionary:
+	var aspect: float = float(viewport_size.x) / maxf(float(viewport_size.y), 1.0)
+	var keep_width: bool = camera.keep_aspect == Camera3D.KEEP_WIDTH
+	var proj := Projection.create_frustum_aspect(
+		camera.size,
+		aspect,
+		camera.frustum_offset,
+		camera.near,
+		camera.far,
+		keep_width
+	)
+	# The shadow split uses the full camera range because MirrorSun's max distance is farther than far.
+	var cascade := Projection.create_perspective(proj.get_fov(), proj.get_aspect(), proj.get_z_near(), proj.get_z_far(), true)
+	var z_near: float = cascade.get_z_near()
+	var z_far: float = cascade.get_z_far()
+	var near_half: Vector2 = cascade.get_viewport_half_extents()
+	var far_half: Vector2 = near_half * (z_far / z_near)
+	var forward: Vector3 = -camera.global_basis.z
+	var right_axis: Vector3 = camera.global_basis.x
+	var up_axis: Vector3 = camera.global_basis.y
+	var mid_depth: float = (z_near + z_far) * 0.5
+	var center: Vector3 = camera.global_position + forward * mid_depth
+	var far_corner: Vector3 = (
+		camera.global_position
+		+ forward * z_far
+		+ right_axis * far_half.x
+		+ up_axis * far_half.y
+	)
+	var radius: float = center.distance_to(far_corner)
+	var texture_size: float = float(ProjectSettings.get_setting(
+		"rendering/lights_and_shadows/directional_shadow/size",
+		8192
+	))
+	radius *= texture_size / (texture_size - 2.0)
+	# Godot widens the shadow map by the sun's angular size so the off-axis mirror still lands inside it.
+	var z_range: float = radius * 2.0 + MirrorSun.SHADOW_PANCAKE_SIZE
+	var expand: float = tan(deg_to_rad(MirrorSun.MIN_ANGULAR_DISTANCE)) * z_range
+	return {"center": center, "radius": radius + expand}
+
+
+func _off_axis_frustum_corners(camera: Camera3D, viewport_size: Vector2i, depth: float) -> PackedVector3Array:
+	var aspect: float = float(viewport_size.x) / maxf(float(viewport_size.y), 1.0)
+	var half_w: float
+	var half_h: float
+	if camera.keep_aspect == Camera3D.KEEP_WIDTH:
+		half_w = camera.size * 0.5
+		half_h = camera.size / aspect * 0.5
+	else:
+		half_h = camera.size * 0.5
+		half_w = camera.size * aspect * 0.5
+	var left: float = -half_w + camera.frustum_offset.x
+	var right: float = half_w + camera.frustum_offset.x
+	var bottom: float = -half_h + camera.frustum_offset.y
+	var top: float = half_h + camera.frustum_offset.y
+	var scale: float = depth / camera.near
+	var forward: Vector3 = -camera.global_basis.z
+	var corners := PackedVector3Array()
+	var xs := PackedFloat32Array([left, right])
+	var ys := PackedFloat32Array([bottom, top])
+	for x: float in xs:
+		for y: float in ys:
+			corners.append(
+				camera.global_position
+				+ forward * depth
+				+ camera.global_basis.x * (x * scale)
+				+ camera.global_basis.y * (y * scale)
+			)
+	return corners

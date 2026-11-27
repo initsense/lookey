@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://entities/mirror/scripts/mirror_sun.gd" id="1_sun"]
+
+[node name="MirrorSun" type="DirectionalLight3D"]
+editor_description = "Sunlight used only inside mirrors. Copy of the parent sun, with one shadow cascade so shadows stay intact when a mirror is seen from far away or from the side."
+layers = 1048576
+shadow_enabled = true
+directional_shadow_mode = 0
+directional_shadow_max_distance = 16000.0
+directional_shadow_fade_start = 1.0
+directional_shadow_pancake_size = 20.0
+light_angular_distance = 2.0
+script = ExtResource("1_sun")

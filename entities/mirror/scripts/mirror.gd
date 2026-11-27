@@ -14,6 +14,8 @@ enum MirrorType { REVEAL, DISSOLVE }
 const DIRECT_MIRROR_LAYER: int = 10
 ## Render layer for the mirror surface seen only by other mirrors.
 const REFLECTED_MIRROR_LAYER: int = 11
+## Render layer of the MirrorSun. Real-world cameras never include it, so that sun lights mirrors only.
+const MIRROR_SUN_LAYER: int = 21
 ## Frame width on a mirror seen inside another mirror. The player's nested reflection
 ## sits on the shared edge, so this stays thinner than that strip.
 const REFLECTED_BORDER_THICKNESS: float = 0.012
@@ -544,6 +546,8 @@ func _configure_mirror_camera(
 	target_camera.cull_mask = mask
 	target_camera.set_cull_mask_value(REFLECTED_MIRROR_LAYER, allow_nested_layer)
 	target_camera.set_cull_mask_value(DIRECT_MIRROR_LAYER, false)
+	# set_cull_mask_value only accepts layers 1-20, so the mirror sun bit is set on the mask itself.
+	target_camera.cull_mask |= 1 << (MIRROR_SUN_LAYER - 1)
 
 	var quad_pos: Vector3 = _mirror_quad.global_position
 	var quad_right: Vector3 = _mirror_quad.global_basis.x.normalized()
@@ -1308,11 +1312,13 @@ func _apply_mirror_config() -> void:
 		_mirror_camera.cull_mask = cull_mask
 		_mirror_camera.set_cull_mask_value(REFLECTED_MIRROR_LAYER, true)
 		_mirror_camera.set_cull_mask_value(DIRECT_MIRROR_LAYER, false)
+		_mirror_camera.cull_mask |= 1 << (MIRROR_SUN_LAYER - 1)
 
 	for camera: Camera3D in _reflected_cameras:
 		if camera != null:
 			camera.keep_aspect = Camera3D.KEEP_WIDTH
 			camera.projection = Camera3D.PROJECTION_FRUSTUM
+			camera.cull_mask |= 1 << (MIRROR_SUN_LAYER - 1)
 
 	if _mirror_quad != null and _mirror_quad.mesh is QuadMesh:
 		(_mirror_quad.mesh as QuadMesh).size = size
