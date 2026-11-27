@@ -583,6 +583,12 @@ func test_mirror_sun_copies_its_parent_and_uses_one_cascade() -> void:
 	assert_bool(mirror_sun.shadow_reverse_cull_face).is_true()
 	assert_int(mirror_sun.sky_mode).is_equal(DirectionalLight3D.SKY_MODE_LIGHT_ONLY)
 	assert_bool(mirror_sun.global_basis.is_equal_approx(sun.global_basis)).is_true()
+	var near_sun: DirectionalLight3D = mirror_sun.get_node("MirrorSunNear")
+	assert_int(near_sun.layers).is_equal(1 << (Mirror3D.MIRROR_SUN_NEAR_LAYER - 1))
+	assert_int(near_sun.directional_shadow_mode).is_equal(DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
+	assert_float(near_sun.directional_shadow_split_1).is_equal_approx(MirrorSun.NEAR_SPLIT_1, 0.001)
+	assert_float(near_sun.light_angular_distance).is_equal_approx(sun.light_angular_distance, 0.001)
+	assert_bool(near_sun.directional_shadow_blend_splits).is_false()
 
 	sun.light_energy = 0.35
 	sun.light_angular_distance = 0.2
@@ -591,6 +597,7 @@ func test_mirror_sun_copies_its_parent_and_uses_one_cascade() -> void:
 	await get_tree().process_frame
 	assert_float(mirror_sun.light_energy).is_equal_approx(0.35, 0.001)
 	assert_float(mirror_sun.light_angular_distance).is_equal_approx(MirrorSun.MIN_ANGULAR_DISTANCE, 0.001)
+	assert_float(near_sun.light_angular_distance).is_equal_approx(0.2, 0.001)
 	assert_bool(mirror_sun.shadow_enabled).is_false()
 	assert_int(mirror_sun.directional_shadow_mode).is_equal(DirectionalLight3D.SHADOW_ORTHOGONAL)
 	assert_bool(mirror_sun.global_basis.is_equal_approx(sun.global_basis)).is_true()
@@ -638,6 +645,10 @@ func test_tutorial_sun_lights_the_room_and_mirror_sun_lights_mirrors() -> void:
 	var player_cam: Camera3D = root.get_node("Player/CamHolder/Camera3D")
 	assert_bool(_has_layer(player_cam.cull_mask, Mirror3D.DIRECT_MIRROR_LAYER)).is_true()
 	assert_bool(_has_layer(player_cam.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_false()
+	assert_bool(_has_layer(player_cam.cull_mask, Mirror3D.MIRROR_SUN_NEAR_LAYER)).is_false()
+	var near_sun: DirectionalLight3D = mirror_sun.get_node("MirrorSunNear")
+	assert_int(near_sun.layers).is_equal(1 << (Mirror3D.MIRROR_SUN_NEAR_LAYER - 1))
+	assert_int(near_sun.directional_shadow_mode).is_equal(DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
 
 	root.queue_free()
 
@@ -651,9 +662,10 @@ func test_mirror_cameras_see_the_mirror_sun_without_changing_far() -> void:
 	mirror.rotation = Vector3(0.0, PI, 0.0)
 	var observer := Vector3(0.0, 2.0, -2.0)
 	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, observer, mirror.cull_mask, true)).is_true()
-	# 2 m in front of the glass, centered: far stays distance + cull_far, not the mirror sun's shadow range.
+	# 2 m in front of a 5 m mirror is already a wide view, so the close-up sun keeps the shadow sharp.
 	assert_float(mirror._mirror_camera.far).is_equal_approx(2.0 + mirror.cull_far, 0.02)
-	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_true()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_NEAR_LAYER)).is_true()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_false()
 	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.DIRECT_MIRROR_LAYER)).is_false()
 	assert_bool(_has_layer(player_cam.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_false()
 
@@ -663,8 +675,21 @@ func test_mirror_cameras_see_the_mirror_sun_without_changing_far() -> void:
 
 	mirror.configure_reflected_view(observer, mirror.cull_mask)
 	var reflected: Camera3D = mirror._reflected_cameras[0]
-	assert_bool(_has_layer(reflected.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_true()
+	assert_bool(_has_layer(reflected.cull_mask, Mirror3D.MIRROR_SUN_NEAR_LAYER)).is_true()
+	assert_bool(_has_layer(reflected.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_false()
 	assert_float(reflected.far).is_equal_approx(2.0 + mirror.cull_far, 0.02)
+
+	var close := Vector3(0.0, 2.0, -0.35)
+	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, close, mirror.cull_mask, true)).is_true()
+	assert_float(mirror._mirror_camera.far).is_equal_approx(0.35 + mirror.cull_far, 0.02)
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_NEAR_LAYER)).is_true()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_false()
+
+	var distant := Vector3(0.0, 2.0, -12.0)
+	assert_bool(mirror._configure_mirror_camera(mirror._mirror_camera, distant, mirror.cull_mask, true)).is_true()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_LAYER)).is_true()
+	assert_bool(_has_layer(mirror._mirror_camera.cull_mask, Mirror3D.MIRROR_SUN_NEAR_LAYER)).is_false()
+	assert_float(mirror._mirror_camera.far).is_equal_approx(12.0 + mirror.cull_far, 0.02)
 
 	root.queue_free()
 

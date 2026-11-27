@@ -12,3 +12,16 @@ directional_shadow_fade_start = 1.0
 directional_shadow_pancake_size = 20.0
 light_angular_distance = 2.0
 script = ExtResource("1_sun")
+
+[node name="MirrorSunNear" type="DirectionalLight3D" parent="."]
+editor_description = "The same sunlight, used only when you stand very close to a mirror. Its shadow is split into four slices so the floor behind the glass stays sharp."
+layers = 2097152
+shadow_enabled = true
+directional_shadow_mode = 2
+directional_shadow_split_1 = 0.03
+directional_shadow_split_2 = 0.12
+directional_shadow_split_3 = 0.35
+directional_shadow_blend_splits = false
+directional_shadow_max_distance = 16000.0
+directional_shadow_fade_start = 1.0
+directional_shadow_pancake_size = 20.0

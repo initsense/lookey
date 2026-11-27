@@ -16,6 +16,9 @@ const DIRECT_MIRROR_LAYER: int = 10
 const REFLECTED_MIRROR_LAYER: int = 11
 ## Render layer of the MirrorSun. Real-world cameras never include it, so that sun lights mirrors only.
 const MIRROR_SUN_LAYER: int = 21
+## Render layer of the close-up mirror sun. It splits the shadow so the floor stays sharp
+## when you stand against the glass. Real-world cameras never include this one either.
+const MIRROR_SUN_NEAR_LAYER: int = 22
 ## Frame width on a mirror seen inside another mirror. The player's nested reflection
 ## sits on the shared edge, so this stays thinner than that strip.
 const REFLECTED_BORDER_THICKNESS: float = 0.012
@@ -592,7 +595,54 @@ func _configure_mirror_camera(
 	# Keep-width frustum: size is the near-plane width. Height follows the viewport aspect.
 	var frustum_width: float = maxf(uv_rect.size.x * world_size.x, 1e-4) * frustum_scale
 	target_camera.set_frustum(frustum_width, frustum_offset, near, far)
+	_select_mirror_sun(target_camera, frustum_width, frustum_offset, near, far)
 	return true
+
+
+## Picks the mirror sun for this camera. The single wide cascade stays sharp from across the room.
+## Up close that same map is stretched over a huge fan, so the camera switches to the split sun.
+func _select_mirror_sun(
+	camera: Camera3D,
+	frustum_width: float,
+	frustum_offset: Vector2,
+	near: float,
+	far: float
+) -> void:
+	var far_bit: int = 1 << (MIRROR_SUN_LAYER - 1)
+	var near_bit: int = 1 << (MIRROR_SUN_NEAR_LAYER - 1)
+	var texel: float = _orthogonal_shadow_texel(camera, frustum_width, frustum_offset, near, far)
+	if texel > MirrorSun.NEAR_SHADOW_TEXEL_LIMIT:
+		camera.cull_mask = (camera.cull_mask & ~far_bit) | near_bit
+		return
+	camera.cull_mask = (camera.cull_mask & ~near_bit) | far_bit
+
+
+func _orthogonal_shadow_texel(
+	camera: Camera3D,
+	frustum_width: float,
+	frustum_offset: Vector2,
+	near: float,
+	far: float
+) -> float:
+	var aspect := 16.0 / 9.0
+	var viewport := camera.get_viewport()
+	if viewport != null and viewport.size.y > 0:
+		aspect = float(viewport.size.x) / float(viewport.size.y)
+	var proj := Projection.create_frustum_aspect(frustum_width, aspect, frustum_offset, near, far, true)
+	var full := Projection.create_perspective(proj.get_fov(), proj.get_aspect(), proj.get_z_near(), proj.get_z_far(), true)
+	var radius := _shadow_cascade_radius(full)
+	var expand := tan(deg_to_rad(MirrorSun.MIN_ANGULAR_DISTANCE)) * (radius * 2.0 + MirrorSun.SHADOW_PANCAKE_SIZE)
+	return (radius + expand) * 2.0 / 8192.0
+
+
+## Radius of the centered shadow sphere Godot builds for one cascade of this projection.
+func _shadow_cascade_radius(cascade: Projection) -> float:
+	var z_near: float = cascade.get_z_near()
+	var z_far: float = cascade.get_z_far()
+	var far_half: Vector2 = cascade.get_viewport_half_extents() * (z_far / maxf(z_near, 0.001))
+	var mid: float = (z_near + z_far) * 0.5
+	var radius := Vector3(far_half.x, far_half.y, z_far - mid).length()
+	return radius * (8192.0 / 8190.0)
 
 
 func _resolve_player_and_camera() -> void:
