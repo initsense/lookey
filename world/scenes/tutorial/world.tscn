@@ -1,0 +1,326 @@
+[gd_scene format=3 uid="uid://c3nahasql152r"]
+
+[ext_resource type="Environment" uid="uid://sv7cho776efp" path="res://world/scenes/tutorial/environments/daylight/daylight_environment.tres" id="1_htpnr"]
+[ext_resource type="PackedScene" path="res://entities/mirror/mirror_sun.tscn" id="2_1xtl4"]
+[ext_resource type="PackedScene" uid="uid://8du2atgbgggs" path="res://entities/player/player.tscn" id="3_8gk7p"]
+[ext_resource type="PackedScene" uid="uid://bdiokwvaitqet" path="res://prefabs/tile.glb" id="3_y01xf"]
+[ext_resource type="PackedScene" uid="uid://delu2qjrw6teu" path="res://entities/mirror/mirror.tscn" id="4_5guk6"]
+[ext_resource type="PackedScene" uid="uid://dw53e4sutv5uo" path="res://prefabs/wall.glb" id="4_jnijq"]
+[ext_resource type="Script" uid="uid://briolgcbif223" path="res://entities/grabbable/grabbable.gd" id="5_awug1"]
+[ext_resource type="PackedScene" uid="uid://dcvpnrhqd58kd" path="res://prefabs/wall_door.glb" id="5_sljf7"]
+[ext_resource type="PackedScene" uid="uid://dajrsxurthl81" path="res://prefabs/cube_a.glb" id="6_hvm0w"]
+[ext_resource type="PackedScene" uid="uid://bjfxtcaidylhx" path="res://prefabs/cube_aa.glb" id="7_htpnr"]
+[ext_resource type="PackedScene" uid="uid://bhbhjsifwqljv" path="res://prefabs/cube_aaa.glb" id="8_1xtl4"]
+[ext_resource type="PackedScene" uid="uid://bmdxvrsnmuh7w" path="res://prefabs/sphere.glb" id="9_8gk7p"]
+[ext_resource type="Script" uid="uid://oa0eex2hb1c4" path="res://scripts/pigment_entity.gd" id="10_vf1uf"]
+[ext_resource type="PackedScene" uid="uid://d1ukxefkpynq" path="res://prefabs/tile_hole.glb" id="14_awug1"]
+
+[node name="Tutorial" type="Node3D" unique_id=770254212]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1034804180]
+environment = ExtResource("1_htpnr")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1973673440]
+editor_description = "Sunlight for the room. It shines on layer 10 only, so mirror cameras skip it. The MirrorSun child copies this light for reflections."
+transform = Transform3D(0.71605945, -0.34349558, 0.6076756, 0, 0.8705464, 0.49208632, -0.6980393, -0.35236305, 0.62336296, 0, 5.7856355, 0)
+layers = 512
+shadow_enabled = true
+
+[node name="MirrorSun" parent="DirectionalLight3D" unique_id=1644091055 instance=ExtResource("2_1xtl4")]
+
+[node name="Player" parent="." unique_id=317014982 instance=ExtResource("3_8gk7p")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3.8369238)
+collision_mask = 509
+tilt_value = 0.01
+turn_lean_max = 0.017453292519943295
+turn_lean_return = 4.0
+walk_deccel = 10.0
+jump_velocity = 5.0
+wall_climb_height = 0.5
+
+[node name="Level" type="Node3D" parent="." unique_id=348995337]
+
+[node name="tile" parent="Level" unique_id=148717396 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -2)
+
+[node name="tile2" parent="Level" unique_id=1054875443 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -2)
+
+[node name="tile3" parent="Level" unique_id=1736717327 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
+
+[node name="tile4" parent="Level" unique_id=1641369215 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 2)
+
+[node name="tile5" parent="Level" unique_id=133344316 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -10)
+
+[node name="tile6" parent="Level" unique_id=2052943910 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -10)
+
+[node name="tile7" parent="Level" unique_id=2071899323 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -6)
+
+[node name="tile8" parent="Level" unique_id=191171398 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -6)
+
+[node name="tile9" parent="Level" unique_id=537867515 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -2)
+
+[node name="tile10" parent="Level" unique_id=144503635 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -2)
+
+[node name="tile11" parent="Level" unique_id=1702941025 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 2)
+
+[node name="tile12" parent="Level" unique_id=277886533 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 2)
+
+[node name="tile13" parent="Level" unique_id=1769775336 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -10)
+
+[node name="tile14" parent="Level" unique_id=198254666 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -10)
+
+[node name="tile15" parent="Level" unique_id=820735255 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -6)
+
+[node name="tile16" parent="Level" unique_id=393475242 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -6)
+
+[node name="tile17" parent="Level" unique_id=1258758318 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 14)
+
+[node name="tile18" parent="Level" unique_id=328131452 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 14)
+
+[node name="tile19" parent="Level" unique_id=1140687680 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 18)
+
+[node name="tile20" parent="Level" unique_id=1499569226 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 18)
+
+[node name="tile21" parent="Level" unique_id=227755271 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 6)
+
+[node name="tile22" parent="Level" unique_id=1038317761 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 6)
+
+[node name="tile23" parent="Level" unique_id=653698072 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 10)
+
+[node name="tile24" parent="Level" unique_id=1078756175 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 10)
+
+[node name="tile25" parent="Level" unique_id=808946697 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 14)
+
+[node name="tile26" parent="Level" unique_id=411197318 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 14)
+
+[node name="tile27" parent="Level" unique_id=1948865005 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 18)
+
+[node name="tile28" parent="Level" unique_id=1434626349 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 18)
+
+[node name="tile29" parent="Level" unique_id=1649856919 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 6)
+
+[node name="tile30" parent="Level" unique_id=2076434522 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 6)
+
+[node name="tile31" parent="Level" unique_id=340809015 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 10)
+
+[node name="tile32" parent="Level" unique_id=2010577089 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 10)
+
+[node name="tile33" parent="Level" unique_id=2095862422 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 14)
+
+[node name="tile34" parent="Level" unique_id=1072225301 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 14)
+
+[node name="tile35" parent="Level" unique_id=1845804180 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 18)
+
+[node name="tile36" parent="Level" unique_id=1528885023 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 18)
+
+[node name="tile37" parent="Level" unique_id=427686899 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 6)
+
+[node name="tile38" parent="Level" unique_id=665104200 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 6)
+
+[node name="tile39" parent="Level" unique_id=226811819 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 10)
+
+[node name="tile40" parent="Level" unique_id=2021249815 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 10)
+
+[node name="tile41" parent="Level" unique_id=208396467 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 14)
+
+[node name="tile43" parent="Level" unique_id=1677120946 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 18)
+
+[node name="tile44" parent="Level" unique_id=482570532 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 18)
+
+[node name="tile45" parent="Level" unique_id=768726667 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 6)
+
+[node name="tile46" parent="Level" unique_id=2016483301 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 6)
+
+[node name="tile47" parent="Level" unique_id=234366442 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 10)
+
+[node name="tile48" parent="Level" unique_id=1589411598 instance=ExtResource("3_y01xf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 10)
+
+[node name="wall" parent="Level" unique_id=1634108917 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -6)
+
+[node name="wall2" parent="Level" unique_id=303900203 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -10)
+
+[node name="wall3" parent="Level" unique_id=990760588 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -2)
+
+[node name="wall4" parent="Level" unique_id=1884391982 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 2)
+
+[node name="wall5" parent="Level" unique_id=1970237161 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -6)
+
+[node name="wall6" parent="Level" unique_id=1882343097 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -10)
+
+[node name="wall7" parent="Level" unique_id=1798197989 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -2)
+
+[node name="wall8" parent="Level" unique_id=1439623337 instance=ExtResource("4_jnijq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
+
+[node name="wall9" parent="Level" unique_id=901600204 instance=ExtResource("4_jnijq")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2, 0, 4)
+
+[node name="wall10" parent="Level" unique_id=1537847103 instance=ExtResource("4_jnijq")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 2, 0, 4)
+
+[node name="wall12" parent="Level" unique_id=1598000022 instance=ExtResource("4_jnijq")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -10, 0, 3.9999995)
+
+[node name="wall13" parent="Level" unique_id=1752474379 instance=ExtResource("4_jnijq")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -2, 0, -12)
+
+[node name="wall14" parent="Level" unique_id=1976704253 instance=ExtResource("4_jnijq")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 2, 0, -12)
+
+[node name="wall15" parent="Level" unique_id=1354746181 instance=ExtResource("4_jnijq")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -6, 0, -12)
+
+[node name="wall16" parent="Level" unique_id=393361143 instance=ExtResource("4_jnijq")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -10, 0, -12)
+
+[node name="wall_door" parent="Level" unique_id=1668859573 instance=ExtResource("5_sljf7")]
+transform = Transform3D(0, 0, 1.0000001, 0, 1, 0, -1.0000001, 0, 0, -6, 0, 4)
+
+[node name="cube_a" parent="Level" unique_id=1758200902 instance=ExtResource("6_hvm0w")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1, -1)
+
+[node name="cube_aa" parent="Level" unique_id=2001183563 instance=ExtResource("7_htpnr")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 1, -9)
+
+[node name="GrabbableEntity" type="Node3D" parent="Level/cube_aa" unique_id=957637023]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("5_awug1")
+metadata/_custom_type_script = "uid://briolgcbif223"
+
+[node name="cube_aa2" parent="Level" unique_id=1837648510 instance=ExtResource("7_htpnr")]
+transform = Transform3D(0.070710674, 0, -0.070710674, 0, 0.099999994, 0, 0.070710674, 0, 0.070710674, -7, 1, 9)
+
+[node name="GrabbableEntity" type="Node3D" parent="Level/cube_aa2" unique_id=644561593]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("5_awug1")
+metadata/_custom_type_script = "uid://briolgcbif223"
+
+[node name="PigmentEntity" type="Node3D" parent="Level/cube_aa2" unique_id=1521888464]
+script = ExtResource("10_vf1uf")
+pigment = 2
+metadata/_custom_type_script = "uid://oa0eex2hb1c4"
+
+[node name="cube_aa3" parent="Level" unique_id=1190469924 instance=ExtResource("7_htpnr")]
+transform = Transform3D(-1.8358783e-08, 0.42000002, 0, -0.42000002, -1.8358783e-08, 0, 0, 0, 0.42000002, -0.5600003, 1.0000002, 10.34)
+
+[node name="GrabbableEntity" type="Node3D" parent="Level/cube_aa3" unique_id=763206082]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("5_awug1")
+overrides_mirrors = true
+metadata/_custom_type_script = "uid://briolgcbif223"
+
+[node name="PigmentEntity" type="Node3D" parent="Level/cube_aa3" unique_id=1462246515]
+script = ExtResource("10_vf1uf")
+pigment = 4
+metadata/_custom_type_script = "uid://oa0eex2hb1c4"
+
+[node name="cube_aa5" parent="Level" unique_id=97392492 instance=ExtResource("7_htpnr")]
+transform = Transform3D(-2.6226834e-08, 0.6, 0, -0.6, -2.6226834e-08, 0, 0, 0, 0.6, 0.99999976, 1.0000002, 8)
+
+[node name="GrabbableEntity" type="Node3D" parent="Level/cube_aa5" unique_id=222952664]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("5_awug1")
+overrides_mirrors = true
+metadata/_custom_type_script = "uid://briolgcbif223"
+
+[node name="PigmentEntity" type="Node3D" parent="Level/cube_aa5" unique_id=849711731]
+script = ExtResource("10_vf1uf")
+hidden_entity = true
+pigment = 3
+metadata/_custom_type_script = "uid://oa0eex2hb1c4"
+
+[node name="cube_aa4" parent="Level" unique_id=91008341 instance=ExtResource("7_htpnr")]
+transform = Transform3D(-2.6226834e-08, 0.6, 0, -0.6, -2.6226834e-08, 0, 0, 0, 0.6, -9.200001, 1.0000006, 8)
+
+[node name="GrabbableEntity" type="Node3D" parent="Level/cube_aa4" unique_id=824576885]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("5_awug1")
+overrides_mirrors = true
+metadata/_custom_type_script = "uid://briolgcbif223"
+
+[node name="PigmentEntity" type="Node3D" parent="Level/cube_aa4" unique_id=1334680745]
+script = ExtResource("10_vf1uf")
+hidden_entity = true
+pigment = 4
+metadata/_custom_type_script = "uid://oa0eex2hb1c4"
+
+[node name="cube_aaa" parent="Level" unique_id=1683217276 instance=ExtResource("8_1xtl4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 1, 15)
+
+[node name="sphere" parent="Level" unique_id=727237345 instance=ExtResource("9_8gk7p")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 14)
+
+[node name="GrabbableEntity" type="Node3D" parent="Level/sphere" unique_id=79738974]
+editor_description = "Lets the player pick up the object this node belongs to, even across mirror states when Overrides Mirrors is on."
+script = ExtResource("5_awug1")
+metadata/_custom_type_script = "uid://briolgcbif223"
+
+[node name="tile_hole" parent="." unique_id=1635319696 instance=ExtResource("14_awug1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 14)
+
+[node name="Mirror" parent="." unique_id=1528812690 instance=ExtResource("4_5guk6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 4)
+pigment = 4
+mirror_type = 1
+cull_mask = 223
+
+[node name="Mirror3" parent="." unique_id=828808158 instance=ExtResource("4_5guk6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
+pigment = 4
+cull_mask = 295423
+
+[node name="Mirror2" parent="." unique_id=602538006 instance=ExtResource("4_5guk6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -12)

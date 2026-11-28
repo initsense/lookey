@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Lookey"
-run/main_scene="uid://6uk6s7xu0wr"
+run/main_scene="uid://c3nahasql152r"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]
@@ -24,13 +24,13 @@ MirrorManager="*res://scripts/mirror_manager.gd"
 
 [display]
 
-window/size/viewport_width=2560
-window/size/viewport_height=1440
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 window/size/resizable=false
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg", "res://addons/golem/plugin.cfg", "res://addons/unibuilder/plugin.cfg")
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg", "res://addons/golem/plugin.cfg")
 
 [gdunit4]
 
